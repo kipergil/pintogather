@@ -23,28 +23,38 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (user?.id) {
         params.append('userId', user.id);
         params.append('ownedOnly', 'true');
       }
-      return fetch(`/api/maps?${params}`).then(res => res.json());
+      const response = await fetch(`/api/maps?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch owned maps');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !authLoading,
+    enabled: !authLoading && !!user?.id,
   });
 
   const { data: contributedMaps = [], isLoading: isLoadingContributed } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "contributed"],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (user?.id) {
         params.append('userId', user.id);
         params.append('contributedOnly', 'true');
       }
-      return fetch(`/api/maps?${params}`).then(res => res.json());
+      const response = await fetch(`/api/maps?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch contributed maps');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
-    enabled: !authLoading,
+    enabled: !authLoading && !!user?.id,
   });
 
   const formatDate = (dateString: string) => {
@@ -154,7 +164,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {ownedMaps.map((map) => (
+              {(ownedMaps || []).map((map) => (
                 <Card key={map.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-3">

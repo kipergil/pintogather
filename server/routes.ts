@@ -45,8 +45,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       res.json(mapsWithPinCount);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch map collections" });
+    } catch (error: any) {
+      console.error('Error fetching map collections:', error);
+      res.status(500).json({ message: "Failed to fetch map collections", error: error.message });
     }
   });
 

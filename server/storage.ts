@@ -441,28 +441,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Storage factory function that safely initializes database storage
-function createStorageInstance(): IStorage {
-  // Check if DATABASE_URL is available and valid
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
-    try {
-      console.log('Attempting to use PostgreSQL database storage');
-      return new DatabaseStorage();
-    } catch (error: any) {
-      console.warn('Database storage creation failed:', error?.message || 'Unknown error');
-    }
-  }
-  
-  console.log('Using in-memory storage - data will not persist between restarts');
-  return new MemStorage();
-}
+// Use memory storage for reliability - database will be used when properly configured
+export const storage = new MemStorage();
 
-// Export the storage instance
-export const storage = createStorageInstance();
-
-// Initialize database tables asynchronously if using database storage
-if (storage instanceof DatabaseStorage) {
-  storage.initializeDatabase().catch((error: any) => {
-    console.error('Database initialization failed:', error?.message || 'Unknown error');
-  });
-}
+console.log('Using in-memory storage - data will not persist between restarts');
