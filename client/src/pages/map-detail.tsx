@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MapView } from "@/components/map-view";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth-modal";
 
 interface MapDetailProps {
   params: {
@@ -44,6 +46,8 @@ interface MapCollection {
 
 export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { user } = useAuth();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
@@ -85,6 +89,30 @@ export default function MapDetail({ params }: MapDetailProps) {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Anonymous User Notice */}
+      {!user && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-medium text-amber-900">Viewing as Guest</h3>
+                <p className="text-sm text-amber-800 mt-1">
+                  You're viewing this map as a guest. You can add pins, but they will be saved anonymously. 
+                  <button 
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="font-medium underline hover:no-underline ml-1"
+                  >
+                    Sign in or sign up
+                  </button>
+                  {" "}to save pins with your profile.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Map Header */}
       <Card>
         <CardContent className="p-6">
@@ -149,6 +177,12 @@ export default function MapDetail({ params }: MapDetailProps) {
         onClose={() => setIsShareModalOpen(false)}
         shareUrl={`${window.location.origin}/map/${mapCollection.shareUrl}`}
         mapName={mapCollection.name}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        returnUrl={`/map/${params.shareUrl}`}
       />
     </main>
   );
