@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +6,6 @@ import { Share2, ExternalLink, LogIn, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AuthModal } from "@/components/auth-modal";
 
 interface MapCollection {
   id: string;
@@ -20,7 +18,6 @@ interface MapCollection {
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
@@ -120,13 +117,12 @@ export default function Home() {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-2">Get Started</h3>
               <p className="text-neutral-600 mb-4">Sign in to create and manage your collaborative maps.</p>
-              <Button 
-                className="w-full"
-                onClick={() => setIsAuthModalOpen(true)}
-              >
-                <LogIn className="h-4 w-4 mr-2" />
-                Sign In to Create Maps
-              </Button>
+              <Link href="/auth" className="w-full">
+                <Button className="w-full">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In to Create Maps
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -284,11 +280,6 @@ export default function Home() {
           )}
         </div>
       )}
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
     </main>
   );
 }

@@ -6,10 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { AuthModal } from "@/components/auth-modal";
-import { ProfileModal } from "@/components/profile-modal";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
+import Profile from "@/pages/profile";
+import Auth from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 import { LogIn, User, LogOut } from "lucide-react";
 
@@ -17,6 +17,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/auth" component={Auth} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route component={NotFound} />
     </Switch>
@@ -26,8 +28,6 @@ function Router() {
 function HeaderContent() {
   const { user, signOut, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -65,7 +65,7 @@ function HeaderContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsProfileModalOpen(true)}
+                      onClick={() => setLocation('/profile')}
                     >
                       <User className="h-4 w-4 mr-1" />
                       Profile
@@ -81,7 +81,7 @@ function HeaderContent() {
                   </div>
                 ) : (
                   <Button
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => setLocation('/auth')}
                     data-auth-trigger
                     className="bg-primary hover:bg-primary/90"
                   >
@@ -94,16 +94,6 @@ function HeaderContent() {
           </div>
         </div>
       </header>
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
-      
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-      />
     </>
   );
 }
