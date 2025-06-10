@@ -214,20 +214,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database migration endpoint - sets up Supabase tables
-  app.post("/api/setup-db", async (req, res) => {
+  app.post("/api/run-migration", async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !serviceRoleKey) {
       return res.status(503).json({
         error: 'Migration failed',
-        message: 'Missing Supabase configuration'
+        message: 'Missing Supabase configuration or service role key'
       });
     }
 
     try {
       const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const supabase = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
 
       const migrationResults = {
         timestamp: new Date().toISOString(),
