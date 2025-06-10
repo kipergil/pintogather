@@ -277,8 +277,8 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm">
-                      <div className="font-medium text-neutral-900 line-clamp-1">
-                        {pin.address || '-'}
+                      <div className="font-medium text-neutral-900">
+                        {pin.address || [pin.city, pin.town, pin.state, pin.country].filter(Boolean).join(', ') || '-'}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm">
