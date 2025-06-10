@@ -130,156 +130,148 @@ export default function Home() {
         </div>
       )}
 
-      {user && (
+      {user && (ownedMaps.length > 0 || isLoadingOwned) && (
         <div className="mt-12">
-          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Created</h3>
-        
-          {isLoadingOwned ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                    <div className="flex justify-between">
-                      <div className="h-3 bg-gray-200 rounded w-20"></div>
-                      <div className="flex space-x-2">
-                        <div className="h-6 w-6 bg-gray-200 rounded"></div>
-                        <div className="h-6 w-6 bg-gray-200 rounded"></div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : ownedMaps.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Share2 className="h-8 w-8 text-neutral-400" />
-              </div>
-              <h3 className="text-lg font-medium text-neutral-900 mb-2">No maps yet</h3>
-              <p className="text-neutral-600">Create your first collaborative map to get started.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {(ownedMaps || []).map((map) => (
-                <Card key={map.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        Owner
-                      </Badge>
-                    </div>
-                    
-                    {map.description && (
-                      <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
-                      <span>{map.pinCount} pins</span>
-                      <span>{formatDate(map.createdAt)}</span>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
-                        }}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
-                      <Link href={`/map/${map.shareUrl}`} className="flex-1">
-                        <Button variant="default" size="sm" className="w-full">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          View Map
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <Card className="border border-gray-200">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Created</h3>
+            
+              {isLoadingOwned ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(3)].map((_, i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardContent className="p-6">
+                        <div className="h-4 bg-gray-200 rounded mb-3"></div>
+                        <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                          <div className="flex space-x-2">
+                            <div className="h-6 w-6 bg-gray-200 rounded"></div>
+                            <div className="h-6 w-6 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {(ownedMaps || []).map((map) => (
+                    <Card key={map.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-3">
+                          <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            Owner
+                          </Badge>
+                        </div>
+                        
+                        {map.description && (
+                          <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
+                        )}
+                        
+                        <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
+                          <span>{map.pinCount} pins</span>
+                          <span>{formatDate(map.createdAt)}</span>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
+                          </Button>
+                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
+                            <Button variant="default" size="sm" className="w-full">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              View Map
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Maps You Contributed To Section */}
-      {user && (
+      {user && (contributedMaps.length > 0 || isLoadingContributed) && (
         <div className="mt-12">
-          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Contributed To</h3>
-        
-          {isLoadingContributed ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-5 bg-neutral-200 rounded mb-3"></div>
-                    <div className="h-4 bg-neutral-200 rounded mb-2"></div>
-                    <div className="h-4 bg-neutral-200 rounded w-2/3"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : contributedMaps.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="h-8 w-8 text-neutral-400" />
-              </div>
-              <h4 className="font-medium text-neutral-900 mb-2">No Contributed Maps Yet</h4>
-              <p className="text-neutral-600">Add pins to shared maps to see them here.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {(contributedMaps || []).map((map) => (
-                <Card key={map.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
-                      <Badge variant="secondary" className="text-xs">
-                        Contributor
-                      </Badge>
-                    </div>
-                    
-                    {map.description && (
-                      <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
-                      <span>{map.pinCount} pins</span>
-                      <span>{formatDate(map.createdAt)}</span>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
-                        }}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
-                      <Link href={`/map/${map.shareUrl}`} className="flex-1">
-                        <Button variant="default" size="sm" className="w-full">
-                          <MapPin className="h-4 w-4 mr-2" />
-                          View Map
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <Card className="border border-gray-200">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Contributed To</h3>
+            
+              {isLoadingContributed ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[...Array(3)].map((_, i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardContent className="p-6">
+                        <div className="h-5 bg-neutral-200 rounded mb-3"></div>
+                        <div className="h-4 bg-neutral-200 rounded mb-2"></div>
+                        <div className="h-4 bg-neutral-200 rounded w-2/3"></div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {(contributedMaps || []).map((map) => (
+                    <Card key={map.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-3">
+                          <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            Contributor
+                          </Badge>
+                        </div>
+                        
+                        {map.description && (
+                          <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
+                        )}
+                        
+                        <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
+                          <span>{map.pinCount} pins</span>
+                          <span>{formatDate(map.createdAt)}</span>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
+                          </Button>
+                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
+                            <Button variant="default" size="sm" className="w-full">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              View Map
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
