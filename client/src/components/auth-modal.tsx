@@ -42,12 +42,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           description: result.error.message,
           variant: "destructive",
         });
-      } else {
+      } else if (result?.data?.user) {
+        // Only show success if we actually have a user
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
         });
         onClose();
+      } else {
+        // Handle case where no error but also no user (service unavailable)
+        toast({
+          title: "Authentication Unavailable",
+          description: "Authentication service is not configured. Please contact support.",
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       toast({

@@ -45,20 +45,8 @@ initializeSupabase();
 
 export const getSupabase = () => {
   if (!supabaseClient) {
-    // Return a mock object for environments where Supabase is not available
-    return {
-      auth: {
-        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-        signInWithPassword: () => Promise.resolve({ error: { message: 'Authentication service not available' } }),
-        signUp: () => Promise.resolve({ error: { message: 'Authentication service not available' } }),
-        signOut: () => Promise.resolve({ error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
-      },
-      from: () => ({
-        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { code: '42P01' } }) }) }),
-        upsert: () => Promise.resolve({ error: { code: '42P01' } })
-      })
-    };
+    console.warn('Supabase client not initialized yet');
+    return null;
   }
   return supabaseClient;
 };

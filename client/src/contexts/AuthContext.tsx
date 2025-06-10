@@ -52,19 +52,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let subscription: any = null;
 
     async function setupAuthListener() {
       try {
         const supabase = getSupabase();
         if (!supabase) {
-          console.error('Supabase not initialized yet');
+          console.warn('Supabase not initialized, retrying...');
           // Retry after a delay
           setTimeout(setupAuthListener, 1000);
           return;
         }
         
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        const { data } = supabase.auth.onAuthStateChange(
           async (event: string, session: Session | null) => {
+            console.log('Auth state changed:', event, session?.user?.email);
             if (mounted) {
               setSession(session);
               setUser(session?.user ?? null);
@@ -73,11 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         );
 
-        return () => {
-          subscription.unsubscribe();
-        };
+        subscription = data.subscription;
       } catch (error) {
         console.error('Failed to setup auth listener:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -85,13 +88,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabase();
     if (!supabase) {
-      throw new Error('Authentication service not available');
+      return { error: { message: 'Authentication service not available' } };
     }
     return await supabase.auth.signInWithPassword({ email, password });
   };
