@@ -39,14 +39,17 @@ function HeaderContent() {
       <header className="bg-white shadow-material">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
+            <button 
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+              onClick={() => setLocation('/')}
+            >
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                 </svg>
               </div>
               <h1 className="text-xl font-semibold text-neutral-900">CollabMap</h1>
-            </div>
+            </button>
             
             <div className="flex items-center space-x-4">
               {!loading && (
