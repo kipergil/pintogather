@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthErrorBoundary } from "@/components/auth-error-boundary";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
 import Profile from "@/pages/profile";
@@ -105,15 +106,17 @@ function HeaderContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <div className="min-h-screen bg-neutral-50">
-            <HeaderContent />
-            <Router />
-            <Toaster />
-          </div>
-        </TooltipProvider>
-      </AuthProvider>
+      <AuthErrorBoundary>
+        <AuthProvider>
+          <TooltipProvider>
+            <div className="min-h-screen bg-neutral-50">
+              <HeaderContent />
+              <Router />
+              <Toaster />
+            </div>
+          </TooltipProvider>
+        </AuthProvider>
+      </AuthErrorBoundary>
     </QueryClientProvider>
   );
 }

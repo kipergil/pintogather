@@ -9,23 +9,29 @@ async function initializeSupabase() {
   
   try {
     const response = await fetch('/api/config');
+    
     if (!response.ok) {
-      throw new Error(`Config API returned ${response.status}`);
-    }
-    
-    const config = await response.json();
-    
-    if (config.supabaseUrl && config.supabaseAnonKey) {
-      supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-        }
-      });
-      console.log('Supabase initialized successfully');
+      if (response.status === 503) {
+        const errorData = await response.json();
+        console.warn('Authentication service not configured:', errorData.message);
+      } else {
+        throw new Error(`Config API returned ${response.status}`);
+      }
     } else {
-      console.warn('Supabase configuration not available');
+      const config = await response.json();
+      
+      if (config.supabaseUrl && config.supabaseAnonKey) {
+        supabaseClient = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          }
+        });
+        console.log('Supabase initialized successfully');
+      } else {
+        console.warn('Supabase configuration not available');
+      }
     }
   } catch (error) {
     console.error('Failed to initialize Supabase:', error);
