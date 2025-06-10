@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { reverseGeocode, type LocationData } from "@/lib/map-utils";
 import { ArrowLeft, MapPin, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSupabase } from "@/lib/supabase";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AddPinProps {
@@ -48,6 +49,45 @@ export default function AddPin({ params }: AddPinProps) {
     linkedinHandle: "",
     note: "",
   });
+
+  // Fetch user profile to auto-populate form
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+          console.error('Error loading profile:', error);
+        }
+        return data;
+      } catch (error) {
+        // Silently handle profile errors - table might not exist yet
+        return null;
+      }
+    },
+    enabled: !!user,
+    retry: false, // Don't retry on profile errors
+  });
+
+  // Auto-populate form from profile data
+  useEffect(() => {
+    if (profile) {
+      setFormData(prev => ({
+        ...prev,
+        userName: profile.full_name || "",
+        twitterHandle: profile.twitter_handle || "",
+        instagramHandle: profile.instagram_handle || "",
+        linkedinHandle: profile.linkedin_handle || "",
+      }));
+    }
+  }, [profile]);
 
   // Get location from URL parameters or localStorage
   useEffect(() => {
@@ -96,7 +136,9 @@ export default function AddPin({ params }: AddPinProps) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maps', shareUrl] });
+      // Invalidate multiple cache keys to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/maps'] });
       toast({
         title: "Pin Added",
         description: "Your pin has been added to the map successfully.",

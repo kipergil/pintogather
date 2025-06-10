@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, MapPin, Save, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSupabase } from "@/lib/supabase";
 
 interface EditPinProps {
   params: {
@@ -53,6 +54,27 @@ export default function EditPin({ params }: EditPinProps) {
     },
   });
 
+  // Fetch user profile to auto-populate empty fields
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error loading profile:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!user,
+  });
+
   // Populate form when pin data loads
   useEffect(() => {
     if (pin) {
@@ -67,15 +89,16 @@ export default function EditPin({ params }: EditPinProps) {
         return;
       }
 
+      // Populate with pin data, fallback to profile data for empty fields
       setFormData({
-        userName: pin.userName || "",
-        twitterHandle: pin.twitterHandle || "",
-        instagramHandle: pin.instagramHandle || "",
-        linkedinHandle: pin.linkedinHandle || "",
+        userName: pin.userName || (profile?.full_name) || "",
+        twitterHandle: pin.twitterHandle || (profile?.twitter_handle) || "",
+        instagramHandle: pin.instagramHandle || (profile?.instagram_handle) || "",
+        linkedinHandle: pin.linkedinHandle || (profile?.linkedin_handle) || "",
         note: pin.note || "",
       });
     }
-  }, [pin, user, shareUrl, setLocation, toast]);
+  }, [pin, profile, user, shareUrl, setLocation, toast]);
 
   const updatePinMutation = useMutation({
     mutationFn: async (data: PinFormData) => {
