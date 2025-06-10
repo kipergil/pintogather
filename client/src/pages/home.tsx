@@ -55,7 +55,14 @@ export default function Home() {
               <LogIn className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Sign In Required</h3>
               <p className="text-gray-600 mb-4">Please sign in to create and manage your own collaborative maps.</p>
-              <Button className="w-full">
+              <Button 
+                className="w-full"
+                onClick={() => {
+                  // Trigger auth modal from parent component
+                  const authButton = document.querySelector('button[data-auth-trigger]') as HTMLButtonElement;
+                  if (authButton) authButton.click();
+                }}
+              >
                 <LogIn className="h-4 w-4 mr-2" />
                 Sign In to Create Maps
               </Button>

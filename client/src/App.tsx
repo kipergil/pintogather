@@ -73,6 +73,7 @@ function HeaderContent() {
                 ) : (
                   <Button
                     onClick={() => setIsAuthModalOpen(true)}
+                    data-auth-trigger
                     className="bg-primary hover:bg-primary/90"
                   >
                     <LogIn className="h-4 w-4 mr-2" />

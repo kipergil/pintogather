@@ -86,7 +86,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       } else {
         toast({
           title: "Account Created!",
-          description: "Please check your email to verify your account.",
+          description: "You can now sign in with your credentials.",
         });
         onClose();
       }
