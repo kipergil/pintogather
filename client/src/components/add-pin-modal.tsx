@@ -176,7 +176,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto z-[9999]">
         <DialogHeader>
           <DialogTitle>Add New Pin</DialogTitle>
         </DialogHeader>

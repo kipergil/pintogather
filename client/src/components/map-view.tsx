@@ -51,13 +51,15 @@ export function MapView({ mapCollection }: MapViewProps) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize map
-    const map = L.map(mapContainerRef.current).setView([40.7128, -74.0060], 12);
+    // Initialize map with London as default location and zoom level 5
+    const map = L.map(mapContainerRef.current).setView([51.5074, -0.1278], 5);
     mapRef.current = map;
 
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+    // Add CartoDB Positron tile layer (cleaner, less crowded)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
     }).addTo(map);
 
     // Add click handler for adding pins
@@ -135,7 +137,7 @@ export function MapView({ mapCollection }: MapViewProps) {
 
   const resetMapView = () => {
     if (!mapRef.current) return;
-    mapRef.current.setView([40.7128, -74.0060], 12);
+    mapRef.current.setView([51.5074, -0.1278], 5);
   };
 
   return (

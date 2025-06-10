@@ -102,6 +102,23 @@
   margin: 0;
 }
 
+/* Ensure dialog overlays appear above Leaflet map */
+[data-radix-popper-content-wrapper] {
+  z-index: 10000 !important;
+}
+
+[data-radix-dialog-overlay] {
+  z-index: 9998 !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 9999 !important;
+}
+
+.leaflet-container {
+  z-index: 1;
+}
+
 /* Neutral colors for Tailwind */
 .bg-neutral-50 {
   background-color: var(--neutral-50);
