@@ -52,9 +52,6 @@ function HeaderContent() {
               {!loading && (
                 user ? (
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm text-neutral-600">
-                      {user.email}
-                    </span>
                     <Button
                       variant="outline"
                       size="sm"
