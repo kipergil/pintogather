@@ -70,14 +70,14 @@ export function CreateMapForm() {
   return (
     <Card>
       <CardContent className="p-6">
-        <h3 className="text-xl font-semibold text-neutral-900 mb-6">Create New Map Collection</h3>
+        <h3 className="text-xl font-semibold text-neutral-900 mb-6">Create New Community Map</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mapName">Map Collection Name *</Label>
+            <Label htmlFor="mapName">Community Map Name *</Label>
             <Input
               id="mapName"
               type="text"
-              placeholder="Enter map collection name"
+              placeholder="Enter your community map name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
@@ -88,7 +88,7 @@ export function CreateMapForm() {
             <Label htmlFor="mapDescription">Description (Optional)</Label>
             <Textarea
               id="mapDescription"
-              placeholder="Describe your map collection"
+              placeholder="Describe what brings your community together"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
@@ -101,7 +101,7 @@ export function CreateMapForm() {
             disabled={createMapMutation.isPending}
           >
             <Plus className="h-4 w-4 mr-2" />
-            {createMapMutation.isPending ? "Creating..." : "Create Map Collection"}
+            {createMapMutation.isPending ? "Creating..." : "Create Community Map"}
           </Button>
         </form>
       </CardContent>

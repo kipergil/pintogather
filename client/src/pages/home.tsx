@@ -137,7 +137,7 @@ export default function Home() {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-2">Get Started</h3>
-              <p className="text-neutral-600 mb-4">Sign in to create and manage your collaborative maps.</p>
+              <p className="text-neutral-600 mb-4">Sign in to create maps where communities can pin together.</p>
               <Link href="/auth" className="w-full">
                 <Button className="w-full">
                   <LogIn className="h-4 w-4 mr-2" />
