@@ -49,6 +49,39 @@ export default function Home() {
         <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
           Build interactive maps where your community can add pins, share locations, and collaborate in real-time.
         </p>
+        
+        {/* How It Works Section */}
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-blue-600">1</span>
+              </div>
+              <h3 className="font-semibold mb-2">Create a Map</h3>
+              <p className="text-sm text-neutral-600">Start by creating a new collaborative map with a name and description.</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-green-600">2</span>
+              </div>
+              <h3 className="font-semibold mb-2">Share the URL</h3>
+              <p className="text-sm text-neutral-600">Get a unique shareable URL that allows anyone to view and contribute to your map.</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-purple-600">3</span>
+              </div>
+              <h3 className="font-semibold mb-2">Collaborate</h3>
+              <p className="text-sm text-neutral-600">Contributors click on the map to add pins and automatically become part of your collaborative project.</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Create Map Form - Only show for authenticated users */}
@@ -60,15 +93,13 @@ export default function Home() {
         <div className="max-w-md mx-auto mb-12 text-center">
           <Card>
             <CardContent className="p-6">
-              <LogIn className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Sign In Required</h3>
-              <p className="text-gray-600 mb-4">Please sign in to create and manage your own collaborative maps.</p>
+              <h3 className="text-lg font-semibold mb-2">Get Started</h3>
+              <p className="text-neutral-600 mb-4">Sign in to create and manage your collaborative maps.</p>
               <Button 
                 className="w-full"
                 onClick={() => {
-                  // Trigger auth modal from parent component
-                  const authButton = document.querySelector('button[data-auth-trigger]') as HTMLButtonElement;
-                  if (authButton) authButton.click();
+                  // This would open the auth modal in a real implementation
+                  window.location.href = '/api/auth/signin';
                 }}
               >
                 <LogIn className="h-4 w-4 mr-2" />
@@ -84,75 +115,72 @@ export default function Home() {
         <div className="mt-12">
           <h3 className="text-xl font-semibold text-neutral-900 mb-6">Your Map Collections</h3>
         
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                  <div className="flex justify-between">
-                    <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    <div className="flex space-x-2">
-                      <div className="h-6 w-6 bg-gray-200 rounded"></div>
-                      <div className="h-6 w-6 bg-gray-200 rounded"></div>
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-4 bg-gray-200 rounded mb-3"></div>
+                    <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                    <div className="flex justify-between">
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
+                      <div className="flex space-x-2">
+                        <div className="h-6 w-6 bg-gray-200 rounded"></div>
+                        <div className="h-6 w-6 bg-gray-200 rounded"></div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : maps.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-neutral-400" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
+              ))}
             </div>
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No map collections yet</h3>
-            <p className="text-neutral-600">Create your first map collection to get started.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {maps.map((map) => (
-              <Card key={map.id} className="hover:shadow-material-lg transition-shadow duration-200">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-neutral-900">{map.name}</h4>
-                    <span className="bg-secondary/10 text-secondary text-xs px-2 py-1 rounded-full">
-                      {map.pinCount} pins
-                    </span>
-                  </div>
-                  <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
-                    {map.description || "No description provided"}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-neutral-500">
-                      Created {formatDate(map.createdAt)}
-                    </span>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
-                        }}
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                      <Link href={`/map/${map.shareUrl}`}>
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </Link>
+          ) : maps.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Share2 className="h-8 w-8 text-neutral-400" />
+              </div>
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">No maps yet</h3>
+              <p className="text-neutral-600">Create your first collaborative map to get started.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {maps.map((map) => (
+                <Card key={map.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                    {map.description && (
+                      <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
+                    )}
+                    <div className="flex justify-between items-center text-sm text-neutral-500 mb-4">
+                      <span>{map.pinCount} pins</span>
+                      <span>{formatDate(map.createdAt)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                          }}
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                        <Link href={`/map/${map.shareUrl}`}>
+                          <Button variant="ghost" size="sm">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </main>

@@ -70,6 +70,16 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName }: ShareModalPro
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">How Collaboration Works</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Anyone with this URL can view the map</li>
+              <li>• Visitors can add pins by clicking on the map</li>
+              <li>• Contributors automatically appear in your map collections</li>
+              <li>• Map owners can delete any pin, contributors can only delete their own</li>
+            </ul>
+          </div>
+          
           <div className="space-y-2">
             <Label htmlFor="shareUrl">Share URL</Label>
             <div className="flex">

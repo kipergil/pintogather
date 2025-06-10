@@ -111,6 +111,12 @@ export default function MapDetail({ params }: MapDetailProps) {
                   {contributorsCount} contributors
                 </span>
               </div>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Collaborative Map:</strong> Anyone with this URL can view and add pins to this map. 
+                  Share the link to invite others to contribute!
+                </p>
+              </div>
             </div>
             
             <Button
