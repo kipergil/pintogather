@@ -12,8 +12,12 @@ import { Link, useLocation } from "wouter";
 export default function Auth() {
   const { toast } = useToast();
   const { signIn, signUp, user } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  
+  // Extract return URL from query parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const returnUrl = urlParams.get('returnUrl');
   
   const [signInData, setSignInData] = useState({
     email: "",
@@ -28,7 +32,11 @@ export default function Auth() {
 
   // Redirect if already authenticated
   if (user) {
-    setLocation('/');
+    if (returnUrl) {
+      setLocation(returnUrl);
+    } else {
+      setLocation('/');
+    }
     return null;
   }
 
@@ -49,8 +57,15 @@ export default function Auth() {
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
+          variant: "success",
         });
-        setLocation('/');
+        
+        // Redirect to return URL if provided, otherwise go to home
+        if (returnUrl) {
+          setLocation(returnUrl);
+        } else {
+          setLocation('/');
+        }
       }
     } catch (error: any) {
       toast({
@@ -90,10 +105,15 @@ export default function Auth() {
         toast({
           title: "Account Created!",
           description: "You can now sign in with your credentials.",
+          variant: "success",
         });
-        // Switch to sign in tab
-        const signInTab = document.querySelector('[value="signin"]') as HTMLElement;
-        signInTab?.click();
+        
+        // Redirect to return URL if provided, otherwise go to home
+        if (returnUrl) {
+          setLocation(returnUrl);
+        } else {
+          setLocation('/');
+        }
       }
     } catch (error: any) {
       toast({
@@ -124,6 +144,13 @@ export default function Auth() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome to CollabMap</CardTitle>
             <p className="text-gray-600">Sign in to create and manage collaborative maps</p>
+            {returnUrl && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Return to Map:</strong> After signing in, you'll be redirected back to the shared map you were viewing.
+                </p>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">

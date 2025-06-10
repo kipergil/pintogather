@@ -86,7 +86,12 @@ function HeaderContent() {
                   </div>
                 ) : (
                   <Button
-                    onClick={() => setLocation('/auth')}
+                    onClick={() => {
+                      // Pass current location as return URL if it's a map page
+                      const returnUrl = location.startsWith('/map/') ? location : undefined;
+                      const authUrl = returnUrl ? `/auth?returnUrl=${encodeURIComponent(returnUrl)}` : '/auth';
+                      setLocation(authUrl);
+                    }}
                     data-auth-trigger
                     className="bg-primary hover:bg-primary/90"
                   >
