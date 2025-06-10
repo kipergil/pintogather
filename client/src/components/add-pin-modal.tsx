@@ -203,7 +203,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
     }
 
     const pinData = {
-      mapId: mapCollection.id,
       userId: user?.id || null,
       userName: formData.userName.trim(),
       latitude: selectedLocation.lat.toString(),

@@ -1,10 +1,10 @@
-import { pgTable, text, serial, timestamp, decimal, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, decimal, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().unique(),
+  id: varchar("id", { length: 255 }).primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull().unique(),
   fullName: text("full_name").notNull(),
   twitterHandle: text("twitter_handle"),
   instagramHandle: text("instagram_handle"),
@@ -14,18 +14,18 @@ export const profiles = pgTable("profiles", {
 });
 
 export const mapCollections = pgTable("map_collections", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: varchar("id", { length: 255 }).primaryKey(),
   name: text("name").notNull().unique(),
   description: text("description"),
   shareUrl: text("share_url").notNull().unique(),
-  ownerId: uuid("owner_id"),
+  ownerId: varchar("owner_id", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const pins = pgTable("pins", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  mapId: uuid("map_id").notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
-  userId: uuid("user_id"),
+  id: varchar("id", { length: 255 }).primaryKey(),
+  mapId: varchar("map_id", { length: 255 }).notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 255 }),
   userName: text("user_name").notNull(),
   latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
   longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),

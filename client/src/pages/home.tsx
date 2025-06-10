@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
-import { Share2, ExternalLink } from "lucide-react";
+import { Share2, ExternalLink, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -15,6 +16,7 @@ interface MapCollection {
 }
 
 export default function Home() {
+  const { user, loading: authLoading } = useAuth();
   const { data: maps = [], isLoading } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps"],
   });
@@ -41,10 +43,26 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Create Map Form */}
-      <div className="max-w-md mx-auto mb-12">
-        <CreateMapForm />
-      </div>
+      {/* Create Map Form - Only show for authenticated users */}
+      {user ? (
+        <div className="max-w-md mx-auto mb-12">
+          <CreateMapForm />
+        </div>
+      ) : (
+        <div className="max-w-md mx-auto mb-12 text-center">
+          <Card>
+            <CardContent className="p-6">
+              <LogIn className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Sign In Required</h3>
+              <p className="text-gray-600 mb-4">Please sign in to create and manage your own collaborative maps.</p>
+              <Button className="w-full">
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign In to Create Maps
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Recent Maps */}
       <div className="mt-12">
