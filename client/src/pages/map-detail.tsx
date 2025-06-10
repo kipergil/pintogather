@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Download } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
+import { useToast } from "@/hooks/use-toast";
 
 interface MapDetailProps {
   params: {
@@ -48,6 +49,7 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
@@ -86,6 +88,66 @@ export default function MapDetail({ params }: MapDetailProps) {
   }
 
   const contributorsCount = new Set(mapCollection.pins.map(pin => pin.userName)).size;
+
+  const exportToCSV = () => {
+    if (!mapCollection.pins.length) {
+      toast({
+        title: "No data to export",
+        description: "This map has no pins to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const headers = [
+      'Name',
+      'Address',
+      'City',
+      'State',
+      'Country',
+      'Latitude',
+      'Longitude',
+      'Twitter',
+      'Instagram',
+      'LinkedIn',
+      'Note',
+      'Date Added'
+    ];
+
+    const csvData = mapCollection.pins.map(pin => [
+      pin.userName || '',
+      pin.address || '',
+      pin.city || '',
+      pin.state || '',
+      pin.country || '',
+      pin.latitude || '',
+      pin.longitude || '',
+      pin.twitterHandle || '',
+      pin.instagramHandle || '',
+      pin.linkedinHandle || '',
+      pin.note || '',
+      new Date(pin.createdAt).toLocaleDateString()
+    ]);
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${mapCollection.name}-pins.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "CSV exported",
+      description: `${mapCollection.pins.length} pins exported to ${mapCollection.name}-pins.csv`,
+    });
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -147,15 +209,29 @@ export default function MapDetail({ params }: MapDetailProps) {
               </div>
             </div>
             
-            <Button
-              onClick={() => setIsShareModalOpen(true)}
-              className="bg-secondary hover:bg-secondary/90"
-            >
-              <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
-              </svg>
-              Share
-            </Button>
+            <div className="flex space-x-2">
+              {/* Export CSV button - only visible to map owner */}
+              {user && mapCollection.ownerId === user.id && (
+                <Button
+                  onClick={exportToCSV}
+                  variant="outline"
+                  className="border-green-200 text-green-700 hover:bg-green-50"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              )}
+              
+              <Button
+                onClick={() => setIsShareModalOpen(true)}
+                className="bg-secondary hover:bg-secondary/90"
+              >
+                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+                </svg>
+                Share
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
