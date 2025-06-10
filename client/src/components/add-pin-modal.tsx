@@ -80,21 +80,37 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
     
     setProfileLoading(true);
     try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Load from localStorage first (primary storage)
+      const localProfile = localStorage.getItem(`profile_${user.id}`);
+      let profileData = null;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-        console.error('Error loading profile:', error);
-      } else if (data) {
+      if (localProfile) {
+        profileData = JSON.parse(localProfile);
+      } else {
+        // Try Supabase as fallback
+        const supabase = getSupabase();
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+            console.error('Error loading profile:', error);
+          } else if (data) {
+            profileData = data;
+          }
+        }
+      }
+
+      // Populate form fields with profile data
+      if (profileData) {
         setFormData({
-          userName: data.full_name || "",
-          twitterHandle: data.twitter_handle || "",
-          instagramHandle: data.instagram_handle || "",
-          linkedinHandle: data.linkedin_handle || "",
+          userName: profileData.full_name || "",
+          twitterHandle: profileData.twitter_handle || "",
+          instagramHandle: profileData.instagram_handle || "",
+          linkedinHandle: profileData.linkedin_handle || "",
           note: "",
         });
       }
