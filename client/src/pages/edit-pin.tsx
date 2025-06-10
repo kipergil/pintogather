@@ -128,6 +128,7 @@ export default function EditPin({ params }: EditPinProps) {
       toast({
         title: "Pin Updated",
         description: "Your pin has been updated successfully.",
+        variant: "success",
       });
       setLocation(`/map/${shareUrl}`);
     },

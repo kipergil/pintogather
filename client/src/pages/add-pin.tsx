@@ -142,6 +142,7 @@ export default function AddPin({ params }: AddPinProps) {
       toast({
         title: "Pin Added",
         description: "Your pin has been added to the map successfully.",
+        variant: "success",
       });
       setLocation(`/map/${shareUrl}`);
     },

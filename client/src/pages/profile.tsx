@@ -99,17 +99,56 @@ export default function Profile() {
       const supabase = getSupabase();
       if (supabase) {
         try {
-          const { error } = await supabase
+          // First try to update existing profile
+          const { data: existingProfile, error: fetchError } = await supabase
             .from('profiles')
-            .upsert(profileToSave);
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
 
-          if (error && error.code === '42P01') {
+          let supabaseError = null;
+
+          if (existingProfile) {
+            // Update existing profile
+            const { error } = await supabase
+              .from('profiles')
+              .update({
+                full_name: profileData.full_name,
+                twitter_handle: profileData.twitter_handle || null,
+                instagram_handle: profileData.instagram_handle || null,
+                linkedin_handle: profileData.linkedin_handle || null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', user.id);
+            
+            supabaseError = error;
+          } else {
+            // Create new profile
+            const { error } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: user.id,
+                full_name: profileData.full_name,
+                twitter_handle: profileData.twitter_handle || null,
+                instagram_handle: profileData.instagram_handle || null,
+                linkedin_handle: profileData.linkedin_handle || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            
+            supabaseError = error;
+          }
+
+          if (supabaseError && supabaseError.code === '42P01') {
             console.log('Profiles table not found, using local storage');
-          } else if (error) {
-            console.error('Supabase error:', error);
+          } else if (supabaseError && supabaseError.code === '23505') {
+            // Duplicate key error - profile already exists, ignore since we have local storage
+            console.log('Profile already exists in database, local version saved');
+          } else if (supabaseError) {
+            console.error('Supabase error:', supabaseError);
             toast({
               title: "Profile Saved Locally",
-              description: `Profile saved but cloud sync failed: ${error.message}. Your data is stored locally.`,
+              description: `Profile saved but cloud sync failed: ${supabaseError.message}. Your data is stored locally.`,
               variant: "default",
             });
           }
@@ -126,6 +165,7 @@ export default function Profile() {
       toast({
         title: "Profile Updated",
         description: "Your profile has been saved successfully.",
+        variant: "success",
       });
     } catch (error: any) {
       toast({
