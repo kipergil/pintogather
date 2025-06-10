@@ -196,13 +196,6 @@ export function MapView({ mapCollection }: MapViewProps) {
           </div>
         </div>
       </Card>
-
-      <AddPinModal
-        isOpen={isAddPinModalOpen}
-        onClose={() => setIsAddPinModalOpen(false)}
-        mapCollection={mapCollection}
-        selectedLocation={selectedLocation}
-      />
     </>
   );
 }
