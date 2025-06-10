@@ -18,11 +18,12 @@ interface MapCollection {
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { data: maps = [], isLoading } = useQuery<MapCollection[]>({
-    queryKey: ["/api/maps", user?.id],
+    queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: () => {
       const params = new URLSearchParams();
       if (user?.id) {
         params.append('userId', user.id);
+        params.append('ownedOnly', 'true');
       }
       return fetch(`/api/maps?${params}`).then(res => res.json());
     },
@@ -108,7 +109,7 @@ export default function Home() {
 
       {user && (
         <div className="mt-12">
-          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Your Map Collections</h3>
+          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Created</h3>
         
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

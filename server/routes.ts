@@ -23,7 +23,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      const maps = await storage.getMapCollectionsForUser(userId);
+      // Check if we want only owned maps or all maps (owned + contributed)
+      const ownedOnly = req.query.ownedOnly === 'true';
+      const maps = ownedOnly 
+        ? await storage.getMapCollectionsByUserId(userId)
+        : await storage.getMapCollectionsForUser(userId);
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);
