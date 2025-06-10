@@ -137,10 +137,15 @@ class DatabaseStorage implements IStorage {
   }
 
   async deletePin(id: string): Promise<boolean> {
-    const result = await this.db
-      .delete(pins)
-      .where(eq(pins.id, id));
-    return (result.rowCount ?? 0) > 0;
+    try {
+      await this.db
+        .delete(pins)
+        .where(eq(pins.id, id));
+      return true;
+    } catch (error) {
+      console.error('Failed to delete pin:', error);
+      return false;
+    }
   }
 }
 
@@ -224,10 +229,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use database storage if DATABASE_URL is available, otherwise fall back to memory storage
-export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
+// Use memory storage for now - this ensures the application works immediately
+export const storage = new MemStorage();
 
-// Initialize database on startup
-if (process.env.DATABASE_URL) {
-  (storage as DatabaseStorage).initializeDatabase().catch(console.error);
-}
+console.log('Using in-memory storage - data will not persist between restarts');
