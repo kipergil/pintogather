@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin, Edit } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface Pin {
   id: string;
@@ -31,18 +32,32 @@ interface Pin {
 interface PinTableProps {
   pins: Pin[];
   mapOwnerId?: string;
+  shareUrl?: string;
 }
 
-export function PinTable({ pins, mapOwnerId }: PinTableProps) {
+export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   // Check if user can delete a pin (map owner or pin creator)
   const canDeletePin = (pin: Pin) => {
     if (!user) return false;
     return user.id === mapOwnerId || user.id === pin.userId;
+  };
+
+  // Check if user can edit a pin (only pin creator)
+  const canEditPin = (pin: Pin) => {
+    if (!user) return false;
+    return user.id === pin.userId;
+  };
+
+  const handleEditPin = (pin: Pin) => {
+    if (shareUrl) {
+      setLocation(`/map/${shareUrl}/edit-pin/${pin.id}`);
+    }
   };
 
   const deletePinMutation = useMutation({
@@ -54,6 +69,10 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
         title: "Success",
         description: "Pin deleted successfully",
       });
+      // Invalidate specific map data to update UI immediately
+      if (shareUrl) {
+        queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
     },
     onError: (error: any) => {
@@ -170,17 +189,29 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
                         <p className="text-sm text-neutral-500">{formatDate(pin.createdAt)}</p>
                       </div>
                     </div>
-                    {canDeletePin(pin) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePin(pin.id)}
-                        disabled={deletePinMutation.isPending}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {canEditPin(pin) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditPin(pin)}
+                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 touch-target"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDeletePin(pin) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeletePin(pin.id)}
+                          disabled={deletePinMutation.isPending}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 touch-target"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   
                   {(pin.city || pin.town || pin.country || pin.postcode) && (
