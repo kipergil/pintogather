@@ -784,8 +784,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const address = data.address || {};
       
+      // Construct address without street names - use city/town, state, country
+      const addressParts = [];
+      
+      // Add city/town/borough
+      if (address.city) {
+        addressParts.push(address.city);
+      } else if (address.town || address.village) {
+        addressParts.push(address.town || address.village);
+      } else if (address.borough || address.suburb) {
+        addressParts.push(address.borough || address.suburb);
+      }
+      
+      // Add state/region
+      if (address.state || address.region) {
+        addressParts.push(address.state || address.region);
+      }
+      
+      // Add country
+      if (address.country) {
+        addressParts.push(address.country);
+      }
+      
+      const cleanAddress = addressParts.join(', ') || `${lat}, ${lng}`;
+      
       res.json({
-        address: data.display_name || '',
+        address: cleanAddress,
         city: address.city || '',
         town: address.town || address.village || '',
         state: address.state || address.region || '',
