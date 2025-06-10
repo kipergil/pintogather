@@ -169,32 +169,39 @@ export default function Home() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-3">
                       <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
+                      <Badge variant="outline" className="text-xs">
+                        Owner
+                      </Badge>
                     </div>
+                    
                     {map.description && (
                       <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
                     )}
-                    <div className="flex justify-between items-center text-sm text-neutral-500 mb-4">
+                    
+                    <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
                       <span>{map.pinCount} pins</span>
                       <span>{formatDate(map.createdAt)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
-                          }}
-                        >
-                          <Share2 className="h-4 w-4" />
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                        }}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                      <Link href={`/map/${map.shareUrl}`} className="flex-1">
+                        <Button variant="default" size="sm" className="w-full">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          View Map
                         </Button>
-                        <Link href={`/map/${map.shareUrl}`}>
-                          <Button variant="ghost" size="sm">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      </div>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -250,12 +257,26 @@ export default function Home() {
                       <span>{formatDate(map.createdAt)}</span>
                     </div>
                     
-                    <Link href={`/map/${map.shareUrl}`}>
-                      <Button className="w-full" variant="outline">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        View Map
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                        }}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
                       </Button>
-                    </Link>
+                      <Link href={`/map/${map.shareUrl}`} className="flex-1">
+                        <Button variant="default" size="sm" className="w-full">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          View Map
+                        </Button>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
