@@ -66,6 +66,8 @@ export const insertMapCollectionSchema = createInsertSchema(mapCollections).omit
 export const insertMapViewerSchema = createInsertSchema(mapViewers).omit({
   id: true,
   createdAt: true,
+}).extend({
+  role: z.string().optional(),
 });
 
 export const insertPinSchema = createInsertSchema(pins).omit({

@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
-import { Share2, ExternalLink, LogIn } from "lucide-react";
+import { Share2, ExternalLink, LogIn, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface MapCollection {
   id: string;
@@ -184,6 +185,66 @@ export default function Home() {
                         </Link>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Maps You Contributed To Section */}
+      {user && (
+        <div className="mt-12">
+          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Contributed To</h3>
+        
+          {isLoadingContributed ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-5 bg-neutral-200 rounded mb-3"></div>
+                    <div className="h-4 bg-neutral-200 rounded mb-2"></div>
+                    <div className="h-4 bg-neutral-200 rounded w-2/3"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : contributedMaps.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="h-8 w-8 text-neutral-400" />
+              </div>
+              <h4 className="font-medium text-neutral-900 mb-2">No Contributed Maps Yet</h4>
+              <p className="text-neutral-600">Add pins to shared maps to see them here.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {contributedMaps.map((map) => (
+                <Card key={map.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
+                      <Badge variant="secondary" className="text-xs">
+                        Contributor
+                      </Badge>
+                    </div>
+                    
+                    {map.description && (
+                      <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
+                    )}
+                    
+                    <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
+                      <span>{map.pinCount} pins</span>
+                      <span>{formatDate(map.createdAt)}</span>
+                    </div>
+                    
+                    <Link href={`/map/${map.shareUrl}`}>
+                      <Button className="w-full" variant="outline">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        View Map
+                      </Button>
+                    </Link>
                   </CardContent>
                 </Card>
               ))}

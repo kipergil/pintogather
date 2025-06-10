@@ -402,8 +402,10 @@ export class MemStorage implements IStorage {
   async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {
     const id = nanoid();
     const mapViewer: MapViewer = {
-      ...data,
       id,
+      userId: data.userId,
+      mapId: data.mapId,
+      role: data.role ?? 'viewer',
       createdAt: new Date(),
     };
     this.mapViewers.set(id, mapViewer);
