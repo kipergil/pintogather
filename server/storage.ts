@@ -308,11 +308,69 @@ export class MemStorage implements IStorage {
   private mapCollections: Map<string, MapCollection>;
   private pins: Map<string, Pin>;
   private mapViewers: Map<string, MapViewer>;
+  private dataFile: string;
 
   constructor() {
     this.mapCollections = new Map();
     this.pins = new Map();
     this.mapViewers = new Map();
+    this.dataFile = path.join(process.cwd(), 'storage-data.json');
+    this.loadData();
+  }
+
+  private loadData() {
+    try {
+      if (fs.existsSync(this.dataFile)) {
+        const data = JSON.parse(fs.readFileSync(this.dataFile, 'utf8'));
+        
+        // Load map collections
+        if (data.mapCollections) {
+          for (const collection of data.mapCollections) {
+            this.mapCollections.set(collection.id, {
+              ...collection,
+              createdAt: new Date(collection.createdAt)
+            });
+          }
+        }
+        
+        // Load pins
+        if (data.pins) {
+          for (const pin of data.pins) {
+            this.pins.set(pin.id, {
+              ...pin,
+              createdAt: new Date(pin.createdAt)
+            });
+          }
+        }
+        
+        // Load map viewers
+        if (data.mapViewers) {
+          for (const viewer of data.mapViewers) {
+            this.mapViewers.set(viewer.id, {
+              ...viewer,
+              createdAt: new Date(viewer.createdAt)
+            });
+          }
+        }
+        
+        console.log(`Loaded ${this.mapCollections.size} maps and ${this.pins.size} pins from persistent storage`);
+      }
+    } catch (error) {
+      console.error('Error loading data from storage file:', error);
+    }
+  }
+
+  private saveData() {
+    try {
+      const data = {
+        mapCollections: Array.from(this.mapCollections.values()),
+        pins: Array.from(this.pins.values()),
+        mapViewers: Array.from(this.mapViewers.values())
+      };
+      fs.writeFileSync(this.dataFile, JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error('Error saving data to storage file:', error);
+    }
   }
 
   async initializeDatabase(): Promise<void> {
