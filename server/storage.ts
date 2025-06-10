@@ -42,27 +42,56 @@ class DatabaseStorage implements IStorage {
 
   async initializeDatabase(): Promise<void> {
     try {
-      // Create tables if they don't exist using sql`` template
+      // Create profiles table
+      await this.db.execute(sql`
+        CREATE TABLE IF NOT EXISTS profiles (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          full_name TEXT NOT NULL,
+          twitter_handle TEXT,
+          instagram_handle TEXT,
+          linkedin_handle TEXT,
+          created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+          updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+        );
+      `);
+
+      // Create map_collections table
       await this.db.execute(sql`
         CREATE TABLE IF NOT EXISTS map_collections (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL UNIQUE,
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
           description TEXT,
           share_url TEXT NOT NULL UNIQUE,
+          owner_id TEXT,
           created_at TIMESTAMP DEFAULT NOW() NOT NULL
         );
       `);
 
+      // Create map_viewers table
+      await this.db.execute(sql`
+        CREATE TABLE IF NOT EXISTS map_viewers (
+          id TEXT PRIMARY KEY,
+          map_id TEXT NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+          UNIQUE(map_id, user_id)
+        );
+      `);
+
+      // Create pins table
       await this.db.execute(sql`
         CREATE TABLE IF NOT EXISTS pins (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          map_id UUID NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
+          id TEXT PRIMARY KEY,
+          map_id TEXT NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
+          user_id TEXT,
           user_name TEXT NOT NULL,
-          latitude DECIMAL(10, 8) NOT NULL,
-          longitude DECIMAL(11, 8) NOT NULL,
+          latitude TEXT NOT NULL,
+          longitude TEXT NOT NULL,
           address TEXT,
           city TEXT,
           state TEXT,
+          town TEXT,
           borough TEXT,
           postcode TEXT,
           country TEXT,
@@ -77,6 +106,7 @@ class DatabaseStorage implements IStorage {
       console.log('Database tables initialized successfully');
     } catch (error) {
       console.error('Database initialization error:', error);
+      throw error;
     }
   }
 
@@ -548,13 +578,17 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Initialize storage with robust fallback
+// Initialize storage - require database connection
 async function initializeStorage(): Promise<IStorage> {
-  // Always try memory storage first for reliability
-  console.log('Using in-memory storage - data will not persist between restarts');
-  const memStorage = new MemStorage();
-  await memStorage.initializeDatabase();
-  return memStorage;
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is required');
+  }
+  
+  console.log('Connecting to PostgreSQL database...');
+  const dbStorage = new DatabaseStorage();
+  await dbStorage.initializeDatabase();
+  console.log('Successfully connected to PostgreSQL database');
+  return dbStorage;
 }
 
 // Create storage instance
