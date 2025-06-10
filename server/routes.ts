@@ -13,10 +13,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Get all map collections
+  // Get all map collections (filtered by user)
   app.get("/api/maps", async (req, res) => {
     try {
-      const maps = await storage.getAllMapCollections();
+      const userId = req.query.userId as string;
+      
+      // If no userId provided, return empty array (user not authenticated)
+      if (!userId) {
+        return res.json([]);
+      }
+
+      const maps = await storage.getMapCollectionsByUserId(userId);
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);

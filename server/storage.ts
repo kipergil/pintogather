@@ -10,6 +10,7 @@ export interface IStorage {
   getMapCollectionByShareUrl(shareUrl: string): Promise<MapCollection | undefined>;
   getMapCollectionByName(name: string): Promise<MapCollection | undefined>;
   getAllMapCollections(): Promise<MapCollection[]>;
+  getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
   
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
@@ -69,12 +70,16 @@ class DatabaseStorage implements IStorage {
   }
 
   async createMapCollection(data: InsertMapCollection): Promise<MapCollection> {
+    const id = nanoid();
     const shareUrl = nanoid(12);
     const [result] = await this.db
       .insert(mapCollections)
       .values({
-        ...data,
+        id,
+        name: data.name,
+        description: data.description,
         shareUrl,
+        ownerId: data.ownerId,
       })
       .returning();
     return {
@@ -103,6 +108,15 @@ class DatabaseStorage implements IStorage {
     const result = await this.db
       .select()
       .from(mapCollections)
+      .orderBy(desc(mapCollections.createdAt));
+    return result;
+  }
+
+  async getMapCollectionsByUserId(userId: string): Promise<MapCollection[]> {
+    const result = await this.db
+      .select()
+      .from(mapCollections)
+      .where(eq(mapCollections.ownerId, userId))
       .orderBy(desc(mapCollections.createdAt));
     return result;
   }
@@ -193,6 +207,12 @@ export class MemStorage implements IStorage {
     return Array.from(this.mapCollections.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+  }
+
+  async getMapCollectionsByUserId(userId: string): Promise<MapCollection[]> {
+    return Array.from(this.mapCollections.values())
+      .filter((collection) => collection.ownerId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
