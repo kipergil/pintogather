@@ -26,6 +26,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Health check endpoint for Supabase connection
+  app.get("/api/supabase-health", async (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    
+    const healthCheck = {
+      timestamp: new Date().toISOString(),
+      service: 'supabase',
+      status: 'unknown',
+      details: {
+        configurationStatus: 'missing',
+        connectionStatus: 'not_tested',
+        authServiceStatus: 'not_tested',
+        databaseStatus: 'not_tested'
+      },
+      errors: [] as string[]
+    };
+
+    // Check if environment variables are configured
+    if (!supabaseUrl || !supabaseAnonKey) {
+      healthCheck.status = 'error';
+      healthCheck.details.configurationStatus = 'missing';
+      healthCheck.errors.push('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables');
+      return res.status(503).json(healthCheck);
+    }
+
+    healthCheck.details.configurationStatus = 'configured';
+
+    try {
+      // Import Supabase client dynamically to avoid issues if not configured
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+      // Test basic connection by checking if we can reach the API
+      const connectionStartTime = Date.now();
+      
+      try {
+        // Test authentication service
+        const { data: authData, error: authError } = await supabase.auth.getSession();
+        const authResponseTime = Date.now() - connectionStartTime;
+        
+        if (authError && authError.message !== 'Invalid JWT') {
+          healthCheck.details.authServiceStatus = 'error';
+          healthCheck.errors.push(`Auth service error: ${authError.message}`);
+        } else {
+          healthCheck.details.authServiceStatus = 'healthy';
+        }
+
+        // Test database connection with a simple query
+        const dbStartTime = Date.now();
+        try {
+          // Try to query the profiles table (this should exist if properly set up)
+          const { data: dbData, error: dbError } = await supabase
+            .from('profiles')
+            .select('count')
+            .limit(1)
+            .single();
+          
+          const dbResponseTime = Date.now() - dbStartTime;
+          
+          if (dbError) {
+            if (dbError.code === 'PGRST116') {
+              // No rows returned - table exists but is empty, which is fine
+              healthCheck.details.databaseStatus = 'healthy';
+            } else if (dbError.code === '42P01') {
+              // Table doesn't exist
+              healthCheck.details.databaseStatus = 'warning';
+              healthCheck.errors.push('Profiles table not found - database may need setup');
+            } else {
+              healthCheck.details.databaseStatus = 'error';
+              healthCheck.errors.push(`Database error: ${dbError.message} (Code: ${dbError.code})`);
+            }
+          } else {
+            healthCheck.details.databaseStatus = 'healthy';
+          }
+        } catch (dbTestError: any) {
+          healthCheck.details.databaseStatus = 'error';
+          healthCheck.errors.push(`Database connection failed: ${dbTestError.message}`);
+        }
+
+        healthCheck.details.connectionStatus = 'connected';
+        
+        // Overall status determination
+        if (healthCheck.errors.length === 0) {
+          healthCheck.status = 'healthy';
+        } else if (healthCheck.details.authServiceStatus === 'healthy' && 
+                   (healthCheck.details.databaseStatus === 'healthy' || healthCheck.details.databaseStatus === 'warning')) {
+          healthCheck.status = 'warning';
+        } else {
+          healthCheck.status = 'error';
+        }
+
+      } catch (connectionError: any) {
+        healthCheck.details.connectionStatus = 'failed';
+        healthCheck.details.authServiceStatus = 'error';
+        healthCheck.details.databaseStatus = 'error';
+        healthCheck.status = 'error';
+        healthCheck.errors.push(`Connection failed: ${connectionError.message}`);
+      }
+
+    } catch (importError: any) {
+      healthCheck.status = 'error';
+      healthCheck.details.connectionStatus = 'failed';
+      healthCheck.errors.push(`Failed to initialize Supabase client: ${importError.message}`);
+    }
+
+    // Return appropriate HTTP status code
+    const httpStatus = healthCheck.status === 'healthy' ? 200 : 
+                      healthCheck.status === 'warning' ? 200 : 503;
+    
+    res.status(httpStatus).json(healthCheck);
+  });
+
   // Get all map collections (filtered by user)
   app.get("/api/maps", async (req, res) => {
     try {
