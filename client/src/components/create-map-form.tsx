@@ -40,6 +40,7 @@ export function CreateMapForm() {
       toast({
         title: "Success",
         description: "Map collection created successfully!",
+        variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id] });
       setLocation(`/map/${data.shareUrl}`);

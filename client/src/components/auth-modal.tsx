@@ -47,6 +47,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
+          variant: "success",
         });
         onClose();
       } else {
@@ -95,6 +96,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         toast({
           title: "Account Created!",
           description: "You can now sign in with your credentials.",
+          variant: "success",
         });
         onClose();
       }

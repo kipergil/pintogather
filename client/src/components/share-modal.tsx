@@ -24,6 +24,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName }: ShareModalPro
       toast({
         title: "Success",
         description: "URL copied to clipboard!",
+        variant: "success",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
