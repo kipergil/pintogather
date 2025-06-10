@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, desc, sql } from "drizzle-orm";
-import { mapCollections, pins, type MapCollection, type InsertMapCollection, type Pin, type InsertPin } from "@shared/schema";
+import { eq, desc, sql, or } from "drizzle-orm";
+import { mapCollections, pins, mapViewers, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer } from "@shared/schema";
 import { nanoid } from "nanoid";
 
 export interface IStorage {
@@ -12,10 +12,15 @@ export interface IStorage {
   getAllMapCollections(): Promise<MapCollection[]>;
   getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
   
+  // Map Viewers
+  addMapViewer(data: InsertMapViewer): Promise<MapViewer>;
+  getMapViewers(mapId: string): Promise<MapViewer[]>;
+  getUserMapAccess(userId: string, mapId: string): Promise<MapViewer | undefined>;
+  
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
   getPinsByMapId(mapId: string): Promise<Pin[]>;
-  deletePin(id: string): Promise<boolean>;
+  deletePin(id: string, userId?: string): Promise<boolean>;
   
   // Database setup
   initializeDatabase(): Promise<void>;
@@ -150,8 +155,57 @@ class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async deletePin(id: string): Promise<boolean> {
+  async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {
+    const id = nanoid();
+    const result = await this.db
+      .insert(mapViewers)
+      .values({ ...data, id })
+      .returning();
+    return result[0];
+  }
+
+  async getMapViewers(mapId: string): Promise<MapViewer[]> {
+    return await this.db
+      .select()
+      .from(mapViewers)
+      .where(eq(mapViewers.mapId, mapId));
+  }
+
+  async getUserMapAccess(userId: string, mapId: string): Promise<MapViewer | undefined> {
+    const result = await this.db
+      .select()
+      .from(mapViewers)
+      .where(sql`${mapViewers.userId} = ${userId} AND ${mapViewers.mapId} = ${mapId}`)
+      .limit(1);
+    return result[0];
+  }
+
+  async deletePin(id: string, userId?: string): Promise<boolean> {
     try {
+      if (userId) {
+        // Check if user has permission to delete the pin
+        const pin = await this.db
+          .select()
+          .from(pins)
+          .where(eq(pins.id, id))
+          .limit(1);
+          
+        if (pin.length === 0) return false;
+        
+        const mapCollection = await this.db
+          .select()
+          .from(mapCollections)
+          .where(eq(mapCollections.id, pin[0].mapId))
+          .limit(1);
+          
+        const isMapOwner = mapCollection[0]?.ownerId === userId;
+        const isPinOwner = pin[0].userId === userId;
+        
+        if (!isMapOwner && !isPinOwner) {
+          return false;
+        }
+      }
+      
       await this.db
         .delete(pins)
         .where(eq(pins.id, id));
@@ -166,10 +220,12 @@ class DatabaseStorage implements IStorage {
 export class MemStorage implements IStorage {
   private mapCollections: Map<string, MapCollection>;
   private pins: Map<string, Pin>;
+  private mapViewers: Map<string, MapViewer>;
 
   constructor() {
     this.mapCollections = new Map();
     this.pins = new Map();
+    this.mapViewers = new Map();
   }
 
   async initializeDatabase(): Promise<void> {
@@ -246,7 +302,42 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  async deletePin(id: string): Promise<boolean> {
+  async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {
+    const id = nanoid();
+    const mapViewer: MapViewer = {
+      ...data,
+      id,
+      createdAt: new Date(),
+    };
+    this.mapViewers.set(id, mapViewer);
+    return mapViewer;
+  }
+
+  async getMapViewers(mapId: string): Promise<MapViewer[]> {
+    return Array.from(this.mapViewers.values()).filter(viewer => viewer.mapId === mapId);
+  }
+
+  async getUserMapAccess(userId: string, mapId: string): Promise<MapViewer | undefined> {
+    return Array.from(this.mapViewers.values()).find(
+      viewer => viewer.userId === userId && viewer.mapId === mapId
+    );
+  }
+
+  async deletePin(id: string, userId?: string): Promise<boolean> {
+    const pin = this.pins.get(id);
+    if (!pin) return false;
+
+    // If userId is provided, check ownership permissions
+    if (userId) {
+      const mapCollection = Array.from(this.mapCollections.values()).find(map => map.id === pin.mapId);
+      const isMapOwner = mapCollection?.ownerId === userId;
+      const isPinOwner = pin.userId === userId;
+      
+      if (!isMapOwner && !isPinOwner) {
+        return false; // User doesn't have permission to delete this pin
+      }
+    }
+
     return this.pins.delete(id);
   }
 }
