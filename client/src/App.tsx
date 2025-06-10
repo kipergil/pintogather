@@ -10,6 +10,7 @@ import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
 import Profile from "@/pages/profile";
 import Auth from "@/pages/auth";
+import AddPin from "@/pages/add-pin";
 import NotFound from "@/pages/not-found";
 import { LogIn, User, LogOut } from "lucide-react";
 
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/profile" component={Profile} />
       <Route path="/auth" component={Auth} />
+      <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route component={NotFound} />
     </Switch>

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AddPinModal } from "./add-pin-modal";
 import { Home, Maximize2, Info } from "lucide-react";
+import { useLocation } from "wouter";
 
 // Leaflet imports with proper types
 import L from "leaflet";
@@ -45,7 +45,7 @@ export function MapView({ mapCollection }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markersClusterGroupRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
     lng: number;
@@ -93,11 +93,9 @@ export function MapView({ mapCollection }: MapViewProps) {
 
     // Add click handler for adding pins
     map.on('click', (e: any) => {
-      setSelectedLocation({
-        lat: e.latlng.lat,
-        lng: e.latlng.lng,
-      });
-      setIsAddPinModalOpen(true);
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}`);
     });
 
     return () => {
