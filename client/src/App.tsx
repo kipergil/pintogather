@@ -63,24 +63,26 @@ function HeaderContent() {
               <h1 className="text-xl font-semibold text-neutral-900">CollabMap</h1>
             </button>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
               {!loading && (
                 user ? (
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setLocation('/profile')}
+                      className="h-8 px-3 text-sm"
                     >
-                      <User className="h-4 w-4 mr-1" />
+                      <User className="h-3 w-3 mr-1" />
                       Profile
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleSignOut}
+                      className="h-8 px-3 text-sm"
                     >
-                      <LogOut className="h-4 w-4 mr-1" />
+                      <LogOut className="h-3 w-3 mr-1" />
                       Sign Out
                     </Button>
                   </div>
@@ -93,9 +95,9 @@ function HeaderContent() {
                       setLocation(authUrl);
                     }}
                     data-auth-trigger
-                    className="bg-primary hover:bg-primary/90"
+                    className="bg-primary hover:bg-primary/90 h-8 px-3 text-sm"
                   >
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="h-3 w-3 mr-1" />
                     Sign In
                   </Button>
                 )
