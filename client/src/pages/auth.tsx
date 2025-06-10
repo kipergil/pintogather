@@ -129,16 +129,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto p-4 py-8">
-        <div className="mb-6">
-          <div className="flex justify-end mb-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm">
-                <ArrowLeft className="h-3 w-3 mr-1" />
-                Back
-              </Button>
-            </Link>
-          </div>
-        </div>
+
 
         <Card>
           <CardHeader className="text-center">
@@ -187,10 +178,19 @@ export default function Auth() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
-                    <LogIn className="h-5 w-5 mr-2" />
-                    {loading ? "Signing in..." : "Sign In"}
-                  </Button>
+                  <div className="space-y-3">
+                    <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
+                      <LogIn className="h-5 w-5 mr-2" />
+                      {loading ? "Signing in..." : "Sign In"}
+                    </Button>
+                    
+                    <Link href="/">
+                      <Button type="button" variant="outline" className="w-full h-12 text-base">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Home
+                      </Button>
+                    </Link>
+                  </div>
                 </form>
               </TabsContent>
               
@@ -235,10 +235,19 @@ export default function Auth() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
-                    <UserPlus className="h-5 w-5 mr-2" />
-                    {loading ? "Creating account..." : "Sign Up"}
-                  </Button>
+                  <div className="space-y-3">
+                    <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
+                      <UserPlus className="h-5 w-5 mr-2" />
+                      {loading ? "Creating account..." : "Sign Up"}
+                    </Button>
+                    
+                    <Link href="/">
+                      <Button type="button" variant="outline" className="w-full h-12 text-base">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Home
+                      </Button>
+                    </Link>
+                  </div>
                 </form>
               </TabsContent>
             </Tabs>
