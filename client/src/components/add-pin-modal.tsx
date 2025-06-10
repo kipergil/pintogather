@@ -59,6 +59,52 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Load user profile data when modal opens
+  useEffect(() => {
+    if (isOpen && user) {
+      loadUserProfile();
+    } else if (isOpen && !user) {
+      // Reset form when no user is logged in
+      setFormData({
+        userName: "",
+        twitterHandle: "",
+        instagramHandle: "",
+        linkedinHandle: "",
+        note: "",
+      });
+    }
+  }, [isOpen, user]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    setProfileLoading(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        console.error('Error loading profile:', error);
+      } else if (data) {
+        setFormData({
+          userName: data.full_name || "",
+          twitterHandle: data.twitter_handle || "",
+          instagramHandle: data.instagram_handle || "",
+          linkedinHandle: data.linkedin_handle || "",
+          note: "",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   // Fetch location data when selectedLocation changes
   useEffect(() => {
     if (!selectedLocation || !isOpen) {
@@ -157,6 +203,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
     }
 
     const pinData = {
+      mapId: mapCollection.id,
+      userId: user?.id || null,
       userName: formData.userName.trim(),
       latitude: selectedLocation.lat.toString(),
       longitude: selectedLocation.lng.toString(),

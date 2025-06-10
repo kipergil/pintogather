@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus } from "lucide-react";
 
 interface CreateMapFormData {
@@ -19,6 +20,7 @@ export function CreateMapForm() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState<CreateMapFormData>({
     name: "",
@@ -27,7 +29,11 @@ export function CreateMapForm() {
 
   const createMapMutation = useMutation({
     mutationFn: async (data: CreateMapFormData) => {
-      const response = await apiRequest("POST", "/api/maps", data);
+      const mapData = {
+        ...data,
+        ownerId: user?.id || null,
+      };
+      const response = await apiRequest("POST", "/api/maps", mapData);
       return response.json();
     },
     onSuccess: (data) => {
