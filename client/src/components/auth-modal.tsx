@@ -34,12 +34,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setLoading(true);
     
     try {
-      const { error } = await signIn(signInData.email, signInData.password);
+      const result = await signIn(signInData.email, signInData.password);
       
-      if (error) {
+      if (result?.error) {
         toast({
           title: "Sign In Failed",
-          description: error.message,
+          description: result.error.message,
           variant: "destructive",
         });
       } else {
@@ -52,7 +52,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to sign in",
+        description: error.message || "Authentication service temporarily unavailable",
         variant: "destructive",
       });
     } finally {

@@ -26,7 +26,8 @@ initializeSupabase();
 
 export const getSupabase = () => {
   if (!supabaseClient) {
-    throw new Error('Supabase not initialized. Please ensure configuration is available.');
+    console.error('Supabase not initialized yet');
+    return null;
   }
   return supabaseClient;
 };
