@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth-modal";
+import { ProfileModal } from "@/components/profile-modal";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
 import NotFound from "@/pages/not-found";
+import { LogIn, User, LogOut } from "lucide-react";
 
 function Router() {
   return (
@@ -17,36 +23,93 @@ function Router() {
   );
 }
 
+function HeaderContent() {
+  const { user, signOut, loading } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  return (
+    <>
+      <header className="bg-white shadow-material">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+              </div>
+              <h1 className="text-xl font-semibold text-neutral-900">CollabMap</h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {!loading && (
+                user ? (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-neutral-600">
+                      {user.email}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsProfileModalOpen(true)}
+                    >
+                      <User className="h-4 w-4 mr-1" />
+                      Profile
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="h-4 w-4 mr-1" />
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+      
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="min-h-screen bg-neutral-50">
-          {/* Header */}
-          <header className="bg-white shadow-material">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-16">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                  </div>
-                  <h1 className="text-xl font-semibold text-neutral-900">CollabMap</h1>
-                </div>
-                <nav className="hidden md:flex space-x-6">
-                  <a href="/" className="text-neutral-600 hover:text-primary transition-colors duration-200">My Maps</a>
-                  <a href="/" className="text-neutral-600 hover:text-primary transition-colors duration-200">Explore</a>
-                  <a href="/" className="text-neutral-600 hover:text-primary transition-colors duration-200">Help</a>
-                </nav>
-              </div>
-            </div>
-          </header>
-          
-          <Router />
-          <Toaster />
-        </div>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <div className="min-h-screen bg-neutral-50">
+            <HeaderContent />
+            <Router />
+            <Toaster />
+          </div>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
