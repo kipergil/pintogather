@@ -22,6 +22,8 @@ export interface IStorage {
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
   getPinsByMapId(mapId: string): Promise<Pin[]>;
+  getPinById(id: string): Promise<Pin | undefined>;
+  updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
   deletePin(id: string, userId?: string): Promise<boolean>;
   
   // Database setup
@@ -213,6 +215,29 @@ class DatabaseStorage implements IStorage {
       .where(eq(pins.mapId, mapId))
       .orderBy(desc(pins.createdAt));
     return result;
+  }
+
+  async getPinById(id: string): Promise<Pin | undefined> {
+    const result = await this.db
+      .select()
+      .from(pins)
+      .where(eq(pins.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined> {
+    try {
+      const result = await this.db
+        .update(pins)
+        .set(data)
+        .where(eq(pins.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating pin:', error);
+      return undefined;
+    }
   }
 
   async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {

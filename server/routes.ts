@@ -126,6 +126,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get a specific pin
+  app.get("/api/pins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const pin = await storage.getPinById(id);
+      
+      if (!pin) {
+        return res.status(404).json({ message: "Pin not found" });
+      }
+      
+      res.json(pin);
+    } catch (error: any) {
+      console.error('Error fetching pin:', error);
+      res.status(500).json({ message: "Failed to fetch pin", error: error.message });
+    }
+  });
+
+  // Update a pin
+  app.put("/api/pins/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Validate the update data
+      const validatedData = insertPinSchema.partial().parse(updateData);
+      
+      const updatedPin = await storage.updatePin(id, validatedData);
+      if (!updatedPin) {
+        return res.status(404).json({ message: "Pin not found or access denied" });
+      }
+      
+      res.json(updatedPin);
+    } catch (error: any) {
+      console.error('Error updating pin:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update pin", error: error.message });
+    }
+  });
+
   // Delete pin
   app.delete("/api/pins/:id", async (req, res) => {
     try {
