@@ -5,6 +5,60 @@ import { insertMapCollectionSchema, insertPinSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add global CORS middleware for health endpoints
+  app.use('/api/*health*', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    next();
+  });
+
+  // Add global CORS middleware for status endpoints
+  app.use('/api/*status*', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    next();
+  });
+
+  // Health endpoints discovery
+  app.get("/api/healthcheck", async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        overall: `${baseUrl}/api/app-status`,
+        supabase: `${baseUrl}/api/supabase-health`,
+        discovery: `${baseUrl}/api/healthcheck`
+      },
+      description: "Public health monitoring endpoints for production deployment monitoring",
+      usage: {
+        monitoring: "Use these endpoints for external monitoring systems",
+        loadBalancer: "Configure health checks using /api/app-status",
+        debugging: "Use /api/supabase-health for database connectivity issues"
+      }
+    });
+  });
+
   // Get Supabase configuration
   app.get("/api/config", async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -26,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Health check endpoint for Supabase connection
+  // Health check endpoint for Supabase connection (public access)
   app.get("/api/supabase-health", async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -139,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(httpStatus).json(healthCheck);
   });
 
-  // General application health check
+  // General application health check (public access)
   app.get("/api/app-status", async (req, res) => {
     const overallHealth = {
       timestamp: new Date().toISOString(),
