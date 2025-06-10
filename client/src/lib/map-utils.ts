@@ -2,6 +2,7 @@ export interface LocationData {
   address: string;
   city: string;
   state: string;
+  town: string;
   borough: string;
   postcode: string;
   country: string;

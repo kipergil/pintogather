@@ -17,6 +17,7 @@ interface Pin {
   address?: string;
   city?: string;
   state?: string;
+  town?: string;
   borough?: string;
   postcode?: string;
   country?: string;
@@ -79,13 +80,16 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
 
   const exportPins = () => {
     const csvContent = [
-      ["Name", "Address", "City", "State", "Postcode", "Twitter", "Instagram", "LinkedIn", "Note", "Added Date"].join(","),
+      ["Name", "Address", "City", "State", "Town", "Borough", "Postcode", "Country", "Twitter", "Instagram", "LinkedIn", "Note", "Added Date"].join(","),
       ...filteredPins.map(pin => [
         pin.userName,
         pin.address || "",
         pin.city || "",
         pin.state || "",
+        pin.town || "",
+        pin.borough || "",
         pin.postcode || "",
+        pin.country || "",
         pin.twitterHandle || "",
         pin.instagramHandle || "",
         pin.linkedinHandle || "",
@@ -183,10 +187,17 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
                     )}
                   </div>
                   
-                  {pin.address && (
-                    <div className="flex items-start space-x-2 mb-2">
-                      <MapPin className="h-4 w-4 text-neutral-400 mt-0.5" />
-                      <p className="text-sm text-neutral-600">{pin.address}</p>
+                  {(pin.address || pin.city || pin.country) && (
+                    <div className="space-y-1 mb-2">
+                      {pin.address && (
+                        <div className="flex items-start space-x-2">
+                          <MapPin className="h-4 w-4 text-neutral-400 mt-0.5" />
+                          <p className="text-sm text-neutral-600">{pin.address}</p>
+                        </div>
+                      )}
+                      <div className="text-xs text-neutral-500 ml-6">
+                        {[pin.city, pin.town, pin.state, pin.postcode, pin.country].filter(Boolean).join(', ')}
+                      </div>
                     </div>
                   )}
                   
@@ -237,7 +248,11 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 font-medium text-neutral-900">Contributor</th>
-                  <th className="text-left py-3 px-4 font-medium text-neutral-900">Location</th>
+                  <th className="text-left py-3 px-4 font-medium text-neutral-900">Address</th>
+                  <th className="text-left py-3 px-4 font-medium text-neutral-900">City / Town</th>
+                  <th className="text-left py-3 px-4 font-medium text-neutral-900">State / Region</th>
+                  <th className="text-left py-3 px-4 font-medium text-neutral-900">Country</th>
+                  <th className="text-left py-3 px-4 font-medium text-neutral-900">Postcode</th>
                   <th className="text-left py-3 px-4 font-medium text-neutral-900">Social Links</th>
                   <th className="text-left py-3 px-4 font-medium text-neutral-900">Added</th>
                   <th className="text-left py-3 px-4 font-medium text-neutral-900">Actions</th>

@@ -40,6 +40,7 @@ export const pins = pgTable("pins", {
   address: text("address"),
   city: text("city"),
   state: text("state"),
+  town: text("town"),
   borough: text("borough"),
   postcode: text("postcode"),
   country: text("country"),
