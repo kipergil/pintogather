@@ -200,7 +200,7 @@ export default function Profile() {
         <div className="mb-6">
           <div className="flex justify-end mb-4">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm touch-target">
+              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm">
                 <ArrowLeft className="h-3 w-3 mr-1" />
                 Back
               </Button>
