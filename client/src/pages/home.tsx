@@ -88,9 +88,9 @@ export default function Home() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="text-center py-12">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-4">Create Collaborative Maps</h2>
+        <h2 className="text-3xl font-bold text-neutral-900 mb-4">Pin Your World Together</h2>
         <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
-          Build interactive maps where your community can add pins, share locations, and collaborate in real-time.
+          Create collaborative maps where communities gather, share locations, and build connections through shared experiences.
         </p>
         
         {!user && (
@@ -120,8 +120,8 @@ export default function Home() {
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl font-bold text-purple-600">3</span>
                 </div>
-                <h3 className="font-semibold mb-2">Collaborate</h3>
-                <p className="text-sm text-neutral-600">Contributors click on the map to add pins and automatically become part of your collaborative project.</p>
+                <h3 className="font-semibold mb-2">Pin Together</h3>
+                <p className="text-sm text-neutral-600">Contributors click on the map to add pins and gather around shared locations and experiences.</p>
               </CardContent>
             </Card>
           </div>
@@ -337,10 +337,10 @@ export default function Home() {
                 <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl font-bold text-white">3</span>
                 </div>
-                <h4 className="text-lg font-semibold text-purple-900 mb-3">Start Collaborating</h4>
-                <p className="text-sm text-purple-800 mb-4">Contributors click anywhere on the map to add pins with their information. Watch your map grow with community input!</p>
+                <h4 className="text-lg font-semibold text-purple-900 mb-3">Pin Together</h4>
+                <p className="text-sm text-purple-800 mb-4">Contributors click anywhere on the map to add pins with their information. Watch your community gather around shared locations!</p>
                 <div className="bg-white/70 rounded-lg p-3 border border-purple-200">
-                  <p className="text-xs text-purple-700 font-medium">💡 Tip: Encourage detailed pin descriptions for better collaboration</p>
+                  <p className="text-xs text-purple-700 font-medium">💡 Tip: Encourage detailed pin descriptions to build stronger connections</p>
                 </div>
               </CardContent>
             </Card>

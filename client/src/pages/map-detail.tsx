@@ -160,14 +160,14 @@ export default function MapDetail({ params }: MapDetailProps) {
               <div className="flex-1">
                 <h3 className="font-medium text-amber-900">Viewing as Guest</h3>
                 <p className="text-sm text-amber-800 mt-1">
-                  You're viewing this map as a guest. You can add pins, but they will be saved anonymously. 
+                  You're viewing this map as a guest. You can pin locations, but they will be saved anonymously. 
                   <button 
                     onClick={() => setIsAuthModalOpen(true)}
                     className="font-medium underline hover:no-underline ml-1"
                   >
                     Sign in or sign up
                   </button>
-                  {" "}to save pins with your profile.
+                  {" "}to pin with your profile and connect with the community.
                 </p>
               </div>
             </div>
@@ -203,8 +203,8 @@ export default function MapDetail({ params }: MapDetailProps) {
               </div>
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Collaborative Map:</strong> Anyone with this URL can view and add pins to this map. 
-                  Share the link to invite others to contribute!
+                  <strong>Community Map:</strong> Anyone with this URL can view and add pins to gather together on this map. 
+                  Share the link to invite others to pin their locations!
                 </p>
               </div>
             </div>
