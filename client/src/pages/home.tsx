@@ -74,37 +74,39 @@ export default function Home() {
           Build interactive maps where your community can add pins, share locations, and collaborate in real-time.
         </p>
         
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-blue-600">1</span>
-              </div>
-              <h3 className="font-semibold mb-2">Create a Map</h3>
-              <p className="text-sm text-neutral-600">Start by creating a new collaborative map with a name and description.</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-green-600">2</span>
-              </div>
-              <h3 className="font-semibold mb-2">Share the URL</h3>
-              <p className="text-sm text-neutral-600">Get a unique shareable URL that allows anyone to view and contribute to your map.</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-purple-600">3</span>
-              </div>
-              <h3 className="font-semibold mb-2">Collaborate</h3>
-              <p className="text-sm text-neutral-600">Contributors click on the map to add pins and automatically become part of your collaborative project.</p>
-            </CardContent>
-          </Card>
-        </div>
+        {!user && (
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-blue-600">1</span>
+                </div>
+                <h3 className="font-semibold mb-2">Create a Map</h3>
+                <p className="text-sm text-neutral-600">Start by creating a new collaborative map with a name and description.</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-green-600">2</span>
+                </div>
+                <h3 className="font-semibold mb-2">Share the URL</h3>
+                <p className="text-sm text-neutral-600">Get a unique shareable URL that allows anyone to view and contribute to your map.</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-purple-600">3</span>
+                </div>
+                <h3 className="font-semibold mb-2">Collaborate</h3>
+                <p className="text-sm text-neutral-600">Contributors click on the map to add pins and automatically become part of your collaborative project.</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {user ? (
