@@ -6,6 +6,7 @@ import { Share2, ExternalLink, LogIn, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 interface MapCollection {
   id: string;
@@ -18,6 +19,7 @@ interface MapCollection {
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
@@ -64,6 +66,23 @@ export default function Home() {
     if (diffInDays < 7) return `${diffInDays} days ago`;
     if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
     return `${Math.floor(diffInDays / 30)} months ago`;
+  };
+
+  const handleCopyMapUrl = async (shareUrl: string, mapName: string) => {
+    try {
+      const url = `${window.location.origin}/map/${shareUrl}`;
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link copied!",
+        description: `Map "${mapName}" link copied to clipboard`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to copy",
+        description: "Unable to copy link to clipboard",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -182,7 +201,7 @@ export default function Home() {
                             className="flex-1"
                             onClick={(e) => {
                               e.preventDefault();
-                              navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                              handleCopyMapUrl(map.shareUrl, map.name);
                             }}
                           >
                             <Share2 className="h-4 w-4 mr-2" />
@@ -252,7 +271,7 @@ export default function Home() {
                             className="flex-1"
                             onClick={(e) => {
                               e.preventDefault();
-                              navigator.clipboard.writeText(`${window.location.origin}/map/${map.shareUrl}`);
+                              handleCopyMapUrl(map.shareUrl, map.name);
                             }}
                           >
                             <Share2 className="h-4 w-4 mr-2" />
