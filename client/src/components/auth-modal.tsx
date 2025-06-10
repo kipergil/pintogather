@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +12,13 @@ import { LogIn, UserPlus } from "lucide-react";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  returnUrl?: string;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, returnUrl }: AuthModalProps) {
   const { toast } = useToast();
   const { signIn, signUp } = useAuth();
+  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
   
   const [signInData, setSignInData] = useState({
@@ -50,6 +53,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           variant: "success",
         });
         onClose();
+        
+        // Redirect to return URL if provided
+        if (returnUrl) {
+          setLocation(returnUrl);
+        }
       } else {
         // Handle case where no error but also no user (service unavailable)
         toast({
@@ -99,6 +107,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           variant: "success",
         });
         onClose();
+        
+        // Redirect to return URL if provided
+        if (returnUrl) {
+          setLocation(returnUrl);
+        }
       }
     } catch (error: any) {
       toast({

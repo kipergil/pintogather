@@ -32,7 +32,7 @@ function Router() {
 
 function HeaderContent() {
   const { user, signOut, loading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const handleSignOut = async () => {
     try {
