@@ -41,7 +41,6 @@ interface MapCollection {
 }
 
 export default function MapDetail({ params }: MapDetailProps) {
-  const [currentView, setCurrentView] = useState<'map' | 'table'>('map');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
@@ -112,50 +111,29 @@ export default function MapDetail({ params }: MapDetailProps) {
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <div className="flex bg-neutral-100 rounded-lg p-1">
-                <Button
-                  variant={currentView === 'map' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setCurrentView('map')}
-                  className="text-sm"
-                >
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Map
-                </Button>
-                <Button
-                  variant={currentView === 'table' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setCurrentView('table')}
-                  className="text-sm"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                  </svg>
-                  Table
-                </Button>
-              </div>
-              
-              <Button
-                onClick={() => setIsShareModalOpen(true)}
-                className="bg-secondary hover:bg-secondary/90"
-              >
-                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
-                </svg>
-                Share
-              </Button>
-            </div>
+            <Button
+              onClick={() => setIsShareModalOpen(true)}
+              className="bg-secondary hover:bg-secondary/90"
+            >
+              <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+              </svg>
+              Share
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Content */}
-      {currentView === 'map' ? (
-        <MapView mapCollection={mapCollection} />
-      ) : (
-        <PinTable pins={mapCollection.pins} />
-      )}
+      {/* Map View */}
+      <MapView mapCollection={mapCollection} />
+      
+      {/* Pin Table - Always shown at bottom */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Pins ({mapCollection.pinCount})</h3>
+          <PinTable pins={mapCollection.pins} />
+        </CardContent>
+      </Card>
 
       {/* Share Modal */}
       <ShareModal

@@ -22,6 +22,14 @@ export const mapCollections = pgTable("map_collections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const mapViewers = pgTable("map_viewers", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  mapId: varchar("map_id", { length: 255 }).notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  role: text("role").notNull().default("viewer"), // "viewer" or "contributor"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const pins = pgTable("pins", {
   id: varchar("id", { length: 255 }).primaryKey(),
   mapId: varchar("map_id", { length: 255 }).notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
@@ -54,6 +62,11 @@ export const insertMapCollectionSchema = createInsertSchema(mapCollections).omit
   createdAt: true,
 });
 
+export const insertMapViewerSchema = createInsertSchema(mapViewers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPinSchema = createInsertSchema(pins).omit({
   id: true,
   createdAt: true,
@@ -63,5 +76,7 @@ export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 export type MapCollection = typeof mapCollections.$inferSelect;
+export type InsertMapViewer = z.infer<typeof insertMapViewerSchema>;
+export type MapViewer = typeof mapViewers.$inferSelect;
 export type InsertPin = z.infer<typeof insertPinSchema>;
 export type Pin = typeof pins.$inferSelect;

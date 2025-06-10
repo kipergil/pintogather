@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Search, Download, MapPin, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin, ExternalLink } from "lucide-react";
 
 interface Pin {
   id: string;
   userName: string;
+  userId?: string;
   latitude: string;
   longitude: string;
   address?: string;
@@ -27,12 +29,14 @@ interface Pin {
 
 interface PinTableProps {
   pins: Pin[];
+  mapOwnerId?: string;
 }
 
-export function PinTable({ pins }: PinTableProps) {
+export function PinTable({ pins, mapOwnerId }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const deletePinMutation = useMutation({
     mutationFn: async (pinId: string) => {
