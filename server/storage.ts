@@ -12,6 +12,7 @@ export interface IStorage {
   getAllMapCollections(): Promise<MapCollection[]>;
   getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
+  getContributedMaps(userId: string): Promise<MapCollection[]>;
   
   // Map Viewers
   addMapViewer(data: InsertMapViewer): Promise<MapViewer>;
@@ -155,6 +156,30 @@ class DatabaseStorage implements IStorage {
     const uniqueMaps = Array.from(new Map(allMaps.map(map => [map.id, map])).values());
 
     return uniqueMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getContributedMaps(userId: string): Promise<MapCollection[]> {
+    // Get maps where user has contributed pins but is not the owner
+    const contributedMapIds = await this.db
+      .selectDistinct({ mapId: pins.mapId })
+      .from(pins)
+      .where(eq(pins.userId, userId));
+
+    if (contributedMapIds.length === 0) {
+      return [];
+    }
+
+    const contributedMaps = await this.db
+      .select()
+      .from(mapCollections)
+      .where(
+        and(
+          inArray(mapCollections.id, contributedMapIds.map(m => m.mapId)),
+          ne(mapCollections.ownerId, userId)
+        )
+      );
+
+    return contributedMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
@@ -326,6 +351,20 @@ export class MemStorage implements IStorage {
     const uniqueMaps = Array.from(new Map(allMaps.map(map => [map.id, map])).values());
 
     return uniqueMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getContributedMaps(userId: string): Promise<MapCollection[]> {
+    // Get maps where user has contributed pins but is not the owner
+    const contributedMapIds = new Set(
+      Array.from(this.pins.values())
+        .filter((pin) => pin.userId === userId)
+        .map((pin) => pin.mapId)
+    );
+
+    const contributedMaps = Array.from(this.mapCollections.values())
+      .filter((collection) => contributedMapIds.has(collection.id) && collection.ownerId !== userId);
+
+    return contributedMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createPin(data: InsertPin): Promise<Pin> {

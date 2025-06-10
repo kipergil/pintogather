@@ -23,11 +23,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Check if we want only owned maps or all maps (owned + contributed)
+      // Check if we want only owned maps, contributed maps, or all maps
       const ownedOnly = req.query.ownedOnly === 'true';
-      const maps = ownedOnly 
-        ? await storage.getMapCollectionsByUserId(userId)
-        : await storage.getMapCollectionsForUser(userId);
+      const contributedOnly = req.query.contributedOnly === 'true';
+      
+      let maps;
+      if (ownedOnly) {
+        maps = await storage.getMapCollectionsByUserId(userId);
+      } else if (contributedOnly) {
+        maps = await storage.getContributedMaps(userId);
+      } else {
+        maps = await storage.getMapCollectionsForUser(userId);
+      }
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);

@@ -17,13 +17,26 @@ interface MapCollection {
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
-  const { data: maps = [], isLoading } = useQuery<MapCollection[]>({
+  const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: () => {
       const params = new URLSearchParams();
       if (user?.id) {
         params.append('userId', user.id);
         params.append('ownedOnly', 'true');
+      }
+      return fetch(`/api/maps?${params}`).then(res => res.json());
+    },
+    enabled: !authLoading,
+  });
+
+  const { data: contributedMaps = [], isLoading: isLoadingContributed } = useQuery<MapCollection[]>({
+    queryKey: ["/api/maps", user?.id, "contributed"],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.id) {
+        params.append('userId', user.id);
+        params.append('contributedOnly', 'true');
       }
       return fetch(`/api/maps?${params}`).then(res => res.json());
     },
@@ -111,7 +124,7 @@ export default function Home() {
         <div className="mt-12">
           <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Created</h3>
         
-          {isLoading ? (
+          {isLoadingOwned ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[...Array(3)].map((_, i) => (
                 <Card key={i} className="animate-pulse">
@@ -129,7 +142,7 @@ export default function Home() {
                 </Card>
               ))}
             </div>
-          ) : maps.length === 0 ? (
+          ) : ownedMaps.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Share2 className="h-8 w-8 text-neutral-400" />
@@ -139,7 +152,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {maps.map((map) => (
+              {ownedMaps.map((map) => (
                 <Card key={map.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-3">
