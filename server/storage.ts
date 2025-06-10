@@ -424,6 +424,28 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  async getPinById(id: string): Promise<Pin | undefined> {
+    return this.pins.get(id);
+  }
+
+  async updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined> {
+    const existingPin = this.pins.get(id);
+    if (!existingPin) {
+      return undefined;
+    }
+
+    const updatedPin: Pin = {
+      ...existingPin,
+      ...data,
+      id: existingPin.id, // Ensure ID doesn't change
+      mapId: existingPin.mapId, // Ensure mapId doesn't change
+      createdAt: existingPin.createdAt, // Preserve creation date
+    };
+
+    this.pins.set(id, updatedPin);
+    return updatedPin;
+  }
+
   async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {
     const id = nanoid();
     const mapViewer: MapViewer = {
