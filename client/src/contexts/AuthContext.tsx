@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Supabase not initialized yet');
+        console.error('Authentication service not available:', error);
         if (mounted) {
           setLoading(false);
         }

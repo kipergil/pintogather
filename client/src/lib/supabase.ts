@@ -2,10 +2,17 @@ import { createClient } from '@supabase/supabase-js'
 
 // Get configuration from API endpoint
 let supabaseClient: any = null;
+let isInitialized = false;
 
 async function initializeSupabase() {
+  if (isInitialized) return;
+  
   try {
     const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error(`Config API returned ${response.status}`);
+    }
+    
     const config = await response.json();
     
     if (config.supabaseUrl && config.supabaseAnonKey) {
@@ -13,21 +20,39 @@ async function initializeSupabase() {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
+          detectSessionInUrl: true,
         }
       });
+      console.log('Supabase initialized successfully');
+    } else {
+      console.warn('Supabase configuration not available');
     }
   } catch (error) {
     console.error('Failed to initialize Supabase:', error);
+  } finally {
+    isInitialized = true;
   }
 }
 
-// Initialize on module load
+// Initialize immediately
 initializeSupabase();
 
 export const getSupabase = () => {
   if (!supabaseClient) {
-    console.error('Supabase not initialized yet');
-    return null;
+    // Return a mock object for environments where Supabase is not available
+    return {
+      auth: {
+        getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+        signInWithPassword: () => Promise.resolve({ error: { message: 'Authentication service not available' } }),
+        signUp: () => Promise.resolve({ error: { message: 'Authentication service not available' } }),
+        signOut: () => Promise.resolve({ error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+      },
+      from: () => ({
+        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { code: '42P01' } }) }) }),
+        upsert: () => Promise.resolve({ error: { code: '42P01' } })
+      })
+    };
   }
   return supabaseClient;
 };

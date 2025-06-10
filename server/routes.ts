@@ -7,9 +7,22 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get Supabase configuration
   app.get("/api/config", async (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('Supabase configuration missing - authentication features will be limited');
+      return res.status(503).json({
+        error: 'Authentication service not configured',
+        message: 'Missing Supabase configuration. Please check environment variables.',
+        supabaseUrl: null,
+        supabaseAnonKey: null
+      });
+    }
+    
     res.json({
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      supabaseUrl,
+      supabaseAnonKey,
     });
   });
 
