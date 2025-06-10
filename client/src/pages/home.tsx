@@ -280,6 +280,60 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* Step-by-step guide for signed-in users */}
+      {user && (
+        <div className="mt-16 mb-12">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-neutral-900 mb-2">Getting Started Guide</h3>
+            <p className="text-neutral-600">Follow these simple steps to create your first collaborative map</p>
+          </div>
+          
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Step 1 */}
+            <Card className="border-2 border-blue-100 bg-blue-50/50">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-white">1</span>
+                </div>
+                <h4 className="text-lg font-semibold text-blue-900 mb-3">Create Your Map</h4>
+                <p className="text-sm text-blue-800 mb-4">Use the form above to create a new collaborative map. Give it a descriptive name and optional description.</p>
+                <div className="bg-white/70 rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs text-blue-700 font-medium">💡 Tip: Choose a clear name that describes the purpose of your map</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 2 */}
+            <Card className="border-2 border-green-100 bg-green-50/50">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-white">2</span>
+                </div>
+                <h4 className="text-lg font-semibold text-green-900 mb-3">Share Your Map</h4>
+                <p className="text-sm text-green-800 mb-4">Copy the map URL and share it with friends, colleagues, or your community. Anyone with the link can view and add pins.</p>
+                <div className="bg-white/70 rounded-lg p-3 border border-green-200">
+                  <p className="text-xs text-green-700 font-medium">💡 Tip: Share via social media, email, or messaging apps</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 3 */}
+            <Card className="border-2 border-purple-100 bg-purple-50/50">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-white">3</span>
+                </div>
+                <h4 className="text-lg font-semibold text-purple-900 mb-3">Start Collaborating</h4>
+                <p className="text-sm text-purple-800 mb-4">Contributors click anywhere on the map to add pins with their information. Watch your map grow with community input!</p>
+                <div className="bg-white/70 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-purple-700 font-medium">💡 Tip: Encourage detailed pin descriptions for better collaboration</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
