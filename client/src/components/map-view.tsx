@@ -7,6 +7,9 @@ import { Home, Maximize2, Info } from "lucide-react";
 // Leaflet imports with proper types
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -40,6 +43,7 @@ interface MapViewProps {
 
 export function MapView({ mapCollection }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
+  const markersClusterGroupRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -62,8 +66,34 @@ export function MapView({ mapCollection }: MapViewProps) {
       maxZoom: 19
     }).addTo(map);
 
+    // Initialize marker cluster group with custom styling
+    const markerClusterGroup = (L as any).markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 50,
+      iconCreateFunction: function(cluster: any) {
+        const count = cluster.getChildCount();
+        let c = ' marker-cluster-';
+        if (count < 10) {
+          c += 'small';
+        } else if (count < 100) {
+          c += 'medium';
+        } else {
+          c += 'large';
+        }
+        
+        return new L.DivIcon({
+          html: '<div><span>' + count + '</span></div>',
+          className: 'marker-cluster' + c,
+          iconSize: new L.Point(40, 40)
+        });
+      }
+    });
+    
+    markersClusterGroupRef.current = markerClusterGroup;
+    map.addLayer(markerClusterGroup);
+
     // Add click handler for adding pins
-    map.on('click', (e) => {
+    map.on('click', (e: any) => {
       setSelectedLocation({
         lat: e.latlng.lat,
         lng: e.latlng.lng,
@@ -76,24 +106,22 @@ export function MapView({ mapCollection }: MapViewProps) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markersClusterGroupRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current || !mapCollection.pins.length) return;
+    if (!mapRef.current || !markersClusterGroupRef.current) return;
 
-    // Clear existing markers
-    mapRef.current.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        mapRef.current?.removeLayer(layer);
-      }
-    });
+    // Clear existing markers from cluster group
+    markersClusterGroupRef.current.clearLayers();
 
-    // Add markers for pins
+    if (!mapCollection.pins.length) return;
+
+    // Add markers to cluster group
     const markers: L.Marker[] = [];
     mapCollection.pins.forEach((pin) => {
-      const marker = L.marker([parseFloat(pin.latitude), parseFloat(pin.longitude)])
-        .addTo(mapRef.current!);
+      const marker = L.marker([parseFloat(pin.latitude), parseFloat(pin.longitude)]);
 
       const socialLinks = [
         pin.twitterHandle && `<a href="https://twitter.com/${pin.twitterHandle}" target="_blank" class="text-blue-500 hover:underline">Twitter</a>`,
@@ -115,6 +143,9 @@ export function MapView({ mapCollection }: MapViewProps) {
 
       markers.push(marker);
     });
+
+    // Add all markers to the cluster group
+    markersClusterGroupRef.current.addLayers(markers);
 
     // Fit map to show all markers
     if (markers.length > 0) {
