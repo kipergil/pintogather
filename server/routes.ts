@@ -23,7 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      const maps = await storage.getMapCollectionsByUserId(userId);
+      const maps = await storage.getMapCollectionsForUser(userId);
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);

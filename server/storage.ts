@@ -11,6 +11,7 @@ export interface IStorage {
   getMapCollectionByName(name: string): Promise<MapCollection | undefined>;
   getAllMapCollections(): Promise<MapCollection[]>;
   getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
+  getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   
   // Map Viewers
   addMapViewer(data: InsertMapViewer): Promise<MapViewer>;
@@ -124,6 +125,36 @@ class DatabaseStorage implements IStorage {
       .where(eq(mapCollections.ownerId, userId))
       .orderBy(desc(mapCollections.createdAt));
     return result;
+  }
+
+  async getMapCollectionsForUser(userId: string): Promise<MapCollection[]> {
+    // Get maps where user is owner
+    const ownedMaps = await this.db
+      .select()
+      .from(mapCollections)
+      .where(eq(mapCollections.ownerId, userId));
+
+    // Get maps where user has contributed pins
+    const contributedMapIds = await this.db
+      .selectDistinct({ mapId: pins.mapId })
+      .from(pins)
+      .where(eq(pins.userId, userId));
+
+    const contributedMaps = contributedMapIds.length > 0 ? await this.db
+      .select()
+      .from(mapCollections)
+      .where(
+        and(
+          inArray(mapCollections.id, contributedMapIds.map(m => m.mapId)),
+          ne(mapCollections.ownerId, userId)
+        )
+      ) : [];
+
+    // Combine and deduplicate
+    const allMaps = [...ownedMaps, ...contributedMaps];
+    const uniqueMaps = Array.from(new Map(allMaps.map(map => [map.id, map])).values());
+
+    return uniqueMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
@@ -269,6 +300,28 @@ export class MemStorage implements IStorage {
     return Array.from(this.mapCollections.values())
       .filter((collection) => collection.ownerId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getMapCollectionsForUser(userId: string): Promise<MapCollection[]> {
+    // Get maps where user is owner
+    const ownedMaps = Array.from(this.mapCollections.values())
+      .filter((collection) => collection.ownerId === userId);
+
+    // Get maps where user has contributed pins
+    const contributedMapIds = new Set(
+      Array.from(this.pins.values())
+        .filter((pin) => pin.userId === userId)
+        .map((pin) => pin.mapId)
+    );
+
+    const contributedMaps = Array.from(this.mapCollections.values())
+      .filter((collection) => contributedMapIds.has(collection.id) && collection.ownerId !== userId);
+
+    // Combine and deduplicate
+    const allMaps = [...ownedMaps, ...contributedMaps];
+    const uniqueMaps = Array.from(new Map(allMaps.map(map => [map.id, map])).values());
+
+    return uniqueMaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
