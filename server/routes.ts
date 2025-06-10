@@ -213,6 +213,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(httpStatus).json(overallHealth);
   });
 
+  // Database migration endpoint - sets up Supabase tables
+  app.post("/api/setup-db", async (req, res) => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return res.status(503).json({
+        error: 'Migration failed',
+        message: 'Missing Supabase configuration'
+      });
+    }
+
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+      const migrationResults = {
+        timestamp: new Date().toISOString(),
+        status: 'success',
+        tables: [] as any[],
+        errors: [] as string[]
+      };
+
+      // Create profiles table
+      try {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('count')
+          .limit(1);
+        
+        if (profilesError && profilesError.code === '42P01') {
+          // Table doesn't exist, try to create it via SQL
+          const createProfilesSQL = `
+            CREATE TABLE IF NOT EXISTS profiles (
+              id VARCHAR(255) PRIMARY KEY,
+              user_id VARCHAR(255) NOT NULL UNIQUE,
+              full_name TEXT NOT NULL,
+              twitter_handle TEXT,
+              instagram_handle TEXT,
+              linkedin_handle TEXT,
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+              updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          `;
+          
+          const { error: createError } = await supabase.rpc('exec_sql', { sql: createProfilesSQL });
+          if (createError) {
+            migrationResults.errors.push(`Failed to create profiles table: ${createError.message}`);
+          } else {
+            migrationResults.tables.push({ name: 'profiles', status: 'created' });
+          }
+        } else {
+          migrationResults.tables.push({ name: 'profiles', status: 'exists' });
+        }
+      } catch (error: any) {
+        migrationResults.errors.push(`Profiles table error: ${error.message}`);
+      }
+
+      // Create map_collections table
+      try {
+        const { data: mapsData, error: mapsError } = await supabase
+          .from('map_collections')
+          .select('count')
+          .limit(1);
+        
+        if (mapsError && mapsError.code === '42P01') {
+          const createMapsSQL = `
+            CREATE TABLE IF NOT EXISTS map_collections (
+              id VARCHAR(255) PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE,
+              description TEXT,
+              share_url TEXT NOT NULL UNIQUE,
+              owner_id VARCHAR(255),
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          `;
+          
+          const { error: createError } = await supabase.rpc('exec_sql', { sql: createMapsSQL });
+          if (createError) {
+            migrationResults.errors.push(`Failed to create map_collections table: ${createError.message}`);
+          } else {
+            migrationResults.tables.push({ name: 'map_collections', status: 'created' });
+          }
+        } else {
+          migrationResults.tables.push({ name: 'map_collections', status: 'exists' });
+        }
+      } catch (error: any) {
+        migrationResults.errors.push(`Map collections table error: ${error.message}`);
+      }
+
+      // Create pins table
+      try {
+        const { data: pinsData, error: pinsError } = await supabase
+          .from('pins')
+          .select('count')
+          .limit(1);
+        
+        if (pinsError && pinsError.code === '42P01') {
+          const createPinsSQL = `
+            CREATE TABLE IF NOT EXISTS pins (
+              id VARCHAR(255) PRIMARY KEY,
+              map_id VARCHAR(255) NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
+              user_id VARCHAR(255),
+              user_name TEXT NOT NULL,
+              latitude DECIMAL(10,8) NOT NULL,
+              longitude DECIMAL(11,8) NOT NULL,
+              address TEXT,
+              city TEXT,
+              state TEXT,
+              town TEXT,
+              borough TEXT,
+              postcode TEXT,
+              country TEXT,
+              twitter_handle TEXT,
+              instagram_handle TEXT,
+              linkedin_handle TEXT,
+              note TEXT,
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          `;
+          
+          const { error: createError } = await supabase.rpc('exec_sql', { sql: createPinsSQL });
+          if (createError) {
+            migrationResults.errors.push(`Failed to create pins table: ${createError.message}`);
+          } else {
+            migrationResults.tables.push({ name: 'pins', status: 'created' });
+          }
+        } else {
+          migrationResults.tables.push({ name: 'pins', status: 'exists' });
+        }
+      } catch (error: any) {
+        migrationResults.errors.push(`Pins table error: ${error.message}`);
+      }
+
+      // Create map_viewers table
+      try {
+        const { data: viewersData, error: viewersError } = await supabase
+          .from('map_viewers')
+          .select('count')
+          .limit(1);
+        
+        if (viewersError && viewersError.code === '42P01') {
+          const createViewersSQL = `
+            CREATE TABLE IF NOT EXISTS map_viewers (
+              id VARCHAR(255) PRIMARY KEY,
+              map_id VARCHAR(255) NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
+              user_id VARCHAR(255) NOT NULL,
+              role TEXT NOT NULL DEFAULT 'viewer',
+              created_at TIMESTAMP DEFAULT NOW() NOT NULL
+            );
+          `;
+          
+          const { error: createError } = await supabase.rpc('exec_sql', { sql: createViewersSQL });
+          if (createError) {
+            migrationResults.errors.push(`Failed to create map_viewers table: ${createError.message}`);
+          } else {
+            migrationResults.tables.push({ name: 'map_viewers', status: 'created' });
+          }
+        } else {
+          migrationResults.tables.push({ name: 'map_viewers', status: 'exists' });
+        }
+      } catch (error: any) {
+        migrationResults.errors.push(`Map viewers table error: ${error.message}`);
+      }
+
+      // Determine overall status
+      if (migrationResults.errors.length > 0) {
+        migrationResults.status = migrationResults.tables.length > 0 ? 'partial' : 'failed';
+      }
+
+      const httpStatus = migrationResults.status === 'success' ? 200 :
+                        migrationResults.status === 'partial' ? 200 : 500;
+
+      res.status(httpStatus).json(migrationResults);
+
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Migration failed',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Get all map collections (filtered by user)
   app.get("/api/maps", async (req, res) => {
     try {
