@@ -784,15 +784,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const address = data.address || {};
       
-      // Construct address without street names - use city/town, state, country
+      // Construct address without street names - use city/town, district/borough, state, country
       const addressParts = [];
       
-      // Add city/town/borough
+      // Add city/town
       if (address.city) {
         addressParts.push(address.city);
       } else if (address.town || address.village) {
         addressParts.push(address.town || address.village);
-      } else if (address.borough || address.suburb) {
+      }
+      
+      // Add district/borough if different from city
+      if (address.borough || address.suburb) {
+        const districtName = address.borough || address.suburb;
+        // Only add if it's different from the city/town already added
+        if (!addressParts.includes(districtName)) {
+          addressParts.push(districtName);
+        }
+      }
+      
+      // If no city/town but have borough/suburb, use that
+      if (addressParts.length === 0 && (address.borough || address.suburb)) {
         addressParts.push(address.borough || address.suburb);
       }
       
