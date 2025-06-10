@@ -162,7 +162,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         address: data.display_name || '',
-        city: address.city || address.town || address.village || '',
+        city: address.city || '',
+        town: address.town || address.village || '',
         state: address.state || address.region || '',
         borough: address.borough || address.suburb || '',
         postcode: address.postcode || '',

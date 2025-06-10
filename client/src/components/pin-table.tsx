@@ -276,14 +276,29 @@ export function PinTable({ pins, mapOwnerId }: PinTableProps) {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm">
-                        {pin.address && (
-                          <div className="font-medium text-neutral-900 line-clamp-1">{pin.address}</div>
-                        )}
-                        <div className="text-neutral-500">
-                          {[pin.city, pin.state, pin.postcode].filter(Boolean).join(', ')}
-                        </div>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="font-medium text-neutral-900 line-clamp-1">
+                        {pin.address || '-'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="text-neutral-900">
+                        {[pin.city, pin.town].filter(Boolean).join(', ') || '-'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="text-neutral-900">
+                        {[pin.state, pin.borough].filter(Boolean).join(', ') || '-'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="text-neutral-900">
+                        {pin.country || '-'}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm">
+                      <div className="text-neutral-900">
+                        {pin.postcode || '-'}
                       </div>
                     </td>
                     <td className="py-4 px-4">

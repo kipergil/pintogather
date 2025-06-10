@@ -283,6 +283,7 @@ export class MemStorage implements IStorage {
       address: data.address ?? null,
       city: data.city ?? null,
       state: data.state ?? null,
+      town: data.town ?? null,
       borough: data.borough ?? null,
       postcode: data.postcode ?? null,
       country: data.country ?? null,
