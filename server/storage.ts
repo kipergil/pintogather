@@ -168,6 +168,7 @@ export class MemStorage implements IStorage {
     const mapCollection: MapCollection = {
       ...data,
       description: data.description ?? null,
+      ownerId: data.ownerId ?? null,
       id,
       shareUrl,
       createdAt: new Date(),
@@ -197,12 +198,12 @@ export class MemStorage implements IStorage {
   async createPin(data: InsertPin): Promise<Pin> {
     const id = nanoid();
     const pin: Pin = {
+      id,
       mapId: data.mapId,
+      userId: data.userId ?? null,
       userName: data.userName,
       latitude: data.latitude,
       longitude: data.longitude,
-      id,
-      createdAt: new Date(),
       address: data.address ?? null,
       city: data.city ?? null,
       state: data.state ?? null,
@@ -213,6 +214,7 @@ export class MemStorage implements IStorage {
       instagramHandle: data.instagramHandle ?? null,
       linkedinHandle: data.linkedinHandle ?? null,
       note: data.note ?? null,
+      createdAt: new Date(),
     };
     this.pins.set(id, pin);
     return pin;

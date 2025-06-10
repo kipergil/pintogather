@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
 import { MapPin, Plus } from "lucide-react";
 
 interface AddPinModalProps {
@@ -43,6 +45,7 @@ interface PinFormData {
 export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }: AddPinModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState<PinFormData>({
     userName: "",
@@ -54,6 +57,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
 
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Fetch location data when selectedLocation changes
   useEffect(() => {
