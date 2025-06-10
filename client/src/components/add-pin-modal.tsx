@@ -302,29 +302,38 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Location Info */}
-          <div className="bg-neutral-50 rounded-lg p-4">
-            <h4 className="font-medium text-neutral-900 mb-2 flex items-center">
-              <MapPin className="h-4 w-4 text-accent mr-2" />
-              Selected Location
-            </h4>
-            {isLoadingLocation ? (
-              <div className="text-sm text-neutral-600">Loading location data...</div>
-            ) : selectedLocation ? (
-              <div className="text-sm text-neutral-600 space-y-1">
-                <div>
-                  <span className="font-medium">Coordinates:</span>{" "}
-                  {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                </div>
-                {locationData?.address && (
-                  <div>
-                    <span className="font-medium">Address:</span>{" "}
-                    {locationData.address}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Selected Location</Label>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              {isLoadingLocation ? (
+                <div className="text-sm text-gray-600">Loading location data...</div>
+              ) : selectedLocation ? (
+                <div className="flex items-start space-x-2">
+                  <MapPin className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-gray-700">
+                    {locationData?.address ? (
+                      <>
+                        <div className="font-medium">{locationData.address}</div>
+                        {(locationData.city || locationData.state) && (
+                          <div className="text-gray-500">
+                            {[locationData.city, locationData.state].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        Coordinates: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-neutral-600">No location selected</div>
-            )}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">No location selected</div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 italic">
+              💡 You don't need to give exact location if you want to stay anonymous
+            </p>
           </div>
 
           {/* User Info */}

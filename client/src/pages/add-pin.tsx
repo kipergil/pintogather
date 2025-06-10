@@ -238,6 +238,35 @@ export default function AddPin({ params }: AddPinProps) {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Selected Location Display */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Selected Location</Label>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <MapPin className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-700">
+                      {locationData?.address ? (
+                        <>
+                          <div className="font-medium">{locationData.address}</div>
+                          {(locationData.city || locationData.state) && (
+                            <div className="text-gray-500">
+                              {[locationData.city, locationData.state].filter(Boolean).join(', ')}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div>
+                          Coordinates: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 italic">
+                  💡 You don't need to give exact location if you want to stay anonymous
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="userName">Your Name *</Label>
                 <Input
