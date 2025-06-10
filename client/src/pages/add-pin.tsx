@@ -50,30 +50,39 @@ export default function AddPin({ params }: AddPinProps) {
     note: "",
   });
 
-  // Fetch user profile to auto-populate form
+  // Load user profile data to auto-populate form
   const { data: profile } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      try {
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
-          console.error('Error loading profile:', error);
-        }
-        return data;
-      } catch (error) {
-        // Silently handle profile errors - table might not exist yet
-        return null;
+      
+      // Try to load from localStorage first
+      const localProfile = localStorage.getItem(`profile_${user.id}`);
+      if (localProfile) {
+        return JSON.parse(localProfile);
       }
+      
+      // Try Supabase as fallback
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (!error && data) {
+            return data;
+          }
+        } catch (error) {
+          console.log('No profile found in Supabase');
+        }
+      }
+      
+      return null;
     },
     enabled: !!user,
-    retry: false, // Don't retry on profile errors
   });
 
   // Auto-populate form from profile data
@@ -140,69 +149,77 @@ export default function AddPin({ params }: AddPinProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/maps'] });
       toast({
-        title: "Pin Added",
-        description: "Your pin has been added to the map successfully.",
-        variant: "success",
+        title: "Pin added successfully!",
+        description: "Your pin has been added to the map.",
+        variant: "default",
       });
+      
+      // Navigate back to map
       setLocation(`/map/${shareUrl}`);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add pin",
+        title: "Error adding pin",
+        description: error.message || "Failed to add pin to map",
         variant: "destructive",
       });
-    },
+    }
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLocation || !formData.userName.trim()) return;
+    
+    if (!selectedLocation || !formData.userName.trim()) {
+      return;
+    }
 
     setLoading(true);
+    
     try {
       const pinData = {
-        userName: formData.userName,
+        userName: formData.userName.trim(),
         latitude: selectedLocation.lat.toString(),
         longitude: selectedLocation.lng.toString(),
-        address: locationData?.address || selectedLocation.address,
-        city: locationData?.city,
-        state: locationData?.state,
-        town: locationData?.town,
-        borough: locationData?.borough,
-        postcode: locationData?.postcode,
-        country: locationData?.country,
-        twitterHandle: formData.twitterHandle || null,
-        instagramHandle: formData.instagramHandle || null,
-        linkedinHandle: formData.linkedinHandle || null,
-        note: formData.note || null,
+        address: locationData?.address || selectedLocation.address || "",
+        city: locationData?.city || "",
+        state: locationData?.state || "",
+        borough: locationData?.borough || "",
+        postcode: locationData?.postcode || "",
+        country: locationData?.country || "",
+        twitterHandle: formData.twitterHandle.trim(),
+        instagramHandle: formData.instagramHandle.trim(),
+        linkedinHandle: formData.linkedinHandle.trim(),
+        note: formData.note.trim(),
         userId: user?.id || null,
       };
 
-      createPinMutation.mutate(pinData);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add pin",
-        variant: "destructive",
-      });
+      await createPinMutation.mutateAsync(pinData);
+    } catch (error) {
+      console.error('Error adding pin:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleInputChange = (field: keyof PinFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   if (!selectedLocation) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">No Location Selected</h2>
-            <p className="text-gray-600 mb-4">Please select a location on the map first.</p>
-            <Link href={`/map/${shareUrl}`}>
-              <Button className="w-full">Back to Map</Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Loading location...</p>
+          <Link href={`/map/${shareUrl}`}>
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Map
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -211,11 +228,11 @@ export default function AddPin({ params }: AddPinProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 py-8">
         <div className="mb-6">
-          <div className="flex justify-end mb-4">
+          <div className="flex items-center justify-between mb-4">
             <Link href={`/map/${shareUrl}`}>
-              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm">
-                <ArrowLeft className="h-3 w-3 mr-1" />
-                Back
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Map
               </Button>
             </Link>
           </div>
@@ -224,131 +241,131 @@ export default function AddPin({ params }: AddPinProps) {
             <MapPin className="h-6 w-6 mr-3 text-gray-600" />
             <h1 className="text-2xl font-bold text-gray-900">Add Pin to Map</h1>
           </div>
-          
-          {locationData?.address && (
-            <p className="text-sm text-gray-600">
-              Location: {locationData.address}
-            </p>
-          )}
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Pin Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Selected Location Display */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Selected Location</Label>
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <MapPin className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-gray-700">
-                      {locationData?.address ? (
-                        <>
-                          <div className="font-medium">{locationData.address}</div>
-                          {(locationData.city || locationData.state) && (
-                            <div className="text-gray-500">
-                              {[locationData.city, locationData.state].filter(Boolean).join(', ')}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div>
-                          Coordinates: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            <CardTitle className="flex items-center text-lg">
+              <Save className="h-5 w-5 mr-2" />
+              Pin Details
+            </CardTitle>
+            {locationData?.address && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                <div className="flex items-center mb-2">
+                  <MapPin className="h-4 w-4 text-blue-600 mr-2" />
+                  <span className="font-medium text-blue-900">Selected Location</span>
                 </div>
-                <p className="text-xs text-gray-500 italic">
-                  💡 You don't need to give exact location if you want to stay anonymous
-                </p>
+                <p className="text-sm text-blue-800">{locationData.address}</p>
+                <div className="text-xs text-blue-600 mt-1">
+                  {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="userName">Your Name *</Label>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="userName" className="text-sm font-medium">
+                  Name *
+                </Label>
                 <Input
                   id="userName"
                   type="text"
-                  placeholder="Enter your name"
                   value={formData.userName}
-                  onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                  className="h-12 text-base touch-target"
+                  onChange={(e) => handleInputChange('userName', e.target.value)}
+                  placeholder="Your name"
                   required
+                  className="mt-1"
                 />
               </div>
 
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Social Media (Optional)</Label>
-                
-                <div className="space-y-4">
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="Twitter handle (without @)"
-                      value={formData.twitterHandle}
-                      onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.621 5.367 11.988 11.988 11.988s11.987-5.367 11.987-11.988C24.004 5.367 18.637.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.321-1.295C3.897 14.475 3.365 13.48 3.365 12.017s.532-2.458 1.763-3.676C6.001 7.536 7.152 7.046 8.449 7.046s2.448.49 3.321 1.295c1.231 1.218 1.763 2.213 1.763 3.676s-.532 2.458-1.763 3.676c-.873.805-2.024 1.295-3.321 1.295z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="Instagram handle (without @)"
-                      value={formData.instagramHandle}
-                      onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="LinkedIn profile URL or handle"
-                      value={formData.linkedinHandle}
-                      onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
-                </div>
+              <div>
+                <Label htmlFor="twitterHandle" className="text-sm font-medium">
+                  Twitter Handle
+                </Label>
+                <Input
+                  id="twitterHandle"
+                  type="text"
+                  value={formData.twitterHandle}
+                  onChange={(e) => handleInputChange('twitterHandle', e.target.value)}
+                  placeholder="@username"
+                  className="mt-1"
+                />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="note">Note (Optional)</Label>
+              <div>
+                <Label htmlFor="instagramHandle" className="text-sm font-medium">
+                  Instagram Handle
+                </Label>
+                <Input
+                  id="instagramHandle"
+                  type="text"
+                  value={formData.instagramHandle}
+                  onChange={(e) => handleInputChange('instagramHandle', e.target.value)}
+                  placeholder="@username"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="linkedinHandle" className="text-sm font-medium">
+                  LinkedIn Handle
+                </Label>
+                <Input
+                  id="linkedinHandle"
+                  type="text"
+                  value={formData.linkedinHandle}
+                  onChange={(e) => handleInputChange('linkedinHandle', e.target.value)}
+                  placeholder="@username"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="note" className="text-sm font-medium">
+                  Note
+                </Label>
                 <Textarea
                   id="note"
-                  placeholder="Add a note about this location..."
                   value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  className="min-h-[100px] text-base resize-none"
-                  rows={4}
+                  onChange={(e) => handleInputChange('note', e.target.value)}
+                  placeholder="Add a note about this location..."
+                  className="mt-1"
+                  rows={3}
                 />
               </div>
 
-              <div className="pt-4">
-                <Button 
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-800">
+                  <strong>Privacy Notice:</strong> Your location and details will be visible to anyone with access to this map. 
+                  Only share information you're comfortable making public.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
                   type="submit"
-                  className="w-full h-12 text-base touch-target"
-                  disabled={loading || createPinMutation.isPending || !formData.userName.trim()}
+                  disabled={loading || !formData.userName.trim() || createPinMutation.isPending}
+                  className="flex-1"
                 >
-                  <Save className="h-5 w-5 mr-2" />
-                  {loading || createPinMutation.isPending ? "Adding Pin..." : "Add Pin to Map"}
+                  {loading || createPinMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Adding Pin...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Add Pin
+                    </>
+                  )}
                 </Button>
+                
+                <Link href={`/map/${shareUrl}`}>
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </Link>
               </div>
             </form>
           </CardContent>
