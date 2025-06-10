@@ -110,12 +110,14 @@ export default function Auth() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto p-4 py-8">
         <div className="mb-6">
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Button>
-          </Link>
+          <div className="flex justify-end mb-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm touch-target">
+                <ArrowLeft className="h-3 w-3 mr-1" />
+                Back
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card>

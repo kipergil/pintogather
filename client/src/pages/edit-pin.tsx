@@ -197,12 +197,14 @@ export default function EditPin({ params }: EditPinProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 py-8 mobile-safe-area">
         <div className="mb-6">
-          <Link href={`/map/${shareUrl}`}>
-            <Button variant="ghost" size="sm" className="mb-4 touch-target">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Map
-            </Button>
-          </Link>
+          <div className="flex justify-end mb-4">
+            <Link href={`/map/${shareUrl}`}>
+              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm touch-target">
+                <ArrowLeft className="h-3 w-3 mr-1" />
+                Back
+              </Button>
+            </Link>
+          </div>
           
           <div className="flex items-center mb-2">
             <MapPin className="h-6 w-6 mr-3 text-gray-600" />
