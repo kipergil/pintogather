@@ -59,20 +59,25 @@ export default function EditPin({ params }: EditPinProps) {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error loading profile:', error);
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading profile:', error);
+        }
+        return data;
+      } catch (error) {
+        // Silently handle profile errors - table might not exist yet
         return null;
       }
-      return data;
     },
     enabled: !!user,
+    retry: false,
   });
 
   // Populate form when pin data loads
