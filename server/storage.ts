@@ -3,6 +3,8 @@ import postgres from "postgres";
 import { eq, desc, sql, or, and, ne, inArray } from "drizzle-orm";
 import { mapCollections, pins, mapViewers, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer } from "@shared/schema";
 import { nanoid } from "nanoid";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface IStorage {
   // Map Collections
@@ -488,7 +490,89 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use memory storage for reliability - database will be used when properly configured
-export const storage = new MemStorage();
+// Initialize storage with robust fallback
+async function initializeStorage(): Promise<IStorage> {
+  // Always try memory storage first for reliability
+  console.log('Using in-memory storage - data will not persist between restarts');
+  const memStorage = new MemStorage();
+  await memStorage.initializeDatabase();
+  return memStorage;
+}
 
-console.log('Using in-memory storage - data will not persist between restarts');
+// Create storage instance
+let storageInstance: IStorage | null = null;
+
+export async function getStorage(): Promise<IStorage> {
+  if (!storageInstance) {
+    storageInstance = await initializeStorage();
+  }
+  return storageInstance;
+}
+
+// For backward compatibility, export a storage object that initializes on first use
+export const storage = {
+  async initializeDatabase() {
+    const instance = await getStorage();
+    return instance.initializeDatabase();
+  },
+  async createMapCollection(data: InsertMapCollection) {
+    const instance = await getStorage();
+    return instance.createMapCollection(data);
+  },
+  async getMapCollectionByShareUrl(shareUrl: string) {
+    const instance = await getStorage();
+    return instance.getMapCollectionByShareUrl(shareUrl);
+  },
+  async getMapCollectionByName(name: string) {
+    const instance = await getStorage();
+    return instance.getMapCollectionByName(name);
+  },
+  async getAllMapCollections() {
+    const instance = await getStorage();
+    return instance.getAllMapCollections();
+  },
+  async getMapCollectionsByUserId(userId: string) {
+    const instance = await getStorage();
+    return instance.getMapCollectionsByUserId(userId);
+  },
+  async getMapCollectionsForUser(userId: string) {
+    const instance = await getStorage();
+    return instance.getMapCollectionsForUser(userId);
+  },
+  async getContributedMaps(userId: string) {
+    const instance = await getStorage();
+    return instance.getContributedMaps(userId);
+  },
+  async addMapViewer(data: InsertMapViewer) {
+    const instance = await getStorage();
+    return instance.addMapViewer(data);
+  },
+  async getMapViewers(mapId: string) {
+    const instance = await getStorage();
+    return instance.getMapViewers(mapId);
+  },
+  async getUserMapAccess(userId: string, mapId: string) {
+    const instance = await getStorage();
+    return instance.getUserMapAccess(userId, mapId);
+  },
+  async createPin(data: InsertPin) {
+    const instance = await getStorage();
+    return instance.createPin(data);
+  },
+  async getPinsByMapId(mapId: string) {
+    const instance = await getStorage();
+    return instance.getPinsByMapId(mapId);
+  },
+  async getPinById(id: string) {
+    const instance = await getStorage();
+    return instance.getPinById(id);
+  },
+  async updatePin(id: string, data: Partial<InsertPin>) {
+    const instance = await getStorage();
+    return instance.updatePin(id, data);
+  },
+  async deletePin(id: string, userId?: string) {
+    const instance = await getStorage();
+    return instance.deletePin(id, userId);
+  }
+};
