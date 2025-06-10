@@ -164,18 +164,58 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
       handleClose();
     },
     onError: (error: any) => {
-      console.error('Pin creation error:', error);
-      let errorMessage = "Failed to add pin";
+      console.error('Pin creation error details:', {
+        error,
+        mapCollection: mapCollection.id,
+        selectedLocation,
+        formData,
+        errorType: typeof error,
+        errorKeys: Object.keys(error || {})
+      });
       
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      let errorMessage = "Failed to add pin";
+      let errorDetails = "";
+      
+      if (error?.response?.status) {
+        switch (error.response.status) {
+          case 400:
+            errorMessage = "Invalid pin data";
+            errorDetails = error.response.data?.message || "Please check all required fields are filled correctly";
+            break;
+          case 404:
+            errorMessage = "Map not found";
+            errorDetails = "The map collection you're trying to add a pin to doesn't exist";
+            break;
+          case 500:
+            errorMessage = "Server error";
+            errorDetails = "Internal server error occurred. Please try again in a moment.";
+            break;
+          default:
+            errorMessage = `Request failed (${error.response.status})`;
+            errorDetails = error.response.data?.message || "Unknown server error occurred";
+        }
+      } else if (error.message) {
+        if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
+          errorMessage = "Connection failed";
+          errorDetails = "Unable to connect to server. Check your internet connection and try again.";
+        } else if (error.message.includes('JSON')) {
+          errorMessage = "Server response error";
+          errorDetails = "Server returned invalid data format";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "Request timed out";
+          errorDetails = "The server took too long to respond. Please try again.";
+        } else {
+          errorMessage = "Pin creation failed";
+          errorDetails = error.message;
+        }
+      } else {
+        errorMessage = "Unknown error occurred";
+        errorDetails = "An unexpected error happened. Please try again or contact support if the problem persists.";
       }
       
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: errorMessage,
+        description: errorDetails,
         variant: "destructive",
       });
     },

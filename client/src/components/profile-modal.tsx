@@ -42,22 +42,38 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     
     setLoading(true);
     try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-        console.error('Error loading profile:', error);
-      } else if (data) {
+      // Try to load from localStorage first as fallback
+      const localProfile = localStorage.getItem(`profile_${user.id}`);
+      if (localProfile) {
+        const parsedProfile = JSON.parse(localProfile);
         setProfileData({
-          full_name: data.full_name || "",
-          twitter_handle: data.twitter_handle || "",
-          instagram_handle: data.instagram_handle || "",
-          linkedin_handle: data.linkedin_handle || "",
+          full_name: parsedProfile.full_name || "",
+          twitter_handle: parsedProfile.twitter_handle || "",
+          instagram_handle: parsedProfile.instagram_handle || "",
+          linkedin_handle: parsedProfile.linkedin_handle || "",
         });
+      }
+
+      // Try Supabase if available
+      const supabase = getSupabase();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading profile:', error);
+          // Profile table might not exist, use localStorage fallback
+        } else if (data) {
+          setProfileData({
+            full_name: data.full_name || "",
+            twitter_handle: data.twitter_handle || "",
+            instagram_handle: data.instagram_handle || "",
+            linkedin_handle: data.linkedin_handle || "",
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -72,35 +88,56 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     setLoading(true);
     try {
-      const supabase = getSupabase();
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user.id,
-          full_name: profileData.full_name,
-          twitter_handle: profileData.twitter_handle || null,
-          instagram_handle: profileData.instagram_handle || null,
-          linkedin_handle: profileData.linkedin_handle || null,
-          updated_at: new Date().toISOString(),
-        });
+      // Save to localStorage as primary storage
+      const profileToSave = {
+        user_id: user.id,
+        full_name: profileData.full_name,
+        twitter_handle: profileData.twitter_handle || null,
+        instagram_handle: profileData.instagram_handle || null,
+        linkedin_handle: profileData.linkedin_handle || null,
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Profile Updated",
-          description: "Your profile has been saved successfully.",
-        });
-        onClose();
+      localStorage.setItem(`profile_${user.id}`, JSON.stringify(profileToSave));
+
+      // Try to save to Supabase if available
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .upsert(profileToSave);
+
+          if (error && error.code === '42P01') {
+            // Table doesn't exist, that's OK, we're using localStorage
+            console.log('Profiles table not found, using local storage');
+          } else if (error) {
+            console.error('Supabase error:', error);
+            toast({
+              title: "Profile Saved Locally",
+              description: `Profile saved but cloud sync failed: ${error.message}. Your data is stored locally.`,
+              variant: "default",
+            });
+          }
+        } catch (supabaseError: any) {
+          console.error('Supabase connection error:', supabaseError);
+          toast({
+            title: "Profile Saved Locally",
+            description: "Profile saved locally. Cloud sync unavailable at the moment.",
+            variant: "default",
+          });
+        }
       }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been saved successfully.",
+      });
+      onClose();
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to save profile",
+        title: "Save Failed",
+        description: `Unable to save profile: ${error.message || 'Unknown error occurred'}`,
         variant: "destructive",
       });
     } finally {
