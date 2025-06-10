@@ -114,9 +114,18 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
       handleClose();
     },
     onError: (error: any) => {
+      console.error('Pin creation error:', error);
+      let errorMessage = "Failed to add pin";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to add pin",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -147,16 +156,16 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
       userName: formData.userName.trim(),
       latitude: selectedLocation.lat.toString(),
       longitude: selectedLocation.lng.toString(),
-      address: locationData.address,
-      city: locationData.city,
-      state: locationData.state,
-      borough: locationData.borough,
-      postcode: locationData.postcode,
-      country: locationData.country,
-      twitterHandle: formData.twitterHandle.trim() || undefined,
-      instagramHandle: formData.instagramHandle.trim() || undefined,
-      linkedinHandle: formData.linkedinHandle.trim() || undefined,
-      note: formData.note.trim() || undefined,
+      address: locationData.address || null,
+      city: locationData.city || null,
+      state: locationData.state || null,
+      borough: locationData.borough || null,
+      postcode: locationData.postcode || null,
+      country: locationData.country || null,
+      twitterHandle: formData.twitterHandle.trim() || null,
+      instagramHandle: formData.instagramHandle.trim() || null,
+      linkedinHandle: formData.linkedinHandle.trim() || null,
+      note: formData.note.trim() || null,
     };
 
     createPinMutation.mutate(pinData);

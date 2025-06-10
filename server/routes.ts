@@ -86,8 +86,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(pin);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+        console.error('Pin validation error:', error.errors);
+        const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+        res.status(400).json({ 
+          message: `Validation failed: ${errorMessages.join(', ')}`, 
+          errors: error.errors 
+        });
       } else {
+        console.error('Pin creation error:', error);
         res.status(500).json({ message: "Failed to create pin" });
       }
     }

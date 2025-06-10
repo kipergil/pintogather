@@ -115,6 +115,15 @@
   z-index: 9999 !important;
 }
 
+/* Toast notifications should appear above everything */
+[data-radix-toast-viewport] {
+  z-index: 10001 !important;
+}
+
+[data-radix-toast-root] {
+  z-index: 10001 !important;
+}
+
 .leaflet-container {
   z-index: 1;
 }
