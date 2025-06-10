@@ -30,8 +30,15 @@ function HeaderContent() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    setLocation('/');
+    try {
+      await signOut();
+      setLocation('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Force sign out by clearing local state even if Supabase fails
+      setLocation('/');
+      window.location.reload();
+    }
   };
 
   return (

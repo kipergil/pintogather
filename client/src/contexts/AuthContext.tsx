@@ -111,11 +111,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      throw new Error('Authentication service not available');
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Supabase sign out error:', error);
     }
-    await supabase.auth.signOut();
+    
+    // Always clear local state regardless of Supabase success/failure
+    setUser(null);
+    setSession(null);
   };
 
   const value = {
