@@ -5,6 +5,14 @@ import { insertMapCollectionSchema, insertPinSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get Supabase configuration
+  app.get("/api/config", async (req, res) => {
+    res.json({
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    });
+  });
+
   // Get all map collections
   app.get("/api/maps", async (req, res) => {
     try {
