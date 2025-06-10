@@ -38,13 +38,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize database first - exit if fails
+  // Initialize database first - warn if fails
   try {
     await storage.initializeDatabase();
   } catch (error) {
-    console.error('Database initialization failed:', error);
-    console.error('Server cannot start without database connection');
-    process.exit(1);
+    console.error('❌ DATABASE CONNECTION FAILED');
+    console.error('All API requests will fail until database is properly configured');
+    console.error('Error:', error.message);
   }
 
   const server = await registerRoutes(app);
