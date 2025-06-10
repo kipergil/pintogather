@@ -55,14 +55,13 @@ export function MapView({ mapCollection }: MapViewProps) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize map with London as default location and zoom level 5
-    const map = L.map(mapContainerRef.current).setView([51.5074, -0.1278], 5);
+    // Initialize map with London as default location and zoom level 7
+    const map = L.map(mapContainerRef.current).setView([51.5074, -0.1278], 7);
     mapRef.current = map;
 
-    // Add CartoDB Positron tile layer (cleaner, less crowded)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap contributors © CARTO',
-      subdomains: 'abcd',
+    // Add OpenStreetMap tile layer to show street names
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
       maxZoom: 19
     }).addTo(map);
 
@@ -146,12 +145,6 @@ export function MapView({ mapCollection }: MapViewProps) {
 
     // Add all markers to the cluster group
     markersClusterGroupRef.current.addLayers(markers);
-
-    // Fit map to show all markers
-    if (markers.length > 0) {
-      const group = new L.FeatureGroup(markers);
-      mapRef.current.fitBounds(group.getBounds().pad(0.1));
-    }
   }, [mapCollection.pins]);
 
   const fitMapBounds = () => {
