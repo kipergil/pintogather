@@ -153,6 +153,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             <User className="h-5 w-5 mr-2" />
             Profile Settings
           </DialogTitle>
+          {user?.email && (
+            <div className="text-sm text-neutral-600 mt-1">
+              Logged in as: <span className="font-medium">{user.email}</span>
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={saveProfile} className="space-y-4">
