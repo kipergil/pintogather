@@ -18,7 +18,15 @@ interface MapCollection {
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { data: maps = [], isLoading } = useQuery<MapCollection[]>({
-    queryKey: ["/api/maps"],
+    queryKey: ["/api/maps", user?.id],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.id) {
+        params.append('userId', user.id);
+      }
+      return fetch(`/api/maps?${params}`).then(res => res.json());
+    },
+    enabled: !authLoading, // Only run query when auth state is determined
   });
 
   const formatDate = (dateString: string) => {
@@ -71,9 +79,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* Recent Maps */}
-      <div className="mt-12">
-        <h3 className="text-xl font-semibold text-neutral-900 mb-6">Recent Map Collections</h3>
+      {/* Recent Maps - Only show for authenticated users */}
+      {user && (
+        <div className="mt-12">
+          <h3 className="text-xl font-semibold text-neutral-900 mb-6">Your Map Collections</h3>
         
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -144,7 +153,8 @@ export default function Home() {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }

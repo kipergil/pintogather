@@ -41,7 +41,7 @@ export function CreateMapForm() {
         title: "Success",
         description: "Map collection created successfully!",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id] });
       setLocation(`/map/${data.shareUrl}`);
     },
     onError: (error: any) => {
