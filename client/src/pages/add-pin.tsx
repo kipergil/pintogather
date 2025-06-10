@@ -228,15 +228,6 @@ export default function AddPin({ params }: AddPinProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 py-8">
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <Link href={`/map/${shareUrl}`}>
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Map
-              </Button>
-            </Link>
-          </div>
-          
           <div className="flex items-center mb-2">
             <MapPin className="h-6 w-6 mr-3 text-gray-600" />
             <h1 className="text-2xl font-bold text-gray-900">Add Pin to Map</h1>
@@ -245,10 +236,18 @@ export default function AddPin({ params }: AddPinProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center text-lg">
-              <Save className="h-5 w-5 mr-2" />
-              Pin Details
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-lg">
+                <Save className="h-5 w-5 mr-2" />
+                Pin Details
+              </CardTitle>
+              <Link href={`/map/${shareUrl}`}>
+                <Button variant="outline" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Map
+                </Button>
+              </Link>
+            </div>
             {locationData?.address && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <div className="flex items-center mb-2">
@@ -342,11 +341,11 @@ export default function AddPin({ params }: AddPinProps) {
                 </p>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="pt-4">
                 <Button
                   type="submit"
                   disabled={loading || !formData.userName.trim() || createPinMutation.isPending}
-                  className="flex-1"
+                  className="w-full"
                 >
                   {loading || createPinMutation.isPending ? (
                     <>
@@ -360,12 +359,6 @@ export default function AddPin({ params }: AddPinProps) {
                     </>
                   )}
                 </Button>
-                
-                <Link href={`/map/${shareUrl}`}>
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </Link>
               </div>
             </form>
           </CardContent>
