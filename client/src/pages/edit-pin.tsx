@@ -198,15 +198,6 @@ export default function EditPin({ params }: EditPinProps) {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 py-8">
         <div className="mb-6">
-          <div className="flex justify-end mb-4">
-            <Link href={`/map/${shareUrl}`}>
-              <Button variant="ghost" size="sm" className="px-2 py-1 h-8 text-sm">
-                <ArrowLeft className="h-3 w-3 mr-1" />
-                Back
-              </Button>
-            </Link>
-          </div>
-          
           <div className="flex items-center mb-2">
             <MapPin className="h-6 w-6 mr-3 text-gray-600" />
             <h1 className="text-2xl font-bold text-gray-900">Edit Pin</h1>
@@ -298,7 +289,7 @@ export default function EditPin({ params }: EditPinProps) {
                 />
               </div>
 
-              <div className="pt-4">
+              <div className="pt-4 space-y-3">
                 <Button 
                   type="submit"
                   className="w-full h-12 text-base touch-target"
@@ -307,6 +298,13 @@ export default function EditPin({ params }: EditPinProps) {
                   <Save className="h-5 w-5 mr-2" />
                   {loading || updatePinMutation.isPending ? "Updating Pin..." : "Update Pin"}
                 </Button>
+                
+                <Link href={`/map/${shareUrl}`} className="block">
+                  <Button variant="outline" className="w-full h-12 text-base touch-target">
+                    <ArrowLeft className="h-5 w-5 mr-2" />
+                    Back to Map
+                  </Button>
+                </Link>
               </div>
             </form>
           </CardContent>
