@@ -158,9 +158,13 @@ class DatabaseStorage implements IStorage {
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
+    const id = nanoid();
     const [result] = await this.db
       .insert(pins)
-      .values(data)
+      .values({
+        id,
+        ...data,
+      })
       .returning();
     return {
       ...result,

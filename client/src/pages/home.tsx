@@ -26,7 +26,7 @@ export default function Home() {
       }
       return fetch(`/api/maps?${params}`).then(res => res.json());
     },
-    enabled: !authLoading, // Only run query when auth state is determined
+    enabled: !authLoading,
   });
 
   const formatDate = (dateString: string) => {
@@ -43,14 +43,12 @@ export default function Home() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Hero Section */}
       <div className="text-center py-12">
         <h2 className="text-3xl font-bold text-neutral-900 mb-4">Create Collaborative Maps</h2>
         <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
           Build interactive maps where your community can add pins, share locations, and collaborate in real-time.
         </p>
         
-        {/* How It Works Section */}
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
           <Card>
             <CardContent className="p-6 text-center">
@@ -84,7 +82,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Create Map Form - Only show for authenticated users */}
       {user ? (
         <div className="max-w-md mx-auto mb-12">
           <CreateMapForm />
@@ -98,7 +95,6 @@ export default function Home() {
               <Button 
                 className="w-full"
                 onClick={() => {
-                  // This would open the auth modal in a real implementation
                   window.location.href = '/api/auth/signin';
                 }}
               >
@@ -110,7 +106,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Recent Maps - Only show for authenticated users */}
       {user && (
         <div className="mt-12">
           <h3 className="text-xl font-semibold text-neutral-900 mb-6">Your Map Collections</h3>
@@ -129,9 +124,8 @@ export default function Home() {
                         <div className="h-6 w-6 bg-gray-200 rounded"></div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           ) : maps.length === 0 ? (
