@@ -19,11 +19,13 @@ interface MapCollection {
   name: string;
   description?: string;
   shareUrl: string;
+  ownerId?: string;
   createdAt: string;
   pinCount: number;
   pins: Array<{
     id: string;
     userName: string;
+    userId?: string;
     latitude: string;
     longitude: string;
     address?: string;
