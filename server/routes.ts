@@ -139,6 +139,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(httpStatus).json(healthCheck);
   });
 
+  // General application health check
+  app.get("/api/app-status", async (req, res) => {
+    const overallHealth = {
+      timestamp: new Date().toISOString(),
+      status: 'healthy',
+      version: '1.0.0',
+      uptime: process.uptime(),
+      services: {
+        application: {
+          status: 'healthy',
+          details: {
+            nodeVersion: process.version,
+            environment: process.env.NODE_ENV || 'development',
+            memoryUsage: process.memoryUsage(),
+            pid: process.pid
+          }
+        },
+        storage: {
+          status: 'healthy',
+          type: process.env.DATABASE_URL ? 'postgresql' : 'memory'
+        },
+        supabase: {
+          status: 'unknown' as string,
+          details: {} as any,
+          errors: [] as string[]
+        }
+      },
+      errors: [] as string[]
+    };
+
+    try {
+      // Test storage connectivity
+      await storage.getAllMapCollections();
+      overallHealth.services.storage.status = 'healthy';
+    } catch (error: any) {
+      overallHealth.services.storage.status = 'error';
+      overallHealth.errors.push(`Storage error: ${error.message}`);
+    }
+
+    // Get Supabase health status
+    try {
+      const supabaseHealthResponse = await fetch(`http://localhost:5000/api/supabase-health`);
+      const supabaseHealth = await supabaseHealthResponse.json();
+      
+      overallHealth.services.supabase.status = supabaseHealth.status;
+      overallHealth.services.supabase.details = supabaseHealth.details;
+      overallHealth.services.supabase.errors = supabaseHealth.errors || [];
+
+      if (supabaseHealth.errors && supabaseHealth.errors.length > 0) {
+        overallHealth.errors.push(...supabaseHealth.errors);
+      }
+    } catch (error: any) {
+      overallHealth.services.supabase.status = 'error';
+      overallHealth.services.supabase.details = { configurationStatus: 'unknown' };
+      overallHealth.services.supabase.errors = [`Failed to check Supabase health: ${error.message}`];
+      overallHealth.errors.push(`Supabase health check failed: ${error.message}`);
+    }
+
+    // Determine overall status
+    const serviceStatuses = Object.values(overallHealth.services).map(service => service.status);
+    if (serviceStatuses.includes('error')) {
+      overallHealth.status = 'error';
+    } else if (serviceStatuses.includes('warning')) {
+      overallHealth.status = 'warning';
+    } else {
+      overallHealth.status = 'healthy';
+    }
+
+    const httpStatus = overallHealth.status === 'healthy' ? 200 : 
+                      overallHealth.status === 'warning' ? 200 : 503;
+    
+    res.status(httpStatus).json(overallHealth);
+  });
+
   // Get all map collections (filtered by user)
   app.get("/api/maps", async (req, res) => {
     try {
