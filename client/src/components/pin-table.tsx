@@ -100,6 +100,15 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
   );
 
   const exportPins = () => {
+    if (!canExportCSV) {
+      toast({
+        title: "Upgrade Required",
+        description: "CSV export is available for Basic and Premium users. Upgrade your account to access this feature.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const csvContent = [
       ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", "Note", "Added Date"].join(","),
       ...filteredPins.map(pin => [
@@ -153,9 +162,11 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
           size="sm"
           onClick={exportPins}
           disabled={filteredPins.length === 0}
+          className={!canExportCSV ? "opacity-50" : ""}
         >
           <Download className="h-4 w-4 mr-2" />
           Export CSV
+          {!canExportCSV && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
         </Button>
       </div>
 

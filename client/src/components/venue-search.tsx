@@ -3,8 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Clock } from "lucide-react";
+import { Search, MapPin, Clock, Crown } from "lucide-react";
 import { searchVenues, VenueResult, getVenueIcon, formatVenueAddress } from "@/lib/venue-search";
+import { useUserPermissions } from "@/hooks/use-user-permissions";
 
 interface VenueSearchProps {
   onVenueSelect: (venue: VenueResult) => void;
@@ -25,6 +26,7 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { canUseVenueSearch } = useUserPermissions();
 
   useEffect(() => {
     // Load recent searches from localStorage
@@ -49,6 +51,12 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
+      return;
+    }
+
+    if (!canUseVenueSearch) {
+      setResults([]);
+      setShowResults(true);
       return;
     }
 
