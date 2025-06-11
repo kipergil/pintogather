@@ -13,6 +13,7 @@ import Profile from "@/pages/profile";
 import Auth from "@/pages/auth";
 import AddPin from "@/pages/add-pin";
 import EditPin from "@/pages/edit-pin";
+import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { LogIn, User, LogOut } from "lucide-react";
 
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/profile" component={Profile} />
       <Route path="/auth" component={Auth} />
+      <Route path="/admin" component={AdminPage} />
       <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
       <Route path="/map/:shareUrl" component={MapDetail} />

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin, Edit } from "lucide-react";
+import { useUserPermissions } from "@/hooks/use-user-permissions";
+import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin, Edit, Crown } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface Pin {
@@ -41,6 +42,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { canExportCSV, userGroup } = useUserPermissions();
 
   // Check if user can delete a pin (map owner or pin creator)
   const canDeletePin = (pin: Pin) => {
