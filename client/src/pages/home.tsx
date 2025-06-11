@@ -274,11 +274,7 @@ export default function Home() {
         </div>
       )}
 
-      {user ? (
-        <div className="max-w-md mx-auto mb-12">
-          <CreateMapForm />
-        </div>
-      ) : (
+      {!user && (
         <div className="max-w-md mx-auto mb-12 text-center">
           <Card>
             <CardContent className="p-6">
@@ -591,17 +587,13 @@ export default function Home() {
 
         <div className="text-center mt-12">
           <p className="text-lg text-neutral-600 mb-6">Ready to bring your community together?</p>
-          {!user ? (
+          {!user && (
             <Link href="/auth">
               <Button size="lg" className="px-8 py-3">
                 <LogIn className="h-5 w-5 mr-2" />
                 Get Started Free
               </Button>
             </Link>
-          ) : (
-            <div className="max-w-md mx-auto">
-              <CreateMapForm />
-            </div>
           )}
         </div>
       </div>
