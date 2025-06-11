@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { reverseGeocode, type LocationData } from "@/lib/map-utils";
-import { extractSocialHandles } from "@/lib/venue-search";
+
 import { ArrowLeft, MapPin, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

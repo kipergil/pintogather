@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MapPin, Crown } from "lucide-react";
-import { searchVenues, VenueResult, getVenueIcon, formatVenueAddress } from "@/lib/venue-search";
+import { searchVenues, VenueResult, getVenueIcon } from "@/lib/venue-search";
 import { useUserPermissions } from "@/hooks/use-user-permissions";
 
 interface VenueSearchProps {

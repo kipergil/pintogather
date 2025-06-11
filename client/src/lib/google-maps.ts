@@ -16,7 +16,7 @@ export function getGoogleMapsLoader(): Loader {
 
 export async function loadGoogleMaps(): Promise<void> {
   if (!mapsPromise) {
-    mapsPromise = getGoogleMapsLoader().load();
+    mapsPromise = getGoogleMapsLoader().load().then(() => {});
   }
   return mapsPromise;
 }

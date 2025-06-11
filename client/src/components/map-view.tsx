@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Home, Maximize2, Info } from "lucide-react";
+import { Home, Info } from "lucide-react";
 import { useLocation } from "wouter";
 import { VenueSearch } from "@/components/venue-search";
 import { VenueResult } from "@/lib/venue-search";
@@ -32,209 +32,250 @@ interface MapViewProps {
 }
 
 export function MapView({ mapCollection }: MapViewProps) {
-  const mapRef = useRef<L.Map | null>(null);
-  const markersClusterGroupRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   const [, setLocation] = useLocation();
+  const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
     lng: number;
     address?: string;
   } | null>(null);
-  const [mapBounds, setMapBounds] = useState<{
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize Google Maps
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    const initMap = async () => {
+      try {
+        await loadGoogleMaps();
+        
+        if (mapRef.current && !mapInstanceRef.current) {
+          // Calculate center from pins or use default
+          let center = { lat: 51.505, lng: -0.09 }; // Default to London
+          
+          if (mapCollection.pins.length > 0) {
+            const lats = mapCollection.pins.map(pin => parseFloat(pin.latitude));
+            const lngs = mapCollection.pins.map(pin => parseFloat(pin.longitude));
+            center = {
+              lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+              lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
+            };
+          }
 
-    // Initialize map with London as default location and zoom level 7
-    const map = L.map(mapContainerRef.current).setView([51.5074, -0.1278], 7);
-    mapRef.current = map;
+          // Create map
+          const map = new google.maps.Map(mapRef.current, {
+            zoom: mapCollection.pins.length > 0 ? 10 : 2,
+            center,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            styles: [
+              {
+                featureType: "poi",
+                elementType: "labels",
+                stylers: [{ visibility: "off" }]
+              }
+            ]
+          });
 
-    // Add OpenStreetMap tile layer to show street names
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(map);
+          mapInstanceRef.current = map;
 
-    // Initialize marker cluster group with custom styling
-    const markerClusterGroup = (L as any).markerClusterGroup({
-      chunkedLoading: true,
-      maxClusterRadius: 50,
-      iconCreateFunction: function(cluster: any) {
-        const count = cluster.getChildCount();
-        let c = ' marker-cluster-';
-        if (count < 10) {
-          c += 'small';
-        } else if (count < 100) {
-          c += 'medium';
-        } else {
-          c += 'large';
+          // Add click listener for adding pins
+          map.addListener('click', async (e: google.maps.MapMouseEvent) => {
+            if (e.latLng) {
+              const lat = e.latLng.lat();
+              const lng = e.latLng.lng();
+              
+              // Get address via reverse geocoding
+              const locationData = await reverseGeocode(lat, lng);
+              
+              setSelectedLocation({
+                lat,
+                lng,
+                address: locationData?.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+              });
+              setIsAddPinModalOpen(true);
+            }
+          });
+
+          // Add existing pins
+          addPinsToMap(map);
         }
         
-        return new L.DivIcon({
-          html: '<div><span>' + count + '</span></div>',
-          className: 'marker-cluster' + c,
-          iconSize: new L.Point(40, 40)
-        });
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize Google Maps:', error);
+        setIsLoading(false);
       }
-    });
-    
-    markersClusterGroupRef.current = markerClusterGroup;
-    map.addLayer(markerClusterGroup);
-
-    // Add click handler for adding pins
-    map.on('click', (e: any) => {
-      const lat = e.latlng.lat;
-      const lng = e.latlng.lng;
-      setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}`);
-    });
-
-    // Track map bounds for venue search
-    const updateBounds = () => {
-      const bounds = map.getBounds();
-      setMapBounds({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest()
-      });
     };
 
-    map.on('moveend', updateBounds);
-    map.on('zoomend', updateBounds);
-    updateBounds(); // Set initial bounds
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-      markersClusterGroupRef.current = null;
-    };
+    initMap();
   }, []);
 
+  // Update pins when mapCollection changes
   useEffect(() => {
-    if (!mapRef.current || !markersClusterGroupRef.current) return;
-
-    // Clear existing markers from cluster group
-    markersClusterGroupRef.current.clearLayers();
-
-    if (!mapCollection.pins.length) return;
-
-    // Add markers to cluster group
-    const markers: L.Marker[] = [];
-    mapCollection.pins.forEach((pin) => {
-      const marker = L.marker([parseFloat(pin.latitude), parseFloat(pin.longitude)]);
-
-      const socialLinks = [
-        pin.twitterHandle && `<a href="https://twitter.com/${pin.twitterHandle}" target="_blank" class="text-blue-500 hover:underline">Twitter</a>`,
-        pin.instagramHandle && `<a href="https://instagram.com/${pin.instagramHandle}" target="_blank" class="text-pink-500 hover:underline">Instagram</a>`,
-        pin.linkedinHandle && `<a href="${pin.linkedinHandle.startsWith('http') ? pin.linkedinHandle : `https://linkedin.com/in/${pin.linkedinHandle}`}" target="_blank" class="text-blue-600 hover:underline">LinkedIn</a>`,
-      ].filter(Boolean).join(' • ');
-
-      marker.bindPopup(`
-        <div class="p-2 min-w-[200px]">
-          <h4 class="font-semibold text-neutral-900 mb-1">${pin.userName}</h4>
-          ${pin.address ? `<p class="text-sm text-neutral-600 mb-2">${pin.address}</p>` : ''}
-          ${pin.note ? `<p class="text-sm text-neutral-700 mb-2">${pin.note}</p>` : ''}
-          ${socialLinks ? `<div class="text-xs">${socialLinks}</div>` : ''}
-          <div class="text-xs text-neutral-500 mt-2">
-            Added ${new Date(pin.createdAt).toLocaleDateString()}
-          </div>
-        </div>
-      `);
-
-      markers.push(marker);
-    });
-
-    // Add all markers to the cluster group
-    markersClusterGroupRef.current.addLayers(markers);
+    if (mapInstanceRef.current) {
+      addPinsToMap(mapInstanceRef.current);
+    }
   }, [mapCollection.pins]);
 
-  const fitMapBounds = () => {
-    if (!mapRef.current || !mapCollection.pins.length) return;
-    
-    const coordinates = mapCollection.pins.map(pin => [
-      parseFloat(pin.latitude), 
-      parseFloat(pin.longitude)
-    ] as [number, number]);
-    
-    const bounds = L.latLngBounds(coordinates);
-    mapRef.current.fitBounds(bounds.pad(0.1));
-  };
+  const addPinsToMap = (map: google.maps.Map) => {
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
 
-  const resetMapView = () => {
-    if (!mapRef.current) return;
-    mapRef.current.setView([51.5074, -0.1278], 5);
+    // Add new markers
+    mapCollection.pins.forEach(pin => {
+      const marker = new google.maps.Marker({
+        position: {
+          lat: parseFloat(pin.latitude),
+          lng: parseFloat(pin.longitude)
+        },
+        map,
+        title: pin.userName,
+        icon: {
+          url: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ef4444">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+          `),
+          scaledSize: new google.maps.Size(24, 24),
+          anchor: new google.maps.Point(12, 24)
+        }
+      });
+
+      // Add info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="max-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">${pin.userName}</h3>
+            ${pin.address ? `<p style="margin: 0 0 4px 0; font-size: 14px;">${pin.address}</p>` : ''}
+            ${pin.note ? `<p style="margin: 0; font-size: 12px; color: #666;">${pin.note}</p>` : ''}
+          </div>
+        `
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.open(map, marker);
+      });
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit bounds to show all pins
+    if (mapCollection.pins.length > 1) {
+      const bounds = new google.maps.LatLngBounds();
+      mapCollection.pins.forEach(pin => {
+        bounds.extend({
+          lat: parseFloat(pin.latitude),
+          lng: parseFloat(pin.longitude)
+        });
+      });
+      map.fitBounds(bounds);
+    }
   };
 
   const handleVenueSelect = (venue: VenueResult) => {
-    if (!mapRef.current) return;
-    
-    const lat = parseFloat(venue.lat);
-    const lng = parseFloat(venue.lon);
-    
-    // Center map on selected venue
-    mapRef.current.setView([lat, lng], 16);
-    
-    // Navigate to add pin page with venue coordinates and full venue data
-    const address = venue.display_name;
-    const venueData = encodeURIComponent(JSON.stringify({
-      name: venue.name,
-      extratags: venue.extratags || {}
-    }));
-    
-    setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}&address=${encodeURIComponent(address)}&venueData=${venueData}`);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setCenter({ lat: venue.lat, lng: venue.lng });
+      mapInstanceRef.current.setZoom(15);
+      
+      setSelectedLocation({
+        lat: venue.lat,
+        lng: venue.lng,
+        address: venue.address
+      });
+      setIsAddPinModalOpen(true);
+    }
   };
 
-  return (
-    <>
-      {/* Venue Search */}
-      <div className="mb-4">
-        <VenueSearch 
-          onVenueSelect={handleVenueSelect}
-          mapBounds={mapBounds || undefined}
-          className="w-full"
-        />
-      </div>
+  const getMapBounds = () => {
+    if (!mapInstanceRef.current) return undefined;
+    
+    const bounds = mapInstanceRef.current.getBounds();
+    if (!bounds) return undefined;
+    
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    
+    return {
+      north: ne.lat(),
+      south: sw.lat(),
+      east: ne.lng(),
+      west: sw.lng()
+    };
+  };
 
-      <Card className="overflow-hidden">
-        <div className="h-96 relative" ref={mapContainerRef}></div>
-        
-        {/* Map Controls */}
-        <div className="p-4 border-t bg-neutral-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-neutral-600">
-                <Info className="h-4 w-4 inline mr-1" />
-                Search venues above or click anywhere on the map to add a pin
-              </span>
-            </div>
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="h-96 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm text-neutral-600">Loading map...</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Map Controls */}
+      <Card>
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-2">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={fitMapBounds}
-                disabled={!mapCollection.pins.length}
+                onClick={() => setLocation("/")}
               >
-                <Maximize2 className="h-4 w-4" />
+                <Home className="h-4 w-4 mr-2" />
+                Back to Home
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={resetMapView}
-              >
-                <Home className="h-4 w-4" />
-              </Button>
+            </div>
+            
+            <VenueSearch 
+              onVenueSelect={handleVenueSelect}
+              mapBounds={getMapBounds()}
+              className="flex-1 max-w-md"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Map Container */}
+      <Card>
+        <div className="relative">
+          <div 
+            ref={mapRef} 
+            className="w-full h-96 rounded-lg"
+            style={{ minHeight: '400px' }}
+          />
+          
+          {/* Map Info Overlay */}
+          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg max-w-xs">
+            <div className="flex items-start space-x-2">
+              <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-neutral-700">
+                <p className="font-medium mb-1">Click anywhere to add a pin</p>
+                <p>Share this map's URL with others to collaborate</p>
+              </div>
             </div>
           </div>
         </div>
       </Card>
-    </>
+
+      {/* Add Pin Modal */}
+      <AddPinModal
+        isOpen={isAddPinModalOpen}
+        onClose={() => {
+          setIsAddPinModalOpen(false);
+          setSelectedLocation(null);
+        }}
+        mapCollection={mapCollection}
+        selectedLocation={selectedLocation}
+      />
+    </div>
   );
 }

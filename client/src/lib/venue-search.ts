@@ -75,108 +75,35 @@ export async function searchVenues(
   }
 }
 
-export function getVenueIcon(category: string, type: string): string {
-  const amenityIcons: Record<string, string> = {
+export function getVenueIcon(types?: string[]): string {
+  if (!types || types.length === 0) return '📍';
+  
+  const type = types[0];
+  
+  // Google Places types to icons mapping
+  const typeIcons: Record<string, string> = {
     restaurant: '🍽️',
     cafe: '☕',
     bar: '🍺',
-    pub: '🍻',
-    fast_food: '🍟',
-    hotel: '🏨',
+    food: '🍽️',
+    lodging: '🏨',
     hospital: '🏥',
     pharmacy: '💊',
     bank: '🏦',
     gas_station: '⛽',
-    cinema: '🎬',
-    theatre: '🎭',
+    movie_theater: '🎬',
     museum: '🏛️',
     library: '📚',
     school: '🏫',
     university: '🎓',
-    place_of_worship: '⛪',
+    church: '⛪',
     gym: '💪',
-    shopping_mall: '🛍️'
-  };
-
-  const shopIcons: Record<string, string> = {
-    supermarket: '🛒',
-    clothes: '👕',
-    books: '📚',
-    electronics: '📱',
-    bakery: '🥖',
-    butcher: '🥩',
-    florist: '🌸'
-  };
-
-  const tourismIcons: Record<string, string> = {
-    attraction: '🎯',
-    museum: '🏛️',
-    hotel: '🏨',
-    viewpoint: '👁️',
-    zoo: '🦁',
-    theme_park: '🎢'
-  };
-
-  const leisureIcons: Record<string, string> = {
+    shopping_mall: '🛍️',
+    store: '🏪',
     park: '🌳',
-    playground: '🛝',
-    sports_centre: '🏃',
-    swimming_pool: '🏊',
-    golf_course: '⛳'
+    tourist_attraction: '🎯',
+    establishment: '🏢'
   };
 
-  switch (category) {
-    case 'amenity':
-      return amenityIcons[type] || '🏢';
-    case 'shop':
-      return shopIcons[type] || '🛍️';
-    case 'tourism':
-      return tourismIcons[type] || '🎯';
-    case 'leisure':
-      return leisureIcons[type] || '🌳';
-    default:
-      return '📍';
-  }
-}
-
-export function formatVenueAddress(address: VenueResult['address']): string {
-  const parts = [];
-  
-  if (address.road) {
-    if (address.house_number) {
-      parts.push(`${address.house_number} ${address.road}`);
-    } else {
-      parts.push(address.road);
-    }
-  }
-  
-  if (address.city) parts.push(address.city);
-  if (address.state) parts.push(address.state);
-  
-  return parts.join(', ');
-}
-
-export function extractSocialHandles(venue: VenueResult): {
-  twitter: string;
-  instagram: string;
-  linkedin: string;
-} {
-  const extratags = venue.extratags || {};
-  
-  // Extract handles from various possible fields
-  const twitter = extratags.twitter || extratags['contact:twitter'] || '';
-  const instagram = extratags.instagram || extratags['contact:instagram'] || '';
-  const linkedin = extratags.linkedin || extratags['contact:linkedin'] || '';
-  
-  // Clean up handles (remove @ symbol and URLs)
-  const cleanHandle = (handle: string) => {
-    if (!handle) return '';
-    return handle.replace(/^@/, '').replace(/^https?:\/\/[^\/]+\//, '').trim();
-  };
-  
-  return {
-    twitter: cleanHandle(twitter),
-    instagram: cleanHandle(instagram),
-    linkedin: cleanHandle(linkedin)
-  };
+  return typeIcons[type] || '📍';
 }
