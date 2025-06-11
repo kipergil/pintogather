@@ -564,6 +564,21 @@ export default function Home() {
             </CardContent>
           </Card>
 
+          {/* Team Locations */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  <path d="M16 16h3v2h-3v3h-2v-3h-3v-2h3v-3h2v3z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Team Locations</h3>
+              <p className="text-neutral-600 mb-4">Create maps for your team members so everyone knows where colleagues are located. Build stronger connections across distributed teams.</p>
+              <div className="text-sm text-teal-600 font-medium">Perfect for: Remote teams, distributed workforces, company offices</div>
+            </CardContent>
+          </Card>
+
           {/* Events */}
           <Card className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
