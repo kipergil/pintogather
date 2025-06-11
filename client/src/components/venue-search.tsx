@@ -128,7 +128,7 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search venues, restaurants, places..."
+          placeholder={canUseVenueSearch ? "Search venues, restaurants, places..." : "Venue search requires Basic or Premium plan"}
           value={query}
           onChange={handleInputChange}
           onFocus={() => {
@@ -138,8 +138,12 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
             // Delay hiding results to allow for click events
             setTimeout(() => setShowResults(false), 200);
           }}
-          className="pl-10 pr-4 h-11"
+          className={`pl-10 pr-4 h-11 ${!canUseVenueSearch ? 'opacity-50' : ''}`}
+          disabled={!canUseVenueSearch}
         />
+        {!canUseVenueSearch && (
+          <Crown className="h-4 w-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-yellow-500" />
+        )}
         {isSearching && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
             <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
@@ -188,6 +192,17 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
                     </div>
                   </button>
                 ))}
+              </div>
+            ) : !canUseVenueSearch && query.length > 0 ? (
+              <div className="p-4 text-center">
+                <Crown className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <h4 className="font-medium text-sm mb-1">Upgrade Required</h4>
+                <p className="text-xs text-gray-600 mb-3">
+                  Venue search is available for Basic and Premium users
+                </p>
+                <Button size="sm" className="text-xs">
+                  Upgrade Plan
+                </Button>
               </div>
             ) : query.length > 2 && !isSearching ? (
               <div className="p-4 text-center text-gray-500 text-sm">
