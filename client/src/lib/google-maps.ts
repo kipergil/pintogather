@@ -2,11 +2,26 @@ import { Loader } from '@googlemaps/js-api-loader';
 
 let loader: Loader | null = null;
 let mapsPromise: Promise<void> | null = null;
+let configPromise: Promise<any> | null = null;
 
-export function getGoogleMapsLoader(): Loader {
+async function getConfig() {
+  if (!configPromise) {
+    configPromise = fetch('/api/config').then(res => res.json());
+  }
+  return configPromise;
+}
+
+export async function getGoogleMapsLoader(): Promise<Loader> {
   if (!loader) {
+    const config = await getConfig();
+    const apiKey = config.googleMapsApiKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    
+    if (!apiKey) {
+      throw new Error('Google Maps API key not configured');
+    }
+    
     loader = new Loader({
-      apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+      apiKey,
       version: 'weekly',
       libraries: ['places', 'geometry']
     });
@@ -16,7 +31,10 @@ export function getGoogleMapsLoader(): Loader {
 
 export async function loadGoogleMaps(): Promise<void> {
   if (!mapsPromise) {
-    mapsPromise = getGoogleMapsLoader().load().then(() => {});
+    mapsPromise = (async () => {
+      const loader = await getGoogleMapsLoader();
+      await loader.load();
+    })();
   }
   return mapsPromise;
 }
