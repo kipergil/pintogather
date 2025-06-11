@@ -103,14 +103,42 @@ export default function AddPin({ params }: AddPinProps) {
     const urlParams = new URLSearchParams(window.location.search);
     const lat = urlParams.get('lat');
     const lng = urlParams.get('lng');
+    const address = urlParams.get('address');
+    const venueName = urlParams.get('venue');
     
     if (lat && lng) {
       const location = {
         lat: parseFloat(lat),
-        lng: parseFloat(lng)
+        lng: parseFloat(lng),
+        address: address ? decodeURIComponent(address) : undefined
       };
       setSelectedLocation(location);
-      fetchLocationData(location.lat, location.lng);
+      
+      // If venue name is provided from search, pre-populate the note field
+      if (venueName) {
+        const decodedVenueName = decodeURIComponent(venueName);
+        setFormData(prev => ({
+          ...prev,
+          note: `📍 ${decodedVenueName}`
+        }));
+      }
+      
+      // Only fetch location data if we don't already have address from venue search
+      if (!address) {
+        fetchLocationData(location.lat, location.lng);
+      } else {
+        // Parse the provided address for location data
+        const addressParts = address.split(',').map(part => part.trim());
+        setLocationData({
+          address: addressParts[0] || '',
+          city: addressParts[1] || '',
+          state: addressParts[2] || '',
+          town: '',
+          borough: '',
+          postcode: '',
+          country: addressParts[addressParts.length - 1] || ''
+        });
+      }
     } else {
       // Redirect back to map if no location provided
       setLocation(`/map/${shareUrl}`);

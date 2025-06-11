@@ -185,8 +185,31 @@ export function MapView({ mapCollection }: MapViewProps) {
     mapRef.current.setView([51.5074, -0.1278], 5);
   };
 
+  const handleVenueSelect = (venue: VenueResult) => {
+    if (!mapRef.current) return;
+    
+    const lat = parseFloat(venue.lat);
+    const lng = parseFloat(venue.lon);
+    
+    // Center map on selected venue
+    mapRef.current.setView([lat, lng], 16);
+    
+    // Navigate to add pin page with venue coordinates and info
+    const address = venue.display_name;
+    setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}&address=${encodeURIComponent(address)}&venue=${encodeURIComponent(venue.name)}`);
+  };
+
   return (
     <>
+      {/* Venue Search */}
+      <div className="mb-4">
+        <VenueSearch 
+          onVenueSelect={handleVenueSelect}
+          mapBounds={mapBounds || undefined}
+          className="w-full"
+        />
+      </div>
+
       <Card className="overflow-hidden">
         <div className="h-96 relative" ref={mapContainerRef}></div>
         
@@ -196,7 +219,7 @@ export function MapView({ mapCollection }: MapViewProps) {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-neutral-600">
                 <Info className="h-4 w-4 inline mr-1" />
-                Click anywhere on the map to add a new pin
+                Search venues above or click anywhere on the map to add a pin
               </span>
             </div>
             <div className="flex items-center space-x-2">
