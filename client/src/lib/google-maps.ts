@@ -18,12 +18,17 @@ async function getConfig() {
 
 export async function getGoogleMapsLoader(): Promise<Loader> {
   if (!loader) {
+    console.log('Fetching Google Maps configuration...');
     const config = await getConfig();
+    console.log('Config received:', { hasApiKey: !!config.googleMapsApiKey });
+    
     const apiKey = config.googleMapsApiKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
     
     if (!apiKey) {
       throw new Error('Google Maps API key not configured');
     }
+    
+    console.log('Creating Google Maps loader with API key:', apiKey.substring(0, 10) + '...');
     
     loader = new Loader({
       apiKey,
