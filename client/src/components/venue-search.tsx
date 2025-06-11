@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Clock, Crown } from "lucide-react";
+import { Search, MapPin, Crown } from "lucide-react";
 import { searchVenues, VenueResult, getVenueIcon, formatVenueAddress } from "@/lib/venue-search";
 import { useUserPermissions } from "@/hooks/use-user-permissions";
 
@@ -23,30 +23,11 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   const [results, setResults] = useState<VenueResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
   const { canUseVenueSearch } = useUserPermissions();
 
-  useEffect(() => {
-    // Load recent searches from localStorage
-    const saved = localStorage.getItem('pinnedVenueSearches');
-    if (saved) {
-      try {
-        setRecentSearches(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load recent searches:', e);
-      }
-    }
-  }, []);
 
-  const saveRecentSearch = (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
-    
-    const updated = [searchQuery, ...recentSearches.filter(s => s !== searchQuery)].slice(0, 5);
-    setRecentSearches(updated);
-    localStorage.setItem('pinnedVenueSearches', JSON.stringify(updated));
-  };
 
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -98,17 +79,10 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   };
 
   const handleVenueSelect = (venue: VenueResult) => {
-    saveRecentSearch(query);
     setShowResults(false);
     setQuery("");
     onVenueSelect(venue);
     inputRef.current?.blur();
-  };
-
-  const handleRecentSearchClick = (searchTerm: string) => {
-    setQuery(searchTerm);
-    performSearch(searchTerm);
-    inputRef.current?.focus();
   };
 
   const getCategoryBadgeColor = (category: string) => {
@@ -209,31 +183,6 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
                 No venues found for "{query}"
               </div>
             ) : null}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Searches */}
-      {!showResults && recentSearches.length > 0 && !query && (
-        <Card className="absolute top-full left-0 right-0 mt-1 z-40">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-3 w-3 text-gray-400" />
-              <span className="text-xs text-gray-600 font-medium">Recent Searches</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {recentSearches.map((search, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleRecentSearchClick(search)}
-                  className="text-xs h-6 px-2"
-                >
-                  {search}
-                </Button>
-              ))}
-            </div>
           </CardContent>
         </Card>
       )}
