@@ -110,6 +110,23 @@ class DatabaseStorage implements IStorage {
           created_at TIMESTAMP DEFAULT NOW() NOT NULL
         );
       `);
+
+      // Create admin_users table
+      await this.db.execute(sql`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          user_id TEXT NOT NULL UNIQUE,
+          created_at TIMESTAMP DEFAULT NOW() NOT NULL
+        );
+      `);
+
+      // Insert the admin user if not exists
+      await this.db.execute(sql`
+        INSERT INTO admin_users (id, email, user_id)
+        SELECT 'admin-1', 'kipergil@gmail.com', 'admin-user-1'
+        WHERE NOT EXISTS (SELECT 1 FROM admin_users WHERE email = 'kipergil@gmail.com');
+      `);
       
       console.log('Database tables initialized successfully');
     } catch (error) {
@@ -339,6 +356,59 @@ class DatabaseStorage implements IStorage {
       console.error('Failed to delete pin:', error);
       return false;
     }
+  }
+
+  async isAdmin(email: string): Promise<boolean> {
+    const result = await this.db
+      .select()
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getAllUsers(): Promise<Profile[]> {
+    const result = await this.db
+      .select()
+      .from(profiles)
+      .orderBy(desc(profiles.createdAt));
+    return result;
+  }
+
+  async getUserProfile(userId: string): Promise<Profile | undefined> {
+    const result = await this.db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateUserGroup(userId: string, userGroup: string): Promise<Profile | undefined> {
+    try {
+      const result = await this.db
+        .update(profiles)
+        .set({ userGroup, updatedAt: new Date() })
+        .where(eq(profiles.userId, userId))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating user group:', error);
+      return undefined;
+    }
+  }
+
+  async createAdminUser(data: InsertAdminUser): Promise<AdminUser> {
+    const id = nanoid();
+    const [result] = await this.db
+      .insert(adminUsers)
+      .values({
+        id,
+        email: data.email,
+        userId: data.userId,
+      })
+      .returning();
+    return result;
   }
 }
 
@@ -584,6 +654,33 @@ export class MemStorage implements IStorage {
 
     return this.pins.delete(id);
   }
+
+  async isAdmin(email: string): Promise<boolean> {
+    return email === 'kipergil@gmail.com';
+  }
+
+  async getAllUsers(): Promise<Profile[]> {
+    // MemStorage doesn't store profiles, return empty array
+    return [];
+  }
+
+  async getUserProfile(userId: string): Promise<Profile | undefined> {
+    return undefined;
+  }
+
+  async updateUserGroup(userId: string, userGroup: string): Promise<Profile | undefined> {
+    return undefined;
+  }
+
+  async createAdminUser(data: InsertAdminUser): Promise<AdminUser> {
+    const id = nanoid();
+    return {
+      id,
+      email: data.email,
+      userId: data.userId,
+      createdAt: new Date(),
+    };
+  }
 }
 
 // Initialize storage - require database connection
@@ -674,5 +771,25 @@ export const storage = {
   async deletePin(id: string, userId?: string) {
     const instance = await getStorage();
     return instance.deletePin(id, userId);
+  },
+  async isAdmin(email: string) {
+    const instance = await getStorage();
+    return instance.isAdmin(email);
+  },
+  async getAllUsers() {
+    const instance = await getStorage();
+    return instance.getAllUsers();
+  },
+  async getUserProfile(userId: string) {
+    const instance = await getStorage();
+    return instance.getUserProfile(userId);
+  },
+  async updateUserGroup(userId: string, userGroup: string) {
+    const instance = await getStorage();
+    return instance.updateUserGroup(userId, userGroup);
+  },
+  async createAdminUser(data: InsertAdminUser) {
+    const instance = await getStorage();
+    return instance.createAdminUser(data);
   }
 };
