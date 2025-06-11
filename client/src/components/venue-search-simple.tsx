@@ -27,16 +27,15 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   const inputRef = useRef<HTMLInputElement>(null);
   const { canUseVenueSearch } = useUserPermissions();
 
-
-
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
+      setShowResults(false);
       return;
     }
 
-    if (!canUseVenueSearch) {
-      setResults([]);
+    // Show cached results immediately if available
+    if (results.length > 0 && searchQuery === query) {
       setShowResults(true);
       return;
     }
@@ -44,12 +43,7 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
     setIsSearching(true);
     
     try {
-      const viewbox = mapBounds 
-        ? `${mapBounds.west},${mapBounds.south},${mapBounds.east},${mapBounds.north}`
-        : undefined;
-
       const venues = await searchVenues(searchQuery, mapBounds);
-      
       setResults(venues);
       setShowResults(true);
     } catch (error) {
@@ -76,53 +70,47 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
   };
 
   const handleVenueSelect = (venue: VenueResult) => {
+    onVenueSelect(venue);
     setShowResults(false);
     setQuery("");
-    onVenueSelect(venue);
-    inputRef.current?.blur();
   };
 
-  const getCategoryBadgeColor = (category: string) => {
-    const colors: Record<string, string> = {
-      amenity: "bg-blue-100 text-blue-800",
-      shop: "bg-green-100 text-green-800",
-      tourism: "bg-purple-100 text-purple-800",
-      leisure: "bg-orange-100 text-orange-800",
-    };
-    return colors[category] || "bg-gray-100 text-gray-800";
+  const handleClickOutside = (event: MouseEvent) => {
+    if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+      setShowResults(false);
+    }
   };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative w-full ${className}`} ref={inputRef}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
         <Input
-          ref={inputRef}
           type="text"
-          placeholder={canUseVenueSearch ? "Search venues, restaurants, places..." : "Venue search requires Basic or Premium plan"}
+          placeholder="Search for venues, restaurants, or places..."
           value={query}
           onChange={handleInputChange}
-          onFocus={() => {
-            if (results.length > 0) setShowResults(true);
-          }}
-          onBlur={() => {
-            // Delay hiding results to allow for click events
-            setTimeout(() => setShowResults(false), 200);
-          }}
-          className={`pl-10 pr-4 h-11 ${!canUseVenueSearch ? 'opacity-50' : ''}`}
+          onFocus={() => query && setShowResults(true)}
+          className="pl-10 pr-4"
           disabled={!canUseVenueSearch}
         />
-        {!canUseVenueSearch && (
-          <Crown className="h-4 w-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-yellow-500" />
-        )}
         {isSearching && (
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
           </div>
         )}
       </div>
 
-      {/* Search Results Dropdown */}
       {showResults && (
         <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-96 overflow-y-auto">
           <CardContent className="p-0">
@@ -130,34 +118,39 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
               <div className="divide-y">
                 {results.map((venue) => (
                   <button
-                    key={venue.place_id}
+                    key={venue.id}
                     onClick={() => handleVenueSelect(venue)}
                     className="w-full p-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-lg mt-0.5 flex-shrink-0">
-                        {getVenueIcon(venue.category, venue.type)}
+                        {getVenueIcon(venue.types)}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-sm truncate">
                             {venue.name}
                           </h4>
-                          <Badge 
-                            variant="secondary" 
-                            className={`text-xs ${getCategoryBadgeColor(venue.category)} border-0`}
-                          >
-                            {venue.type.replace(/_/g, ' ')}
-                          </Badge>
+                          {venue.types && venue.types[0] && (
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs bg-blue-100 text-blue-800 border-0"
+                            >
+                              {venue.types[0].replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                          {venue.rating && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs text-yellow-700 border-yellow-300"
+                            >
+                              ⭐ {venue.rating}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-gray-600 line-clamp-1">
-                          {formatVenueAddress(venue.address)}
+                          {venue.address}
                         </p>
-                        {venue.extratags?.cuisine && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            {venue.extratags.cuisine.replace(/_/g, ' ')}
-                          </p>
-                        )}
                       </div>
                       <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
                     </div>
@@ -172,11 +165,11 @@ export function VenueSearch({ onVenueSelect, mapBounds, className }: VenueSearch
                   Venue search is available for Basic and Premium users
                 </p>
                 <Button size="sm" className="text-xs">
-                  Upgrade Plan
+                  Upgrade Now
                 </Button>
               </div>
-            ) : query.length > 2 && !isSearching ? (
-              <div className="p-4 text-center text-gray-500 text-sm">
+            ) : query.length > 0 && !isSearching ? (
+              <div className="p-4 text-center text-sm text-gray-500">
                 No venues found for "{query}"
               </div>
             ) : null}

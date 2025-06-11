@@ -115,38 +115,19 @@ export default function AddPin({ params }: AddPinProps) {
       };
       setSelectedLocation(location);
       
-      // If venue data is provided from search, extract venue info and social handles
+      // If venue data is provided from search, use venue info
       if (venueDataParam) {
         try {
           const venueData = JSON.parse(decodeURIComponent(venueDataParam));
-          const socialHandles = extractSocialHandles({ 
-            extratags: venueData.extratags || {},
-            name: venueData.name,
-            display_name: '',
-            place_id: '',
-            lat: lat,
-            lon: lng,
-            type: '',
-            category: '',
-            address: {}
-          });
-          
-          setFormData(prev => ({
-            ...prev,
-            userName: venueData.name,
-            twitterHandle: socialHandles.twitter,
-            instagramHandle: socialHandles.instagram,
-            linkedinHandle: socialHandles.linkedin
-          }));
+          // Use venue name as default user name
+          if (venueData.name) {
+            setFormData(prev => ({
+              ...prev,
+              userName: venueData.name
+            }));
+          }
         } catch (error) {
           console.error('Error parsing venue data:', error);
-          // Fall back to clearing social handles for venue
-          setFormData(prev => ({
-            ...prev,
-            twitterHandle: '',
-            instagramHandle: '',
-            linkedinHandle: ''
-          }));
         }
       }
       
