@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, Maximize2, Info } from "lucide-react";
 import { useLocation } from "wouter";
+import { VenueSearch } from "@/components/venue-search";
+import { VenueResult } from "@/lib/venue-search";
 
 // Leaflet imports with proper types
 import L from "leaflet";
@@ -51,6 +53,12 @@ export function MapView({ mapCollection }: MapViewProps) {
     lng: number;
     address?: string;
   } | null>(null);
+  const [mapBounds, setMapBounds] = useState<{
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -97,6 +105,21 @@ export function MapView({ mapCollection }: MapViewProps) {
       const lng = e.latlng.lng;
       setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}`);
     });
+
+    // Track map bounds for venue search
+    const updateBounds = () => {
+      const bounds = map.getBounds();
+      setMapBounds({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+    };
+
+    map.on('moveend', updateBounds);
+    map.on('zoomend', updateBounds);
+    updateBounds(); // Set initial bounds
 
     return () => {
       if (mapRef.current) {
