@@ -146,7 +146,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Search and Export Controls */}
+      {/* Search Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="relative">
           <Search className="h-4 w-4 absolute left-3 top-3 text-neutral-400" />
@@ -157,17 +157,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
             className="pl-9 w-full sm:w-64"
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={exportPins}
-          disabled={filteredPins.length === 0}
-          className={!canExportCSV ? "opacity-50" : ""}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-          {!canExportCSV && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
-        </Button>
       </div>
 
       {filteredPins.length === 0 ? (
