@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
 
 export interface UserPermissions {
   canExportCSV: boolean;
@@ -16,28 +15,13 @@ export function useUserPermissions(): UserPermissions {
     queryFn: async () => {
       if (!user) return null;
       
-      // Try to load from localStorage first
-      const localProfile = localStorage.getItem(`profile_${user.id}`);
-      if (localProfile) {
-        return JSON.parse(localProfile);
-      }
-      
-      // Try Supabase as fallback
-      const supabase = getSupabase();
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (!error && data) {
-            return data;
-          }
-        } catch (error) {
-          console.log('No profile found in Supabase');
+      try {
+        const response = await fetch(`/api/profile/${user.id}`);
+        if (response.ok) {
+          return await response.json();
         }
+      } catch (error) {
+        console.log('No profile found in database');
       }
       
       return null;
@@ -45,7 +29,7 @@ export function useUserPermissions(): UserPermissions {
     enabled: !!user,
   });
 
-  const userGroup = profile?.user_group || 'freemium';
+  const userGroup = profile?.userGroup || 'freemium';
 
   return {
     canExportCSV: userGroup === 'basic' || userGroup === 'premium',

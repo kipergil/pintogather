@@ -834,6 +834,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile API route - get user profile by user ID
+  app.get("/api/profile/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const profile = await storage.getUserProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
   // Admin API routes - only accessible to admin users
   app.get("/api/admin/users", async (req, res) => {
     try {

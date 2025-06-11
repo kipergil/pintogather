@@ -180,14 +180,7 @@ export default function MapDetail({ params }: MapDetailProps) {
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div>
-              <div className="flex items-center space-x-3 mb-2">
-                <Link href="/">
-                  <Button variant="ghost" size="sm">
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <h2 className="text-2xl font-bold text-neutral-900">{mapCollection.name}</h2>
-              </div>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">{mapCollection.name}</h2>
               {mapCollection.description && (
                 <p className="text-neutral-600 mb-2">{mapCollection.description}</p>
               )}
@@ -231,6 +224,13 @@ export default function MapDetail({ params }: MapDetailProps) {
                 </svg>
                 Share
               </Button>
+
+              <Link href="/">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Home
+                </Button>
+              </Link>
             </div>
           </div>
         </CardContent>
