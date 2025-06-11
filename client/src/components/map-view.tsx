@@ -194,9 +194,14 @@ export function MapView({ mapCollection }: MapViewProps) {
     // Center map on selected venue
     mapRef.current.setView([lat, lng], 16);
     
-    // Navigate to add pin page with venue coordinates and info
+    // Navigate to add pin page with venue coordinates and full venue data
     const address = venue.display_name;
-    setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}&address=${encodeURIComponent(address)}&venue=${encodeURIComponent(venue.name)}`);
+    const venueData = encodeURIComponent(JSON.stringify({
+      name: venue.name,
+      extratags: venue.extratags || {}
+    }));
+    
+    setLocation(`/map/${mapCollection.shareUrl}/add-pin?lat=${lat}&lng=${lng}&address=${encodeURIComponent(address)}&venueData=${venueData}`);
   };
 
   return (

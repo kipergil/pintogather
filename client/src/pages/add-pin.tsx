@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { reverseGeocode, type LocationData } from "@/lib/map-utils";
+import { extractSocialHandles } from "@/lib/venue-search";
 import { ArrowLeft, MapPin, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -104,7 +105,7 @@ export default function AddPin({ params }: AddPinProps) {
     const lat = urlParams.get('lat');
     const lng = urlParams.get('lng');
     const address = urlParams.get('address');
-    const venueName = urlParams.get('venue');
+    const venueDataParam = urlParams.get('venueData');
     
     if (lat && lng) {
       const location = {
@@ -114,13 +115,39 @@ export default function AddPin({ params }: AddPinProps) {
       };
       setSelectedLocation(location);
       
-      // If venue name is provided from search, pre-populate the userName field
-      if (venueName) {
-        const decodedVenueName = decodeURIComponent(venueName);
-        setFormData(prev => ({
-          ...prev,
-          userName: decodedVenueName
-        }));
+      // If venue data is provided from search, extract venue info and social handles
+      if (venueDataParam) {
+        try {
+          const venueData = JSON.parse(decodeURIComponent(venueDataParam));
+          const socialHandles = extractSocialHandles({ 
+            extratags: venueData.extratags || {},
+            name: venueData.name,
+            display_name: '',
+            place_id: '',
+            lat: lat,
+            lon: lng,
+            type: '',
+            category: '',
+            address: {}
+          });
+          
+          setFormData(prev => ({
+            ...prev,
+            userName: venueData.name,
+            twitterHandle: socialHandles.twitter,
+            instagramHandle: socialHandles.instagram,
+            linkedinHandle: socialHandles.linkedin
+          }));
+        } catch (error) {
+          console.error('Error parsing venue data:', error);
+          // Fall back to clearing social handles for venue
+          setFormData(prev => ({
+            ...prev,
+            twitterHandle: '',
+            instagramHandle: '',
+            linkedinHandle: ''
+          }));
+        }
       }
       
       // Only fetch location data if we don't already have address from venue search

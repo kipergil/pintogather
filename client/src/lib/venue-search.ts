@@ -18,6 +18,14 @@ export interface VenueResult {
     cuisine?: string;
     website?: string;
     phone?: string;
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    'contact:facebook'?: string;
+    'contact:twitter'?: string;
+    'contact:instagram'?: string;
+    'contact:linkedin'?: string;
   };
 }
 
@@ -158,4 +166,29 @@ export function formatVenueAddress(address: VenueResult['address']): string {
   if (address.state) parts.push(address.state);
   
   return parts.join(', ');
+}
+
+export function extractSocialHandles(venue: VenueResult): {
+  twitter: string;
+  instagram: string;
+  linkedin: string;
+} {
+  const extratags = venue.extratags || {};
+  
+  // Extract handles from various possible fields
+  const twitter = extratags.twitter || extratags['contact:twitter'] || '';
+  const instagram = extratags.instagram || extratags['contact:instagram'] || '';
+  const linkedin = extratags.linkedin || extratags['contact:linkedin'] || '';
+  
+  // Clean up handles (remove @ symbol and URLs)
+  const cleanHandle = (handle: string) => {
+    if (!handle) return '';
+    return handle.replace(/^@/, '').replace(/^https?:\/\/[^\/]+\//, '').trim();
+  };
+  
+  return {
+    twitter: cleanHandle(twitter),
+    instagram: cleanHandle(instagram),
+    linkedin: cleanHandle(linkedin)
+  };
 }
