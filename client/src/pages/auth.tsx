@@ -103,8 +103,8 @@ export default function Auth() {
         });
       } else {
         toast({
-          title: "Account Created!",
-          description: "You can now sign in with your credentials.",
+          title: "Welcome to PinTogather!",
+          description: "Your account is ready. Start creating community maps and pinning together.",
           variant: "success",
         });
         
@@ -133,12 +133,12 @@ export default function Auth() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome to CollabMap</CardTitle>
-            <p className="text-gray-600">Sign in to create and manage collaborative maps</p>
+            <CardTitle className="text-2xl">Welcome to PinTogather</CardTitle>
+            <p className="text-gray-600">Join communities and pin your world together</p>
             {returnUrl && (
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Return to Map:</strong> After signing in, you'll be redirected back to the shared map you were viewing.
+                  <strong>Return to Community Map:</strong> After signing in, you'll be redirected back to the map you were viewing to pin with the community.
                 </p>
               </div>
             )}
@@ -238,7 +238,7 @@ export default function Auth() {
                   <div className="space-y-3">
                     <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
                       <UserPlus className="h-5 w-5 mr-2" />
-                      {loading ? "Creating account..." : "Sign Up"}
+                      {loading ? "Joining community..." : "Join PinTogather"}
                     </Button>
                     
                     <Link href="/">
