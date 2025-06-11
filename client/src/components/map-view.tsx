@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, Info } from "lucide-react";
 import { useLocation } from "wouter";
-import { VenueSearch } from "@/components/venue-search";
+import { VenueSearch } from "@/components/venue-search-simple";
 import { VenueResult } from "@/lib/venue-search";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { AddPinModal } from "@/components/add-pin-modal";
@@ -35,6 +35,7 @@ export function MapView({ mapCollection }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const mapBounds = useRef<google.maps.LatLngBounds | null>(null);
   const [, setLocation] = useLocation();
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
