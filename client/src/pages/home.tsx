@@ -347,6 +347,118 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Use Cases Section */}
+      <div className="mt-20 mb-12">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-neutral-900 mb-4">Perfect for Every Community</h2>
+          <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
+            Discover how teams, families, and communities use PinTogather to connect and share meaningful locations
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {/* Remote Teams */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Distributed Teams</h3>
+              <p className="text-neutral-600 mb-4">Connect remote workers across the globe. Share office locations, coworking spaces, and team meetup spots.</p>
+              <div className="text-sm text-blue-600 font-medium">Perfect for: Remote companies, digital nomads, freelance networks</div>
+            </CardContent>
+          </Card>
+
+          {/* Families */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 18v-6h2.5l6 6H4zm6.5 0v-6h2l6 6h-8zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Family Connections</h3>
+              <p className="text-neutral-600 mb-4">Keep families connected across cities and countries. Share homes, vacation spots, and special places that matter.</p>
+              <div className="text-sm text-pink-600 font-medium">Perfect for: Extended families, military families, expats</div>
+            </CardContent>
+          </Card>
+
+          {/* Friends */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 17v2H2v-2s0-4 7-4 7 4 7 4zM12.5 7.5A3.5 3.5 0 1 0 9 4a3.5 3.5 0 0 0 3.5 3.5zM15.5 7.5A3.5 3.5 0 1 0 19 4a3.5 3.5 0 0 0-3.5 3.5z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Friend Groups</h3>
+              <p className="text-neutral-600 mb-4">Plan hangouts and discover new spots together. Share favorite restaurants, bars, and hidden gems with your crew.</p>
+              <div className="text-sm text-green-600 font-medium">Perfect for: College friends, hobby groups, social circles</div>
+            </CardContent>
+          </Card>
+
+          {/* Clubs & Communities */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Clubs & Organizations</h3>
+              <p className="text-neutral-600 mb-4">Build community around shared interests. Map club locations, event venues, and member meetup spots.</p>
+              <div className="text-sm text-purple-600 font-medium">Perfect for: Sports clubs, book clubs, volunteer groups</div>
+            </CardContent>
+          </Card>
+
+          {/* Businesses */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Brand Locations</h3>
+              <p className="text-neutral-600 mb-4">Showcase franchise locations and venues. Let customers discover and share their favorite brand experiences.</p>
+              <div className="text-sm text-orange-600 font-medium">Perfect for: Franchises, restaurant chains, retail networks</div>
+            </CardContent>
+          </Card>
+
+          {/* Events */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Event Planning</h3>
+              <p className="text-neutral-600 mb-4">Coordinate gatherings and celebrations. Share venues, accommodation options, and local recommendations with attendees.</p>
+              <div className="text-sm text-indigo-600 font-medium">Perfect for: Weddings, conferences, reunion planning</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="text-center mt-12">
+          <p className="text-lg text-neutral-600 mb-6">Ready to bring your community together?</p>
+          {!user ? (
+            <Link href="/auth">
+              <Button size="lg" className="px-8 py-3">
+                <LogIn className="h-5 w-5 mr-2" />
+                Get Started Free
+              </Button>
+            </Link>
+          ) : (
+            <div className="max-w-md mx-auto">
+              <CreateMapForm />
+            </div>
+          )}
+        </div>
+      </div>
     </main>
   );
 }
