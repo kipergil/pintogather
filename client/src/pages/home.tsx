@@ -136,22 +136,23 @@ export default function Home() {
         </div>
       )}
 
-      {/* Pricing Tiers - visible to all users */}
-      <div className="max-w-5xl mx-auto mb-12">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-3">Choose Your Plan</h2>
-          <p className="text-neutral-600">Free plan available now. Premium features coming soon!</p>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Free Plan */}
-          <Card className="relative">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-lg">Free</CardTitle>
-              <div className="text-2xl font-bold">$0</div>
-              <p className="text-sm text-neutral-600">Perfect for getting started</p>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">Available Now</Badge>
-            </CardHeader>
+      {/* Pricing Tiers - visible only to anonymous users */}
+      {!user && (
+        <div className="max-w-5xl mx-auto mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-neutral-900 mb-3">Choose Your Plan</h2>
+            <p className="text-neutral-600">Free plan available now. Premium features coming soon!</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Free Plan */}
+            <Card className="relative">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="text-lg">Free</CardTitle>
+                <div className="text-2xl font-bold">$0</div>
+                <p className="text-sm text-neutral-600">Perfect for getting started</p>
+                <Badge variant="secondary" className="bg-green-100 text-green-800">Available Now</Badge>
+              </CardHeader>
             <CardContent>
               <ul className="space-y-3">
                 <li className="flex items-center">
@@ -265,12 +266,13 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="text-center mt-8">
-          <p className="text-sm text-neutral-600">
-            Join our waitlist to be notified when premium features become available!
-          </p>
+          <div className="text-center mt-8">
+            <p className="text-sm text-neutral-600">
+              Join our waitlist to be notified when premium features become available!
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {user ? (
         <div className="max-w-md mx-auto mb-12">
