@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
+import { ActivityFeed } from "@/components/activity-feed";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { Share2, ExternalLink, LogIn, MapPin } from "lucide-react";
@@ -126,6 +127,11 @@ export default function Home() {
             </Card>
           </div>
         )}
+      </div>
+
+      {/* Activity Feed - visible to all users */}
+      <div className="max-w-2xl mx-auto mb-12">
+        <ActivityFeed />
       </div>
 
       {user ? (
