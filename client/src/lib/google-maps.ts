@@ -1,7 +1,7 @@
 import { Loader } from '@googlemaps/js-api-loader';
 
 let loader: Loader | null = null;
-let mapsPromise: Promise<typeof google.maps> | null = null;
+let mapsPromise: Promise<void> | null = null;
 
 export function getGoogleMapsLoader(): Loader {
   if (!loader) {
@@ -14,7 +14,7 @@ export function getGoogleMapsLoader(): Loader {
   return loader;
 }
 
-export async function loadGoogleMaps(): Promise<typeof google.maps> {
+export async function loadGoogleMaps(): Promise<void> {
   if (!mapsPromise) {
     mapsPromise = getGoogleMapsLoader().load();
   }

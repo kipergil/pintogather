@@ -1,89 +1,77 @@
 export interface VenueResult {
-  place_id: string;
+  id: string;
   name: string;
-  display_name: string;
-  lat: string;
-  lon: string;
-  type: string;
-  category: string;
-  address: {
-    house_number?: string;
-    road?: string;
-    city?: string;
-    state?: string;
-    postcode?: string;
-    country?: string;
-  };
-  extratags?: {
-    cuisine?: string;
-    website?: string;
-    phone?: string;
-    facebook?: string;
-    twitter?: string;
-    instagram?: string;
-    linkedin?: string;
-    'contact:facebook'?: string;
-    'contact:twitter'?: string;
-    'contact:instagram'?: string;
-    'contact:linkedin'?: string;
-  };
+  address: string;
+  lat: number;
+  lng: number;
+  types?: string[];
+  rating?: number;
+  website?: string;
 }
 
-export async function searchVenues(query: string, options: {
-  limit?: number;
-  countryCode?: string;
-  viewbox?: string;
-} = {}): Promise<VenueResult[]> {
-  const { limit = 10, countryCode = 'us,gb,ca,au', viewbox } = options;
-  
-  if (!query.trim()) return [];
+import { searchVenues as googleSearchVenues, loadGoogleMaps } from './google-maps';
 
+export async function searchVenues(
+  query: string,
+  bounds?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  }
+): Promise<VenueResult[]> {
   try {
-    const params = new URLSearchParams({
-      q: query.trim(),
-      format: 'json',
-      addressdetails: '1',
-      extratags: '1',
-      namedetails: '1',
-      limit: limit.toString(),
-      countrycodes: countryCode,
-      dedupe: '1'
-    });
-
-    if (viewbox) {
-      params.append('viewbox', viewbox);
-      params.append('bounded', '1');
-    }
-
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-      {
-        headers: {
-          'User-Agent': 'PinTogather/1.0'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Search request failed');
-    }
-
-    const results = await response.json();
-    
-    return results.map((result: any) => ({
-      place_id: result.place_id,
-      name: result.name || result.display_name.split(',')[0],
-      display_name: result.display_name,
-      lat: result.lat,
-      lon: result.lon,
-      type: result.type,
-      category: result.class,
-      address: result.address || {},
-      extratags: result.extratags || {}
-    }));
+    // Try Google Maps first
+    const results = await googleSearchVenues(query, bounds);
+    return results;
   } catch (error) {
-    console.error('Venue search error:', error);
-    return [];
+    console.error('Google venue search error:', error);
+    
+    // Fallback to Nominatim
+    try {
+      const params = new URLSearchParams({
+        q: query.trim(),
+        format: 'json',
+        addressdetails: '1',
+        extratags: '1',
+        limit: '10',
+        dedupe: '1'
+      });
+
+      if (bounds) {
+        params.append('viewbox', `${bounds.west},${bounds.north},${bounds.east},${bounds.south}`);
+        params.append('bounded', '1');
+      }
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+        {
+          headers: {
+            'User-Agent': 'PinTogather/1.0'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Search request failed');
+      }
+
+      const results = await response.json();
+      
+      return results.map((result: any) => ({
+        id: result.place_id || Math.random().toString(),
+        name: result.name || result.display_name.split(',')[0],
+        address: result.display_name,
+        lat: parseFloat(result.lat),
+        lng: parseFloat(result.lon),
+        types: [result.type, result.class].filter(Boolean),
+        rating: undefined,
+        website: undefined
+      }));
+    } catch (fallbackError) {
+      console.error('Fallback venue search error:', fallbackError);
+      return [];
+    }
   }
 }
 

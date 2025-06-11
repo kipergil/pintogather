@@ -5,21 +5,9 @@ import { Home, Maximize2, Info } from "lucide-react";
 import { useLocation } from "wouter";
 import { VenueSearch } from "@/components/venue-search";
 import { VenueResult } from "@/lib/venue-search";
-
-// Leaflet imports with proper types
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import "leaflet.markercluster";
-
-// Fix for default markers in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
+import { loadGoogleMaps } from "@/lib/google-maps";
+import { AddPinModal } from "@/components/add-pin-modal";
+import { reverseGeocode } from "@/lib/map-utils";
 
 interface MapViewProps {
   mapCollection: {
