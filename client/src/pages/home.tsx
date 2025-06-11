@@ -358,26 +358,12 @@ export default function Home() {
                           <span>{formatDate(map.createdAt)}</span>
                         </div>
                         
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleCopyMapUrl(map.shareUrl, map.name);
-                            }}
-                          >
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share
+                        <Link href={`/map/${map.shareUrl}`} className="w-full">
+                          <Button variant="default" size="sm" className="w-full">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            View Map
                           </Button>
-                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
-                            <Button variant="default" size="sm" className="w-full">
-                              <MapPin className="h-4 w-4 mr-2" />
-                              View Map
-                            </Button>
-                          </Link>
-                        </div>
+                        </Link>
                       </CardContent>
                     </Card>
                   ))}
@@ -428,26 +414,12 @@ export default function Home() {
                           <span>{formatDate(map.createdAt)}</span>
                         </div>
                         
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleCopyMapUrl(map.shareUrl, map.name);
-                            }}
-                          >
-                            <Share2 className="h-4 w-4 mr-2" />
-                            Share
+                        <Link href={`/map/${map.shareUrl}`} className="w-full">
+                          <Button variant="default" size="sm" className="w-full">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            View Map
                           </Button>
-                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
-                            <Button variant="default" size="sm" className="w-full">
-                              <MapPin className="h-4 w-4 mr-2" />
-                              View Map
-                            </Button>
-                          </Link>
-                        </div>
+                        </Link>
                       </CardContent>
                     </Card>
                   ))}
