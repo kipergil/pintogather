@@ -3,9 +3,9 @@ import { CreateMapForm } from "@/components/create-map-form";
 import { ActivityFeed } from "@/components/activity-feed";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
-import { Share2, ExternalLink, LogIn, MapPin } from "lucide-react";
+import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
@@ -135,6 +135,142 @@ export default function Home() {
           <ActivityFeed />
         </div>
       )}
+
+      {/* Pricing Tiers - visible to all users */}
+      <div className="max-w-5xl mx-auto mb-12">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-neutral-900 mb-3">Choose Your Plan</h2>
+          <p className="text-neutral-600">Free plan available now. Premium features coming soon!</p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Free Plan */}
+          <Card className="relative">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-lg">Free</CardTitle>
+              <div className="text-2xl font-bold">$0</div>
+              <p className="text-sm text-neutral-600">Perfect for getting started</p>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">Available Now</Badge>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Create unlimited maps</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Add unlimited pins</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Share maps with anyone</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Community collaboration</span>
+                </li>
+                <li className="flex items-center">
+                  <X className="h-4 w-4 text-red-400 mr-3" />
+                  <span className="text-sm text-neutral-500">CSV export</span>
+                </li>
+                <li className="flex items-center">
+                  <X className="h-4 w-4 text-red-400 mr-3" />
+                  <span className="text-sm text-neutral-500">Venue search</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Basic Plan */}
+          <Card className="relative border-blue-200">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-lg text-blue-700">Basic</CardTitle>
+              <div className="text-2xl font-bold">$9<span className="text-base font-normal">/month</span></div>
+              <p className="text-sm text-neutral-600">Enhanced collaboration tools</p>
+              <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Everything in Free</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">CSV export for data analysis</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Venue search integration</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Priority support</span>
+                </li>
+                <li className="flex items-center">
+                  <X className="h-4 w-4 text-red-400 mr-3" />
+                  <span className="text-sm text-neutral-500">Advanced analytics</span>
+                </li>
+                <li className="flex items-center">
+                  <X className="h-4 w-4 text-red-400 mr-3" />
+                  <span className="text-sm text-neutral-500">Custom branding</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Premium Plan */}
+          <Card className="relative border-purple-200 bg-gradient-to-b from-purple-50 to-white">
+            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+              <Badge className="bg-purple-600 text-white">
+                <Crown className="h-3 w-3 mr-1" />
+                Most Popular
+              </Badge>
+            </div>
+            <CardHeader className="text-center pb-4 pt-6">
+              <CardTitle className="text-lg text-purple-700">Premium</CardTitle>
+              <div className="text-2xl font-bold">$19<span className="text-base font-normal">/month</span></div>
+              <p className="text-sm text-neutral-600">Full-featured collaboration platform</p>
+              <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Everything in Basic</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Advanced analytics dashboard</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Custom map branding</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">API access for integrations</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">White-label options</span>
+                </li>
+                <li className="flex items-center">
+                  <Check className="h-4 w-4 text-green-500 mr-3" />
+                  <span className="text-sm">Dedicated support</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="text-center mt-8">
+          <p className="text-sm text-neutral-600">
+            Join our waitlist to be notified when premium features become available!
+          </p>
+        </div>
+      </div>
 
       {user ? (
         <div className="max-w-md mx-auto mb-12">
