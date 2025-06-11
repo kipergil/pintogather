@@ -9,6 +9,7 @@ export const profiles = pgTable("profiles", {
   twitterHandle: text("twitter_handle"),
   instagramHandle: text("instagram_handle"),
   linkedinHandle: text("linkedin_handle"),
+  userGroup: text("user_group").notNull().default("freemium"), // "freemium", "basic", "premium"
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -51,6 +52,13 @@ export const pins = pgTable("pins", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const adminUsers = pgTable("admin_users", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  email: text("email").notNull().unique(),
+  userId: varchar("user_id", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   id: true,
   createdAt: true,
@@ -75,6 +83,11 @@ export const insertPinSchema = createInsertSchema(pins).omit({
   createdAt: true,
 });
 
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
@@ -83,3 +96,5 @@ export type InsertMapViewer = z.infer<typeof insertMapViewerSchema>;
 export type MapViewer = typeof mapViewers.$inferSelect;
 export type InsertPin = z.infer<typeof insertPinSchema>;
 export type Pin = typeof pins.$inferSelect;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+export type AdminUser = typeof adminUsers.$inferSelect;

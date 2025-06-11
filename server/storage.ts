@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, desc, sql, or, and, ne, inArray } from "drizzle-orm";
-import { mapCollections, pins, mapViewers, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer } from "@shared/schema";
+import { mapCollections, pins, mapViewers, profiles, adminUsers, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer, type Profile, type InsertProfile, type AdminUser, type InsertAdminUser } from "@shared/schema";
 import { nanoid } from "nanoid";
 import * as fs from "fs";
 import * as path from "path";
@@ -28,6 +28,13 @@ export interface IStorage {
   updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
   deletePin(id: string, userId?: string): Promise<boolean>;
   
+  // Admin functionality
+  isAdmin(email: string): Promise<boolean>;
+  getAllUsers(): Promise<Profile[]>;
+  getUserProfile(userId: string): Promise<Profile | undefined>;
+  updateUserGroup(userId: string, userGroup: string): Promise<Profile | undefined>;
+  createAdminUser(data: InsertAdminUser): Promise<AdminUser>;
+  
   // Database setup
   initializeDatabase(): Promise<void>;
 }
@@ -51,6 +58,7 @@ class DatabaseStorage implements IStorage {
           twitter_handle TEXT,
           instagram_handle TEXT,
           linkedin_handle TEXT,
+          user_group TEXT NOT NULL DEFAULT 'freemium',
           created_at TIMESTAMP DEFAULT NOW() NOT NULL,
           updated_at TIMESTAMP DEFAULT NOW() NOT NULL
         );
