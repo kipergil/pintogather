@@ -186,7 +186,7 @@ export default function Home() {
           <Card className="relative border-blue-200">
             <CardHeader className="text-center pb-4">
               <CardTitle className="text-lg text-blue-700">Basic</CardTitle>
-              <div className="text-2xl font-bold">$9<span className="text-base font-normal">/month</span></div>
+              <div className="text-2xl font-bold">£2<span className="text-base font-normal">/month</span></div>
               <p className="text-sm text-neutral-600">Enhanced collaboration tools</p>
               <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
             </CardHeader>
@@ -230,7 +230,7 @@ export default function Home() {
             </div>
             <CardHeader className="text-center pb-4 pt-6">
               <CardTitle className="text-lg text-purple-700">Premium</CardTitle>
-              <div className="text-2xl font-bold">$19<span className="text-base font-normal">/month</span></div>
+              <div className="text-2xl font-bold">£7<span className="text-base font-normal">/month</span></div>
               <p className="text-sm text-neutral-600">Full-featured collaboration platform</p>
               <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
             </CardHeader>
