@@ -114,12 +114,12 @@ export default function AddPin({ params }: AddPinProps) {
       };
       setSelectedLocation(location);
       
-      // If venue name is provided from search, pre-populate the note field
+      // If venue name is provided from search, pre-populate the userName field
       if (venueName) {
         const decodedVenueName = decodeURIComponent(venueName);
         setFormData(prev => ({
           ...prev,
-          note: `📍 ${decodedVenueName}`
+          userName: decodedVenueName
         }));
       }
       
