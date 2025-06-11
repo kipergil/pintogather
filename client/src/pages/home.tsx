@@ -129,10 +129,12 @@ export default function Home() {
         )}
       </div>
 
-      {/* Activity Feed - visible to all users */}
-      <div className="max-w-2xl mx-auto mb-12">
-        <ActivityFeed />
-      </div>
+      {/* Activity Feed - visible only to anonymous users */}
+      {!user && (
+        <div className="max-w-2xl mx-auto mb-12">
+          <ActivityFeed />
+        </div>
+      )}
 
       {user ? (
         <div className="max-w-md mx-auto mb-12">
