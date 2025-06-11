@@ -3,11 +3,12 @@ import { CreateMapForm } from "@/components/create-map-form";
 import { ActivityFeed } from "@/components/activity-feed";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
-import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown } from "lucide-react";
+import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface MapCollection {
   id: string;
@@ -21,6 +22,7 @@ interface MapCollection {
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
@@ -93,6 +95,26 @@ export default function Home() {
         <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
           Create collaborative maps where communities gather, share locations, and build connections through shared experiences.
         </p>
+        
+        {user && (
+          <div className="max-w-md mx-auto mb-8">
+            <Button 
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              size="lg"
+              className="w-full"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create New Map
+              {showCreateForm ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+            </Button>
+            
+            {showCreateForm && (
+              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                <CreateMapForm />
+              </div>
+            )}
+          </div>
+        )}
         
         {!user && (
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
@@ -452,7 +474,7 @@ export default function Home() {
                   <span className="text-2xl font-bold text-white">1</span>
                 </div>
                 <h4 className="text-lg font-semibold text-blue-900 mb-3">Create Your Map</h4>
-                <p className="text-sm text-blue-800 mb-4">Use the form above to create a new collaborative map. Give it a descriptive name and optional description.</p>
+                <p className="text-sm text-blue-800 mb-4">Click the "Create New Map" button above to start a new collaborative map. Give it a descriptive name and optional description.</p>
                 <div className="bg-white/70 rounded-lg p-3 border border-blue-200">
                   <p className="text-xs text-blue-700 font-medium">💡 Tip: Choose a clear name that describes the purpose of your map</p>
                 </div>
