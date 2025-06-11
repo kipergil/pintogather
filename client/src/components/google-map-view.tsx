@@ -48,9 +48,12 @@ export function MapView({ mapCollection }: MapViewProps) {
   useEffect(() => {
     const initMap = async () => {
       try {
+        console.log('Starting Google Maps initialization...');
         await loadGoogleMaps();
+        console.log('Google Maps loaded successfully');
         
         if (mapRef.current && !mapInstanceRef.current) {
+          console.log('Creating Google Maps instance...');
           // Calculate center from pins or use default
           let center = { lat: 51.505, lng: -0.09 }; // Default to London
           
@@ -78,6 +81,7 @@ export function MapView({ mapCollection }: MapViewProps) {
           });
 
           mapInstanceRef.current = map;
+          console.log('Google Maps instance created successfully');
 
           // Add click listener for adding pins
           map.addListener('click', async (e: google.maps.MapMouseEvent) => {
@@ -104,6 +108,7 @@ export function MapView({ mapCollection }: MapViewProps) {
         setIsLoading(false);
       } catch (error) {
         console.error('Failed to initialize Google Maps:', error);
+        console.error('Error details:', error);
         setIsLoading(false);
       }
     };

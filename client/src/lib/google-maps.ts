@@ -6,7 +6,12 @@ let configPromise: Promise<any> | null = null;
 
 async function getConfig() {
   if (!configPromise) {
-    configPromise = fetch('/api/config').then(res => res.json());
+    configPromise = fetch('/api/config').then(res => {
+      if (!res.ok) {
+        throw new Error(`Config fetch failed: ${res.status}`);
+      }
+      return res.json();
+    });
   }
   return configPromise;
 }
