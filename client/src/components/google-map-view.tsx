@@ -107,6 +107,27 @@ export function MapView({ mapCollection }: MapViewProps) {
             mapInstanceRef.current = map;
             console.log('Google Maps instance created successfully');
             
+            // Add click listener for adding pins
+            map.addListener('click', async (e: google.maps.MapMouseEvent) => {
+              if (e.latLng) {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                
+                // Get address via reverse geocoding
+                const locationData = await reverseGeocode(lat, lng);
+                
+                setSelectedLocation({
+                  lat,
+                  lng,
+                  address: locationData?.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+                });
+                setIsAddPinModalOpen(true);
+              }
+            });
+
+            // Add existing pins
+            addPinsToMap(map);
+            
             // Wait for map to be fully loaded
             google.maps.event.addListenerOnce(map, 'idle', () => {
               console.log('Google Maps fully loaded and idle');
@@ -117,30 +138,7 @@ export function MapView({ mapCollection }: MapViewProps) {
             setIsLoading(false);
             return;
           }
-
-          // Add click listener for adding pins
-          map.addListener('click', async (e: google.maps.MapMouseEvent) => {
-            if (e.latLng) {
-              const lat = e.latLng.lat();
-              const lng = e.latLng.lng();
-              
-              // Get address via reverse geocoding
-              const locationData = await reverseGeocode(lat, lng);
-              
-              setSelectedLocation({
-                lat,
-                lng,
-                address: locationData?.address || `${lat.toFixed(6)}, ${lng.toFixed(6)}`
-              });
-              setIsAddPinModalOpen(true);
-            }
-          });
-
-          // Add existing pins
-          addPinsToMap(map);
         }
-        
-        setIsLoading(false);
       } catch (error) {
         console.error('Failed to initialize Google Maps:', error);
         console.error('Error details:', error);

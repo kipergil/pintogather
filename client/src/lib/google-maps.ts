@@ -43,9 +43,32 @@ export async function loadGoogleMaps(): Promise<void> {
   if (!mapsPromise) {
     mapsPromise = (async () => {
       console.log('Loading Google Maps API...');
-      const loader = await getGoogleMapsLoader();
-      await loader.load();
-      console.log('Google Maps API loaded successfully');
+      try {
+        const loader = await getGoogleMapsLoader();
+        console.log('Loader created, attempting to load maps...');
+        await loader.load();
+        console.log('Google Maps API loaded successfully');
+        
+        // Verify API is accessible
+        if (typeof google === 'undefined') {
+          throw new Error('Google Maps API not accessible after loading');
+        }
+        
+        if (!google.maps) {
+          throw new Error('Google Maps library not available');
+        }
+        
+        console.log('Google Maps verification successful:', {
+          Map: !!google.maps.Map,
+          Marker: !!google.maps.Marker,
+          places: !!google.maps.places
+        });
+        
+      } catch (error) {
+        console.error('Google Maps loading error:', error);
+        mapsPromise = null; // Reset to allow retry
+        throw error;
+      }
     })();
   }
   return mapsPromise;
