@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, desc, sql, or, and, ne, inArray } from "drizzle-orm";
-import { mapCollections, pins, mapViewers, profiles, adminUsers, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer, type Profile, type InsertProfile, type AdminUser, type InsertAdminUser } from "@shared/schema";
+import { mapCollections, pins, mapViewers, profiles, adminUsers, mapInvitations, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer, type Profile, type InsertProfile, type AdminUser, type InsertAdminUser, type MapInvitation, type InsertMapInvitation } from "@shared/schema";
 import { nanoid } from "nanoid";
 import * as fs from "fs";
 import * as path from "path";
@@ -15,11 +15,20 @@ export interface IStorage {
   getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
+  updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string): Promise<MapCollection | undefined>;
   
   // Map Viewers
   addMapViewer(data: InsertMapViewer): Promise<MapViewer>;
   getMapViewers(mapId: string): Promise<MapViewer[]>;
   getUserMapAccess(userId: string, mapId: string): Promise<MapViewer | undefined>;
+  updateMapViewerPermission(mapId: string, userId: string, permission: string): Promise<MapViewer | undefined>;
+  
+  // Map Invitations
+  createInvitation(data: InsertMapInvitation): Promise<MapInvitation>;
+  getInvitationByToken(token: string): Promise<MapInvitation | undefined>;
+  getMapInvitations(mapId: string): Promise<MapInvitation[]>;
+  updateInvitationStatus(id: string, status: string): Promise<MapInvitation | undefined>;
+  deleteInvitation(id: string): Promise<boolean>;
   
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
@@ -492,6 +501,8 @@ export class MemStorage implements IStorage {
       ...data,
       description: data.description ?? null,
       ownerId: data.ownerId ?? null,
+      isPublic: data.isPublic ?? false,
+      defaultPermission: data.defaultPermission ?? 'readonly',
       id,
       shareUrl,
       createdAt: new Date(),

@@ -103,6 +103,11 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   createdAt: true,
 });
 
+export const insertMapInvitationSchema = createInsertSchema(mapInvitations).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
@@ -113,3 +118,5 @@ export type InsertPin = z.infer<typeof insertPinSchema>;
 export type Pin = typeof pins.$inferSelect;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertMapInvitation = z.infer<typeof insertMapInvitationSchema>;
+export type MapInvitation = typeof mapInvitations.$inferSelect;
