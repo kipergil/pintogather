@@ -93,10 +93,22 @@ export function MapView({ mapCollection }: MapViewProps) {
         await loadGoogleMaps();
         
         console.log('MapView: Creating map instance...');
+        
+        // Check container dimensions
+        const container = mapRef.current;
         console.log('MapView: Container dimensions:', {
-          width: mapRef.current.offsetWidth,
-          height: mapRef.current.offsetHeight
+          width: container.offsetWidth,
+          height: container.offsetHeight,
+          clientWidth: container.clientWidth,
+          clientHeight: container.clientHeight
         });
+
+        // If container has no dimensions, wait a bit and retry
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.log('MapView: Container has zero dimensions, retrying...');
+          setTimeout(() => initMap(), 100);
+          return;
+        }
 
         // Calculate center from pins or use default
         let center = { lat: 51.505, lng: -0.09 }; // Default to London
@@ -149,8 +161,17 @@ export function MapView({ mapCollection }: MapViewProps) {
         // Add existing pins to the map
         addPinsToMap(map);
         
-        // Set loading to false once map is ready
-        setIsLoading(false);
+        // Wait for map to be fully loaded before removing loading state
+        google.maps.event.addListenerOnce(map, 'idle', () => {
+          console.log('MapView: Map fully loaded and idle');
+          setIsLoading(false);
+        });
+
+        // Also set a timeout fallback in case idle event doesn't fire
+        setTimeout(() => {
+          console.log('MapView: Timeout fallback - removing loading state');
+          setIsLoading(false);
+        }, 2000);
 
       } catch (error) {
         console.error('MapView: Error creating map:', error);
