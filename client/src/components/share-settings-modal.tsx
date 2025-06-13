@@ -42,7 +42,7 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   const queryClient = useQueryClient();
 
   // Fetch existing invitations
-  const { data: invitations = [] } = useQuery({
+  const { data: invitations = [] } = useQuery<Invitation[]>({
     queryKey: ['/api/maps', mapCollection.id, 'invitations'],
     enabled: isOpen
   });
@@ -50,10 +50,7 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   // Update map permissions
   const updatePermissionsMutation = useMutation({
     mutationFn: async (data: { isPublic: boolean; defaultPermission: string }) => {
-      return apiRequest(`/api/maps/${mapCollection.id}/permissions`, {
-        method: 'PUT',
-        body: JSON.stringify(data)
-      });
+      return apiRequest(`/api/maps/${mapCollection.id}/permissions`, 'PUT', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.shareUrl] });
@@ -74,10 +71,7 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   // Send invitation
   const sendInvitationMutation = useMutation({
     mutationFn: async (data: { email: string; permission: string }) => {
-      return apiRequest(`/api/maps/${mapCollection.id}/invitations`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
+      return apiRequest(`/api/maps/${mapCollection.id}/invitations`, 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.id, 'invitations'] });
@@ -99,9 +93,7 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   // Delete invitation
   const deleteInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      return apiRequest(`/api/invitations/${invitationId}`, {
-        method: 'DELETE'
-      });
+      return apiRequest(`/api/invitations/${invitationId}`, 'DELETE');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.id, 'invitations'] });
@@ -286,13 +278,13 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
           </div>
 
           {/* Existing Invitations */}
-          {invitations.length > 0 && (
+          {Array.isArray(invitations) && invitations.length > 0 && (
             <>
               <Separator />
               <div className="space-y-4">
                 <h3 className="font-semibold">Pending Invitations</h3>
                 <div className="space-y-2">
-                  {invitations.map((invitation: Invitation) => (
+                  {(invitations as Invitation[]).map((invitation) => (
                     <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
