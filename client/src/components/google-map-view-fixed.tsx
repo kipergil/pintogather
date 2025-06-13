@@ -1,13 +1,53 @@
-import { useEffect, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Home, Maximize2, Info } from "lucide-react";
-import { useLocation } from "wouter";
-import { VenueSearch } from "@/components/venue-search-simple";
-import { VenueResult } from "@/lib/venue-search";
-import { loadGoogleMaps } from "@/lib/google-maps";
-import { AddPinModal } from "@/components/add-pin-modal";
-import { reverseGeocode } from "@/lib/map-utils";
+import { useEffect, useRef, useState } from 'react';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { MapPin, Plus } from 'lucide-react';
+import { VenueSearch } from './venue-search';
+import { AddPinModal } from './add-pin-modal';
+import { loadGoogleMaps } from '../lib/google-maps';
+import { VenueResult } from '../lib/venue-search';
+
+interface LocationData {
+  address: string;
+  city: string;
+  state: string;
+  town: string;
+  borough: string;
+  postcode: string;
+  country: string;
+}
+
+// Reverse geocoding function
+const reverseGeocode = async (lat: number, lng: number): Promise<LocationData | null> => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Geocoding failed');
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.address) {
+      return {
+        address: data.display_name || '',
+        city: data.address.city || data.address.town || data.address.village || '',
+        state: data.address.state || data.address.region || '',
+        town: data.address.town || data.address.village || '',
+        borough: data.address.borough || '',
+        postcode: data.address.postcode || '',
+        country: data.address.country || ''
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    return null;
+  }
+};
 
 interface MapViewProps {
   mapCollection: {
@@ -35,7 +75,6 @@ export function MapView({ mapCollection }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const [, setLocation] = useLocation();
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
@@ -58,6 +97,7 @@ export function MapView({ mapCollection }: MapViewProps) {
           width: mapRef.current.offsetWidth,
           height: mapRef.current.offsetHeight
         });
+
         // Calculate center from pins or use default
         let center = { lat: 51.505, lng: -0.09 }; // Default to London
         let zoom = 2;
@@ -87,6 +127,7 @@ export function MapView({ mapCollection }: MapViewProps) {
 
         mapInstanceRef.current = map;
         console.log('MapView: Map created successfully');
+
         // Add click listener for adding pins
         map.addListener('click', async (e: google.maps.MapMouseEvent) => {
           if (e.latLng) {
@@ -142,23 +183,22 @@ export function MapView({ mapCollection }: MapViewProps) {
         map,
         title: pin.userName,
         icon: {
-          url: 'data:image/svg+xml;base64,' + btoa(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ef4444">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          `),
-          scaledSize: new google.maps.Size(24, 24),
-          anchor: new google.maps.Point(12, 24)
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#3B82F6',
+          fillOpacity: 1,
+          strokeColor: '#1E40AF',
+          strokeWeight: 2,
         }
       });
 
-      // Add info window
+      // Create info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
-          <div style="max-width: 200px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">${pin.userName}</h3>
-            ${pin.address ? `<p style="margin: 0 0 4px 0; font-size: 14px;">${pin.address}</p>` : ''}
-            ${pin.note ? `<p style="margin: 0; font-size: 12px; color: #666;">${pin.note}</p>` : ''}
+          <div class="p-2">
+            <h3 class="font-semibold text-sm">${pin.userName}</h3>
+            ${pin.address ? `<p class="text-xs text-gray-600 mt-1">${pin.address}</p>` : ''}
+            ${pin.note ? `<p class="text-xs mt-1">${pin.note}</p>` : ''}
           </div>
         `
       });
@@ -170,7 +210,7 @@ export function MapView({ mapCollection }: MapViewProps) {
       markersRef.current.push(marker);
     });
 
-    // Fit bounds to show all pins
+    // Adjust map bounds to fit all pins
     if (mapCollection.pins.length > 1) {
       const bounds = new google.maps.LatLngBounds();
       mapCollection.pins.forEach(pin => {
@@ -199,18 +239,14 @@ export function MapView({ mapCollection }: MapViewProps) {
 
   const getMapBounds = () => {
     if (!mapInstanceRef.current) return undefined;
-    
     const bounds = mapInstanceRef.current.getBounds();
     if (!bounds) return undefined;
     
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
-    
     return {
-      north: ne.lat(),
-      south: sw.lat(),
-      east: ne.lng(),
-      west: sw.lng()
+      north: bounds.getNorthEast().lat(),
+      south: bounds.getSouthWest().lat(),
+      east: bounds.getNorthEast().lng(),
+      west: bounds.getSouthWest().lng()
     };
   };
 
@@ -257,12 +293,36 @@ export function MapView({ mapCollection }: MapViewProps) {
           {/* Map Info Overlay */}
           <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg max-w-xs">
             <div className="flex items-start space-x-2">
-              <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-neutral-700">
-                <p className="font-medium mb-1">Click anywhere to add a pin</p>
-                <p>Share this map's URL with others to collaborate</p>
+              <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-neutral-900">Click to add a pin</p>
+                <p className="text-neutral-600 text-xs mt-1">
+                  Share your location and connect with the community
+                </p>
               </div>
             </div>
+          </div>
+
+          {/* Quick Add Button */}
+          <div className="absolute bottom-4 right-4">
+            <Button
+              onClick={() => {
+                if (mapInstanceRef.current) {
+                  const center = mapInstanceRef.current.getCenter();
+                  if (center) {
+                    setSelectedLocation({
+                      lat: center.lat(),
+                      lng: center.lng(),
+                      address: `${center.lat().toFixed(6)}, ${center.lng().toFixed(6)}`
+                    });
+                    setIsAddPinModalOpen(true);
+                  }
+                }
+              }}
+              className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 shadow-lg"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </Card>
