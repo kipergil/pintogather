@@ -4,8 +4,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapView } from "@/components/google-map-view-fixed";
-import { SimpleMap } from "@/components/simple-map";
+import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -237,7 +236,7 @@ export default function MapDetail({ params }: MapDetailProps) {
       </Card>
 
       {/* Map View */}
-      <MapView mapCollection={mapCollection} />
+      <SimpleGoogleMap mapCollection={mapCollection} />
       
       {/* Pin Table - Always shown at bottom */}
       <Card>
