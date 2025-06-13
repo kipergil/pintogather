@@ -46,19 +46,40 @@ export function MapView({ mapCollection }: MapViewProps) {
 
   // Initialize Google Maps
   useEffect(() => {
+    let isMounted = true;
+    
     const initMap = async () => {
       try {
         console.log('Starting Google Maps initialization...');
-        console.log('Map container ref:', mapRef.current);
-        console.log('Existing map instance:', mapInstanceRef.current);
         
         if (!mapRef.current) {
           console.error('Map container not found');
           return;
         }
 
+        // Ensure container is visible and has dimensions
+        const container = mapRef.current;
+        console.log('Container dimensions before init:', {
+          width: container.offsetWidth,
+          height: container.offsetHeight,
+          clientWidth: container.clientWidth,
+          clientHeight: container.clientHeight,
+          scrollWidth: container.scrollWidth,
+          scrollHeight: container.scrollHeight
+        });
+
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.error('Container has zero dimensions, waiting...');
+          setTimeout(() => {
+            if (isMounted) initMap();
+          }, 100);
+          return;
+        }
+
         await loadGoogleMaps();
         console.log('Google Maps loaded successfully');
+        
+        if (!isMounted) return;
         
         // Check if Google Maps API is available
         if (typeof google === 'undefined' || !google.maps) {
@@ -69,11 +90,6 @@ export function MapView({ mapCollection }: MapViewProps) {
         
         if (mapRef.current && !mapInstanceRef.current) {
           console.log('Creating Google Maps instance...');
-          console.log('Container dimensions:', {
-            width: mapRef.current.offsetWidth,
-            height: mapRef.current.offsetHeight,
-            display: window.getComputedStyle(mapRef.current).display
-          });
 
           // Calculate center from pins or use default
           let center = { lat: 51.505, lng: -0.09 }; // Default to London
@@ -88,13 +104,17 @@ export function MapView({ mapCollection }: MapViewProps) {
           }
 
           console.log('Map center:', center);
+          console.log('Map zoom:', mapCollection.pins.length > 0 ? 10 : 2);
 
           // Create map with error handling
           try {
+            console.log('About to create new google.maps.Map...');
             const map = new google.maps.Map(mapRef.current, {
               zoom: mapCollection.pins.length > 0 ? 10 : 2,
               center,
               mapTypeId: google.maps.MapTypeId.ROADMAP,
+              disableDefaultUI: false,
+              gestureHandling: 'greedy',
               styles: [
                 {
                   featureType: "poi",
@@ -104,8 +124,33 @@ export function MapView({ mapCollection }: MapViewProps) {
               ]
             });
 
+            console.log('Map instance created, setting ref...');
             mapInstanceRef.current = map;
             console.log('Google Maps instance created successfully');
+            
+            // Ensure map is visible and properly rendered
+            map.setCenter(center);
+            map.setZoom(mapCollection.pins.length > 0 ? 10 : 2);
+            
+            // Force multiple resize events to ensure proper rendering
+            setTimeout(() => {
+              console.log('Triggering initial map resize...');
+              google.maps.event.trigger(map, 'resize');
+              map.setCenter(center);
+            }, 50);
+            
+            setTimeout(() => {
+              console.log('Triggering secondary map resize...');
+              google.maps.event.trigger(map, 'resize');
+              map.setCenter(center);
+            }, 200);
+            
+            setTimeout(() => {
+              console.log('Final map resize and center...');
+              google.maps.event.trigger(map, 'resize');
+              map.setCenter(center);
+              console.log('Map should now be visible');
+            }, 500);
             
             // Add click listener for adding pins
             map.addListener('click', async (e: google.maps.MapMouseEvent) => {
@@ -131,7 +176,15 @@ export function MapView({ mapCollection }: MapViewProps) {
             // Wait for map to be fully loaded
             google.maps.event.addListenerOnce(map, 'idle', () => {
               console.log('Google Maps fully loaded and idle');
+              console.log('Map bounds:', map.getBounds());
+              console.log('Map center:', map.getCenter());
+              console.log('Map zoom:', map.getZoom());
               setIsLoading(false);
+            });
+
+            // Add tilesloaded event to ensure tiles are rendered
+            google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
+              console.log('Google Maps tiles loaded successfully');
             });
           } catch (mapError) {
             console.error('Error creating Google Maps instance:', mapError);
@@ -274,8 +327,13 @@ export function MapView({ mapCollection }: MapViewProps) {
         <div className="relative">
           <div 
             ref={mapRef} 
-            className="w-full h-96 rounded-lg"
-            style={{ minHeight: '400px' }}
+            className="w-full h-96 rounded-lg bg-gray-100"
+            style={{ 
+              minHeight: '400px',
+              height: '400px',
+              width: '100%',
+              position: 'relative'
+            }}
           />
           
           {/* Map Info Overlay */}
