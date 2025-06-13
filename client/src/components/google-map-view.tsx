@@ -49,11 +49,32 @@ export function MapView({ mapCollection }: MapViewProps) {
     const initMap = async () => {
       try {
         console.log('Starting Google Maps initialization...');
+        console.log('Map container ref:', mapRef.current);
+        console.log('Existing map instance:', mapInstanceRef.current);
+        
+        if (!mapRef.current) {
+          console.error('Map container not found');
+          return;
+        }
+
         await loadGoogleMaps();
         console.log('Google Maps loaded successfully');
         
+        // Check if Google Maps API is available
+        if (typeof google === 'undefined' || !google.maps) {
+          console.error('Google Maps API not loaded properly');
+          setIsLoading(false);
+          return;
+        }
+        
         if (mapRef.current && !mapInstanceRef.current) {
           console.log('Creating Google Maps instance...');
+          console.log('Container dimensions:', {
+            width: mapRef.current.offsetWidth,
+            height: mapRef.current.offsetHeight,
+            display: window.getComputedStyle(mapRef.current).display
+          });
+
           // Calculate center from pins or use default
           let center = { lat: 51.505, lng: -0.09 }; // Default to London
           
@@ -66,22 +87,36 @@ export function MapView({ mapCollection }: MapViewProps) {
             };
           }
 
-          // Create map
-          const map = new google.maps.Map(mapRef.current, {
-            zoom: mapCollection.pins.length > 0 ? 10 : 2,
-            center,
-            mapTypeId: google.maps.MapTypeId.ROADMAP,
-            styles: [
-              {
-                featureType: "poi",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }]
-              }
-            ]
-          });
+          console.log('Map center:', center);
 
-          mapInstanceRef.current = map;
-          console.log('Google Maps instance created successfully');
+          // Create map with error handling
+          try {
+            const map = new google.maps.Map(mapRef.current, {
+              zoom: mapCollection.pins.length > 0 ? 10 : 2,
+              center,
+              mapTypeId: google.maps.MapTypeId.ROADMAP,
+              styles: [
+                {
+                  featureType: "poi",
+                  elementType: "labels",
+                  stylers: [{ visibility: "off" }]
+                }
+              ]
+            });
+
+            mapInstanceRef.current = map;
+            console.log('Google Maps instance created successfully');
+            
+            // Wait for map to be fully loaded
+            google.maps.event.addListenerOnce(map, 'idle', () => {
+              console.log('Google Maps fully loaded and idle');
+              setIsLoading(false);
+            });
+          } catch (mapError) {
+            console.error('Error creating Google Maps instance:', mapError);
+            setIsLoading(false);
+            return;
+          }
 
           // Add click listener for adding pins
           map.addListener('click', async (e: google.maps.MapMouseEvent) => {
