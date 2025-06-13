@@ -42,8 +42,10 @@ export async function getGoogleMapsLoader(): Promise<Loader> {
 export async function loadGoogleMaps(): Promise<void> {
   if (!mapsPromise) {
     mapsPromise = (async () => {
+      console.log('Loading Google Maps API...');
       const loader = await getGoogleMapsLoader();
       await loader.load();
+      console.log('Google Maps API loaded successfully');
     })();
   }
   return mapsPromise;

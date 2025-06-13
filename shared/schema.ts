@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, decimal, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, decimal, varchar, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -20,6 +20,8 @@ export const mapCollections = pgTable("map_collections", {
   description: text("description"),
   shareUrl: text("share_url").notNull().unique(),
   ownerId: varchar("owner_id", { length: 255 }),
+  isPublic: boolean("is_public").default(false).notNull(),
+  defaultPermission: text("default_permission").default("readonly").notNull(), // "readonly" or "editable"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -28,6 +30,19 @@ export const mapViewers = pgTable("map_viewers", {
   mapId: varchar("map_id", { length: 255 }).notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
   userId: varchar("user_id", { length: 255 }).notNull(),
   role: text("role").notNull().default("viewer"), // "viewer" or "contributor"
+  permission: text("permission").notNull().default("readonly"), // "readonly" or "editable"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const mapInvitations = pgTable("map_invitations", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  mapId: varchar("map_id", { length: 255 }).notNull().references(() => mapCollections.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  permission: text("permission").notNull().default("readonly"), // "readonly" or "editable"
+  invitedBy: varchar("invited_by", { length: 255 }).notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "accepted", "declined"
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
