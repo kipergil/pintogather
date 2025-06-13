@@ -42,7 +42,12 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
   } | null>(null);
 
   useEffect(() => {
-    initializeMap();
+    // Add a small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      initializeMap();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -52,14 +57,33 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
   }, [mapCollection.pins]);
 
   const initializeMap = async () => {
+    console.log('Starting map initialization...');
+    
     if (!mapRef.current) {
       console.log('Map container not available, retrying...');
       setTimeout(initializeMap, 100);
       return;
     }
 
+    // Check if container has dimensions
+    const containerRect = mapRef.current.getBoundingClientRect();
+    console.log('Container dimensions:', {
+      width: containerRect.width,
+      height: containerRect.height,
+      offsetWidth: mapRef.current.offsetWidth,
+      offsetHeight: mapRef.current.offsetHeight
+    });
+
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      console.log('Container has no dimensions, retrying...');
+      setTimeout(initializeMap, 100);
+      return;
+    }
+
     try {
+      console.log('Loading Google Maps API...');
       await loadGoogleMaps();
+      console.log('Google Maps API loaded successfully');
       
       // Calculate center from pins
       let center = { lat: 51.5074, lng: -0.1278 }; // Default: London
@@ -76,6 +100,7 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       }
 
       // Create map
+      console.log('Creating Google Maps instance with center:', center, 'zoom:', zoom);
       const map = new google.maps.Map(mapRef.current, {
         center,
         zoom,
@@ -83,9 +108,11 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       });
 
       mapInstanceRef.current = map;
+      console.log('Google Maps instance created successfully');
 
       // Add click listener for new pins
       map.addListener('click', (e: google.maps.MapMouseEvent) => {
+        console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
         if (e.latLng) {
           setSelectedLocation({
             lat: e.latLng.lat(),
@@ -97,6 +124,7 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       });
 
       updatePins();
+      console.log('Map initialization complete, setting loading to false');
       setIsLoading(false);
 
     } catch (error) {
