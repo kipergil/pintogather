@@ -714,6 +714,7 @@ export class MemStorage implements IStorage {
       userId: data.userId,
       mapId: data.mapId,
       role: data.role ?? 'viewer',
+      permission: data.permission || 'readonly',
       createdAt: new Date(),
     };
     this.mapViewers.set(id, mapViewer);
@@ -803,8 +804,8 @@ export class MemStorage implements IStorage {
       id,
       mapId: data.mapId,
       email: data.email,
-      permission: data.permission,
-      invitedBy: data.invitedBy,
+      permission: data.permission || 'readonly',
+      invitedBy: data.invitedBy || 'system',
       token: data.token,
       status: 'pending',
       expiresAt: data.expiresAt,
@@ -959,5 +960,33 @@ export const storage = {
   async createAdminUser(data: InsertAdminUser) {
     const instance = await getStorage();
     return instance.createAdminUser(data);
+  },
+  async updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string) {
+    const instance = await getStorage();
+    return instance.updateMapPermissions(mapId, isPublic, defaultPermission);
+  },
+  async updateMapViewerPermission(mapId: string, userId: string, permission: string) {
+    const instance = await getStorage();
+    return instance.updateMapViewerPermission(mapId, userId, permission);
+  },
+  async createInvitation(data: InsertMapInvitation) {
+    const instance = await getStorage();
+    return instance.createInvitation(data);
+  },
+  async getInvitationByToken(token: string) {
+    const instance = await getStorage();
+    return instance.getInvitationByToken(token);
+  },
+  async getMapInvitations(mapId: string) {
+    const instance = await getStorage();
+    return instance.getMapInvitations(mapId);
+  },
+  async updateInvitationStatus(id: string, status: string) {
+    const instance = await getStorage();
+    return instance.updateInvitationStatus(id, status);
+  },
+  async deleteInvitation(id: string) {
+    const instance = await getStorage();
+    return instance.deleteInvitation(id);
   }
 };

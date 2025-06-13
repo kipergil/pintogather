@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMapCollectionSchema, insertPinSchema } from "@shared/schema";
 import { z } from "zod";
+import { nanoid } from "nanoid";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Production-ready health endpoints with explicit JSON serialization
