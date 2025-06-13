@@ -200,6 +200,14 @@ export function MapView({ mapCollection }: MapViewProps) {
     };
 
     initMap();
+    
+    return () => {
+      isMounted = false;
+      if (mapInstanceRef.current) {
+        console.log('Cleaning up map instance');
+        mapInstanceRef.current = null;
+      }
+    };
   }, []);
 
   // Update pins when mapCollection changes

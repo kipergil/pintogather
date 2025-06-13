@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapView } from "@/components/map-view";
+import { SimpleMap } from "@/components/simple-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -232,6 +233,14 @@ export default function MapDetail({ params }: MapDetailProps) {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Test Simple Map */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Test Map (Simple Implementation)</h3>
+          <SimpleMap />
         </CardContent>
       </Card>
 
