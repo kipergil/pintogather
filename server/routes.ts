@@ -647,6 +647,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update map sharing permissions
+  app.put("/api/maps/:mapId/permissions", async (req, res) => {
+    try {
+      const { mapId } = req.params;
+      const { isPublic, defaultPermission } = req.body;
+      
+      // Note: Add authentication check here when user system is implemented
+      
+      if (!['readonly', 'editable'].includes(defaultPermission)) {
+        return res.status(400).json({ message: "Invalid permission type" });
+      }
+
+      const updatedMap = await storage.updateMapPermissions(mapId, isPublic, defaultPermission);
+      if (!updatedMap) {
+        return res.status(404).json({ message: "Map not found" });
+      }
+
+      res.json(updatedMap);
+    } catch (error) {
+      console.error('Error updating map permissions:', error);
+      res.status(500).json({ message: "Failed to update map permissions" });
+    }
+  });
+
+  // Create map invitation
+  app.post("/api/maps/:mapId/invitations", async (req, res) => {
+    try {
+      const { mapId } = req.params;
+      const { email, permission } = req.body;
+      
+      if (!email || !permission) {
+        return res.status(400).json({ message: "Email and permission are required" });
+      }
+
+      if (!['readonly', 'editable'].includes(permission)) {
+        return res.status(400).json({ message: "Invalid permission type" });
+      }
+
+      const token = nanoid(32);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+
+      const invitationData = {
+        mapId,
+        email,
+        permission,
+        invitedBy: 'current-user', // Replace with actual user ID when auth is implemented
+        token,
+        expiresAt
+      };
+
+      const invitation = await storage.createInvitation(invitationData);
+      
+      // TODO: Send email notification here
+      console.log(`Invitation created for ${email} with token: ${token}`);
+      
+      res.status(201).json(invitation);
+    } catch (error) {
+      console.error('Error creating invitation:', error);
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  // Get map invitations
+  app.get("/api/maps/:mapId/invitations", async (req, res) => {
+    try {
+      const { mapId } = req.params;
+      
+      // Note: Add ownership check here when user system is implemented
+      
+      const invitations = await storage.getMapInvitations(mapId);
+      res.json(invitations);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Accept invitation
+  app.post("/api/invitations/:token/accept", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found or expired" });
+      }
+
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: "Invitation has already been processed" });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Update invitation status
+      await storage.updateInvitationStatus(invitation.id, 'accepted');
+      
+      // Add user as map viewer (when user system is implemented)
+      // const mapViewer = await storage.addMapViewer({
+      //   mapId: invitation.mapId,
+      //   userId: 'current-user-id',
+      //   permission: invitation.permission
+      // });
+
+      res.json({ message: "Invitation accepted successfully" });
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
+  // Delete invitation
+  app.delete("/api/invitations/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const deleted = await storage.deleteInvitation(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      res.json({ message: "Invitation deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting invitation:', error);
+      res.status(500).json({ message: "Failed to delete invitation" });
+    }
+  });
+
   // Get map collection by share URL
   app.get("/api/maps/:shareUrl", async (req, res) => {
     try {

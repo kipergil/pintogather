@@ -419,18 +419,100 @@ class DatabaseStorage implements IStorage {
       .returning();
     return result;
   }
+
+  async updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string): Promise<MapCollection | undefined> {
+    try {
+      const result = await this.db
+        .update(mapCollections)
+        .set({ isPublic, defaultPermission })
+        .where(eq(mapCollections.id, mapId))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating map permissions:', error);
+      return undefined;
+    }
+  }
+
+  async updateMapViewerPermission(mapId: string, userId: string, permission: string): Promise<MapViewer | undefined> {
+    try {
+      const result = await this.db
+        .update(mapViewers)
+        .set({ permission })
+        .where(sql`${mapViewers.mapId} = ${mapId} AND ${mapViewers.userId} = ${userId}`)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating map viewer permission:', error);
+      return undefined;
+    }
+  }
+
+  async createInvitation(data: InsertMapInvitation): Promise<MapInvitation> {
+    const id = nanoid();
+    const result = await this.db
+      .insert(mapInvitations)
+      .values({ ...data, id })
+      .returning();
+    return result[0];
+  }
+
+  async getInvitationByToken(token: string): Promise<MapInvitation | undefined> {
+    const result = await this.db
+      .select()
+      .from(mapInvitations)
+      .where(eq(mapInvitations.token, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getMapInvitations(mapId: string): Promise<MapInvitation[]> {
+    return await this.db
+      .select()
+      .from(mapInvitations)
+      .where(eq(mapInvitations.mapId, mapId));
+  }
+
+  async updateInvitationStatus(id: string, status: string): Promise<MapInvitation | undefined> {
+    try {
+      const result = await this.db
+        .update(mapInvitations)
+        .set({ status })
+        .where(eq(mapInvitations.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Error updating invitation status:', error);
+      return undefined;
+    }
+  }
+
+  async deleteInvitation(id: string): Promise<boolean> {
+    try {
+      const result = await this.db
+        .delete(mapInvitations)
+        .where(eq(mapInvitations.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting invitation:', error);
+      return false;
+    }
+  }
 }
 
 export class MemStorage implements IStorage {
   private mapCollections: Map<string, MapCollection>;
   private pins: Map<string, Pin>;
   private mapViewers: Map<string, MapViewer>;
+  private mapInvitations: Map<string, MapInvitation>;
   private dataFile: string;
 
   constructor() {
     this.mapCollections = new Map();
     this.pins = new Map();
     this.mapViewers = new Map();
+    this.mapInvitations = new Map();
     this.dataFile = path.join(process.cwd(), 'storage-data.json');
     this.loadData();
   }
@@ -691,6 +773,81 @@ export class MemStorage implements IStorage {
       userId: data.userId,
       createdAt: new Date(),
     };
+  }
+
+  async updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string): Promise<MapCollection | undefined> {
+    const map = this.mapCollections.get(mapId);
+    if (!map) return undefined;
+    
+    const updatedMap = { ...map, isPublic, defaultPermission };
+    this.mapCollections.set(mapId, updatedMap);
+    this.saveData();
+    return updatedMap;
+  }
+
+  async updateMapViewerPermission(mapId: string, userId: string, permission: string): Promise<MapViewer | undefined> {
+    const viewer = Array.from(this.mapViewers.values())
+      .find(mv => mv.mapId === mapId && mv.userId === userId);
+    
+    if (!viewer) return undefined;
+    
+    const updatedViewer = { ...viewer, permission };
+    this.mapViewers.set(viewer.id, updatedViewer);
+    this.saveData();
+    return updatedViewer;
+  }
+
+  async createInvitation(data: InsertMapInvitation): Promise<MapInvitation> {
+    const id = nanoid();
+    const invitation: MapInvitation = {
+      id,
+      mapId: data.mapId,
+      email: data.email,
+      permission: data.permission,
+      invitedBy: data.invitedBy,
+      token: data.token,
+      status: 'pending',
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+    };
+    
+    // Store in a separate map for invitations (add to constructor)
+    if (!this.mapInvitations) {
+      this.mapInvitations = new Map();
+    }
+    this.mapInvitations.set(id, invitation);
+    this.saveData();
+    return invitation;
+  }
+
+  async getInvitationByToken(token: string): Promise<MapInvitation | undefined> {
+    if (!this.mapInvitations) return undefined;
+    return Array.from(this.mapInvitations.values())
+      .find(inv => inv.token === token);
+  }
+
+  async getMapInvitations(mapId: string): Promise<MapInvitation[]> {
+    if (!this.mapInvitations) return [];
+    return Array.from(this.mapInvitations.values())
+      .filter(inv => inv.mapId === mapId);
+  }
+
+  async updateInvitationStatus(id: string, status: string): Promise<MapInvitation | undefined> {
+    if (!this.mapInvitations) return undefined;
+    const invitation = this.mapInvitations.get(id);
+    if (!invitation) return undefined;
+    
+    const updatedInvitation = { ...invitation, status };
+    this.mapInvitations.set(id, updatedInvitation);
+    this.saveData();
+    return updatedInvitation;
+  }
+
+  async deleteInvitation(id: string): Promise<boolean> {
+    if (!this.mapInvitations) return false;
+    const deleted = this.mapInvitations.delete(id);
+    if (deleted) this.saveData();
+    return deleted;
   }
 }
 
