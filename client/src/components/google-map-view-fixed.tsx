@@ -85,27 +85,41 @@ export function MapView({ mapCollection }: MapViewProps) {
 
   // Initialize Google Maps using the simple working approach
   useEffect(() => {
+    console.log('MapView: useEffect triggered, isLoading:', isLoading);
+    
     const initMap = async () => {
-      if (!mapRef.current || mapInstanceRef.current) return;
+      console.log('MapView: initMap called, mapRef.current:', mapRef.current, 'mapInstanceRef.current:', mapInstanceRef.current);
+      
+      if (!mapRef.current || mapInstanceRef.current) {
+        console.log('MapView: Early return - no container or map already exists');
+        return;
+      }
 
       try {
-        console.log('MapView: Loading Google Maps...');
+        console.log('MapView: Starting Google Maps initialization...');
         await loadGoogleMaps();
+        console.log('MapView: Google Maps API loaded successfully');
         
-        console.log('MapView: Creating map instance...');
+        // Check if we still have a valid container reference
+        if (!mapRef.current) {
+          console.error('MapView: Container reference lost during API loading');
+          return;
+        }
         
         // Check container dimensions
         const container = mapRef.current;
-        console.log('MapView: Container dimensions:', {
+        console.log('MapView: Container dimensions after API load:', {
           width: container.offsetWidth,
           height: container.offsetHeight,
           clientWidth: container.clientWidth,
-          clientHeight: container.clientHeight
+          clientHeight: container.clientHeight,
+          display: window.getComputedStyle(container).display,
+          visibility: window.getComputedStyle(container).visibility
         });
 
         // If container has no dimensions, wait a bit and retry
         if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-          console.log('MapView: Container has zero dimensions, retrying...');
+          console.log('MapView: Container has zero dimensions, retrying in 100ms...');
           setTimeout(() => initMap(), 100);
           return;
         }
@@ -161,17 +175,9 @@ export function MapView({ mapCollection }: MapViewProps) {
         // Add existing pins to the map
         addPinsToMap(map);
         
-        // Wait for map to be fully loaded before removing loading state
-        google.maps.event.addListenerOnce(map, 'idle', () => {
-          console.log('MapView: Map fully loaded and idle');
-          setIsLoading(false);
-        });
-
-        // Also set a timeout fallback in case idle event doesn't fire
-        setTimeout(() => {
-          console.log('MapView: Timeout fallback - removing loading state');
-          setIsLoading(false);
-        }, 2000);
+        // Force loading state off immediately after map creation
+        console.log('MapView: Forcing loading state off immediately');
+        setIsLoading(false);
 
       } catch (error) {
         console.error('MapView: Error creating map:', error);
