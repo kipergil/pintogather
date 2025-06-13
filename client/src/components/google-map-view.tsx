@@ -258,27 +258,14 @@ export function MapView({ mapCollection }: MapViewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Map Controls */}
+      {/* Venue Search */}
       <Card>
         <div className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation("/")}
-              >
-                <Home className="h-4 w-4 mr-2" />
-                Back to Home
-              </Button>
-            </div>
-            
-            <VenueSearch 
-              onVenueSelect={handleVenueSelect}
-              mapBounds={getMapBounds()}
-              className="flex-1 max-w-md"
-            />
-          </div>
+          <VenueSearch 
+            onVenueSelect={handleVenueSelect}
+            mapBounds={getMapBounds()}
+            className="w-full max-w-md mx-auto"
+          />
         </div>
       </Card>
 

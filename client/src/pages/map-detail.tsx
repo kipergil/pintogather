@@ -178,48 +178,58 @@ export default function MapDetail({ params }: MapDetailProps) {
       {/* Map Header */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div>
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">{mapCollection.name}</h2>
+          {/* Title Row with Action Buttons */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-neutral-900">{mapCollection.name}</h2>
               {mapCollection.description && (
-                <p className="text-neutral-600 mb-2">{mapCollection.description}</p>
+                <p className="text-neutral-600 mt-1">{mapCollection.description}</p>
               )}
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-neutral-500">
-                  <MapPin className="h-4 w-4 inline mr-1" />
-                  {mapCollection.pinCount} pins
-                </span>
-                <span className="text-sm text-neutral-500">
-                  <Users className="h-4 w-4 inline mr-1" />
-                  {contributorsCount} contributors
-                </span>
-              </div>
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Community Map:</strong> Anyone with this URL can view and add pins to gather together on this map. 
-                  Share the link to invite others to pin their locations!
-                </p>
-              </div>
             </div>
-            
-            <div className="flex space-x-2">
-              
+            <div className="flex items-center space-x-2 ml-4">
               <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsShareModalOpen(true)}
-                className="bg-secondary hover:bg-secondary/90"
               >
-                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
-                </svg>
                 Share
               </Button>
-
               <Link href="/">
-                <Button variant="outline">
+                <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Home
+                  Back
                 </Button>
               </Link>
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="flex items-center space-x-4 mb-4">
+            <span className="text-sm text-neutral-500">
+              <MapPin className="h-4 w-4 inline mr-1" />
+              {mapCollection.pinCount} pins
+            </span>
+            <span className="text-sm text-neutral-500">
+              <Users className="h-4 w-4 inline mr-1" />
+              {contributorsCount} contributors
+            </span>
+          </div>
+
+          {/* Community Note */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Users className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 mb-1">Community Collaboration</h4>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  This is a shared community map where anyone with the URL can view and add pins. 
+                  Click anywhere on the map to add your location and connect with others in the community!
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
