@@ -30,6 +30,8 @@ interface SimpleMapProps {
 }
 
 export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
+  console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
+  
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -42,12 +44,18 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
   } | null>(null);
 
   useEffect(() => {
+    console.log('SimpleGoogleMap useEffect triggered');
+    
     // Add a small delay to ensure DOM is fully rendered
     const timer = setTimeout(() => {
+      console.log('Timer fired, calling initializeMap');
       initializeMap();
     }, 100);
     
-    return () => clearTimeout(timer);
+    return () => {
+      console.log('SimpleGoogleMap useEffect cleanup');
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -223,8 +231,13 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
         <div className="relative">
           <div 
             ref={mapRef}
-            className="w-full h-96 rounded-lg"
-            style={{ height: '400px' }}
+            className="w-full h-96 rounded-lg bg-gray-100"
+            style={{ 
+              height: '400px',
+              minHeight: '400px',
+              width: '100%',
+              position: 'relative'
+            }}
           />
           
           {/* Map Info Overlay */}
