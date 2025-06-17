@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { MapPin, Plus } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 
@@ -84,7 +84,8 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
           center,
           zoom,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
-          gestureHandling: 'greedy' // Enable single-finger dragging
+          gestureHandling: 'greedy', // Enable single-finger dragging
+          zoomControl: true // Show zoom buttons
         });
 
         mapInstanceRef.current = map;
@@ -189,19 +190,7 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
     }
   };
 
-  const handleAddPin = () => {
-    if (mapInstanceRef.current) {
-      const center = mapInstanceRef.current.getCenter();
-      if (center) {
-        setSelectedLocation({
-          lat: center.lat(),
-          lng: center.lng(),
-          address: `${center.lat().toFixed(6)}, ${center.lng().toFixed(6)}`
-        });
-        setIsAddPinModalOpen(true);
-      }
-    }
-  };
+
 
   if (error) {
     return (
@@ -230,16 +219,6 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
               position: 'relative'
             }}
           />
-
-          {/* Add Pin Button */}
-          <div className="absolute bottom-4 right-4">
-            <Button
-              onClick={handleAddPin}
-              className="rounded-full w-12 h-12 p-0 bg-blue-600 hover:bg-blue-700 shadow-lg"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-          </div>
         </div>
       </Card>
 
