@@ -66,7 +66,7 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
 
         // Calculate center from pins
         let center = { lat: 51.5074, lng: -0.1278 }; // Default: London
-        let zoom = 2;
+        let zoom = 10; // Default zoom for London
 
         if (mapCollection.pins.length > 0) {
           const lats = mapCollection.pins.map(pin => parseFloat(pin.latitude));
