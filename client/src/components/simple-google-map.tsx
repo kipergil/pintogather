@@ -13,6 +13,9 @@ interface Pin {
   address?: string;
   city?: string;
   state?: string;
+  town?: string;
+  borough?: string;
+  postcode?: string;
   twitterHandle?: string;
   instagramHandle?: string;
   linkedinHandle?: string;
@@ -148,12 +151,10 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
         }
       });
 
-      // Create concise location info
+      // Create concise location info - using only available fields
       const locationParts = [];
       if (pin.city) locationParts.push(pin.city);
-      if (pin.borough) locationParts.push(pin.borough);
       if (pin.state) locationParts.push(pin.state);
-      if (pin.postcode) locationParts.push(pin.postcode);
       const locationText = locationParts.join(', ');
 
       // Info window
@@ -228,19 +229,6 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
               position: 'relative'
             }}
           />
-          
-          {/* Map Info Overlay */}
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg max-w-xs">
-            <div className="flex items-start space-x-2">
-              <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium text-neutral-900">Click to add a pin</p>
-                <p className="text-neutral-600 text-xs mt-1">
-                  Share your location with the community
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Add Pin Button */}
           <div className="absolute bottom-4 right-4">
