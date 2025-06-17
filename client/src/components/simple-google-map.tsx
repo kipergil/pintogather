@@ -86,7 +86,8 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
           mapTypeId: google.maps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy', // Enable single-finger dragging
           zoomControl: true, // Show zoom buttons
-          streetViewControl: false // Hide street view icon
+          streetViewControl: false, // Hide street view icon
+          mapTypeControl: false // Hide map/satellite view options
         });
 
         mapInstanceRef.current = map;
