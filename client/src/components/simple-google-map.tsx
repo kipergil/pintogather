@@ -148,12 +148,20 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
         }
       });
 
+      // Create concise location info
+      const locationParts = [];
+      if (pin.city) locationParts.push(pin.city);
+      if (pin.borough) locationParts.push(pin.borough);
+      if (pin.state) locationParts.push(pin.state);
+      if (pin.postcode) locationParts.push(pin.postcode);
+      const locationText = locationParts.join(', ');
+
       // Info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
-          <div style="padding: 8px; min-width: 200px;">
+          <div style="padding: 8px; min-width: 150px;">
             <h3 style="margin: 0 0 4px 0; font-weight: 600;">${pin.userName}</h3>
-            ${pin.address ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${pin.address}</p>` : ''}
+            ${locationText ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${locationText}</p>` : ''}
             ${pin.note ? `<p style="margin: 4px 0; font-size: 12px;">${pin.note}</p>` : ''}
           </div>
         `
