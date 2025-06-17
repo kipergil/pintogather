@@ -35,7 +35,8 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
@@ -46,16 +47,73 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
   useEffect(() => {
     console.log('SimpleGoogleMap useEffect triggered');
     
-    // Add a small delay to ensure DOM is fully rendered
-    const timer = setTimeout(() => {
-      console.log('Timer fired, calling initializeMap');
-      initializeMap();
-    }, 100);
-    
-    return () => {
-      console.log('SimpleGoogleMap useEffect cleanup');
-      clearTimeout(timer);
+    // Force immediate initialization
+    const init = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Starting immediate map initialization');
+        
+        if (!mapRef.current) {
+          throw new Error('Map container not found');
+        }
+
+        console.log('Loading Google Maps API...');
+        await loadGoogleMaps();
+        console.log('Google Maps API loaded successfully');
+
+        // Calculate center from pins
+        let center = { lat: 51.5074, lng: -0.1278 }; // Default: London
+        let zoom = 2;
+
+        if (mapCollection.pins.length > 0) {
+          const lats = mapCollection.pins.map(pin => parseFloat(pin.latitude));
+          const lngs = mapCollection.pins.map(pin => parseFloat(pin.longitude));
+          center = {
+            lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+            lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
+          };
+          zoom = 10;
+        }
+
+        // Create map
+        console.log('Creating Google Maps instance with center:', center, 'zoom:', zoom);
+        const map = new google.maps.Map(mapRef.current, {
+          center,
+          zoom,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+
+        mapInstanceRef.current = map;
+        console.log('Google Maps instance created successfully');
+
+        // Add click listener for new pins
+        map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
+          if (e.latLng) {
+            setSelectedLocation({
+              lat: e.latLng.lat(),
+              lng: e.latLng.lng(),
+              address: `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`
+            });
+            setIsAddPinModalOpen(true);
+          }
+        });
+
+        updatePins();
+        console.log('Map initialization complete');
+        setIsLoading(false);
+
+      } catch (error) {
+        console.error('Failed to initialize map:', error);
+        setError(`Failed to initialize map: ${error}`);
+        setIsLoading(false);
+      }
     };
+    
+    // Small delay to ensure DOM is rendered
+    setTimeout(() => {
+      init();
+    }, 50);
   }, []);
 
   useEffect(() => {
@@ -63,83 +121,6 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       updatePins();
     }
   }, [mapCollection.pins]);
-
-  const initializeMap = async () => {
-    console.log('Starting map initialization...');
-    
-    if (!mapRef.current) {
-      console.log('Map container not available, retrying...');
-      setTimeout(initializeMap, 100);
-      return;
-    }
-
-    // Check if container has dimensions
-    const containerRect = mapRef.current.getBoundingClientRect();
-    console.log('Container dimensions:', {
-      width: containerRect.width,
-      height: containerRect.height,
-      offsetWidth: mapRef.current.offsetWidth,
-      offsetHeight: mapRef.current.offsetHeight
-    });
-
-    if (containerRect.width === 0 || containerRect.height === 0) {
-      console.log('Container has no dimensions, retrying...');
-      setTimeout(initializeMap, 100);
-      return;
-    }
-
-    try {
-      console.log('Loading Google Maps API...');
-      await loadGoogleMaps();
-      console.log('Google Maps API loaded successfully');
-      
-      // Calculate center from pins
-      let center = { lat: 51.5074, lng: -0.1278 }; // Default: London
-      let zoom = 2;
-
-      if (mapCollection.pins.length > 0) {
-        const lats = mapCollection.pins.map(pin => parseFloat(pin.latitude));
-        const lngs = mapCollection.pins.map(pin => parseFloat(pin.longitude));
-        center = {
-          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
-          lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
-        };
-        zoom = 10;
-      }
-
-      // Create map
-      console.log('Creating Google Maps instance with center:', center, 'zoom:', zoom);
-      const map = new google.maps.Map(mapRef.current, {
-        center,
-        zoom,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
-      });
-
-      mapInstanceRef.current = map;
-      console.log('Google Maps instance created successfully');
-
-      // Add click listener for new pins
-      map.addListener('click', (e: google.maps.MapMouseEvent) => {
-        console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
-        if (e.latLng) {
-          setSelectedLocation({
-            lat: e.latLng.lat(),
-            lng: e.latLng.lng(),
-            address: `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`
-          });
-          setIsAddPinModalOpen(true);
-        }
-      });
-
-      updatePins();
-      console.log('Map initialization complete, setting loading to false');
-      setIsLoading(false);
-
-    } catch (error) {
-      console.error('Failed to initialize map:', error);
-      setIsLoading(false);
-    }
-  };
 
   const updatePins = () => {
     if (!mapInstanceRef.current) return;
@@ -212,13 +193,13 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
     }
   };
 
-  if (isLoading) {
+  if (error) {
     return (
       <Card>
         <div className="h-96 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm text-neutral-600">Loading map...</p>
+          <div className="text-center p-4">
+            <p className="text-red-600 font-medium mb-2">Map Error</p>
+            <p className="text-sm text-gray-600">{error}</p>
           </div>
         </div>
       </Card>
