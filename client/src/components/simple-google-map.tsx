@@ -83,7 +83,8 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
         const map = new google.maps.Map(mapRef.current, {
           center,
           zoom,
-          mapTypeId: google.maps.MapTypeId.ROADMAP
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          gestureHandling: 'greedy' // Enable single-finger dragging
         });
 
         mapInstanceRef.current = map;
