@@ -40,6 +40,7 @@ export function DeleteMapModal({ isOpen, onClose, mapCollection }: DeleteMapModa
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
+      console.log('Deleting map with ID:', mapCollection.id, 'for user:', user.id);
       return apiRequest(`/api/maps/${mapCollection.id}`, 'DELETE', { userId: user.id });
     },
     onSuccess: () => {

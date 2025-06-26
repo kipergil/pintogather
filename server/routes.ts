@@ -678,6 +678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { mapId } = req.params;
       const { userId } = req.body;
       
+      console.log('Delete request received for mapId:', mapId, 'userId:', userId, 'body:', req.body);
+      
       if (!userId) {
         return res.status(400).json({ message: "User ID is required" });
       }
