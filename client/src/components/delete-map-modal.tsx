@@ -22,6 +22,9 @@ interface DeleteMapModalProps {
   mapCollection: {
     id: string;
     name: string;
+    description?: string;
+    shareUrl: string;
+    createdAt: string;
     pinCount?: number;
   };
 }

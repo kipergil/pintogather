@@ -94,7 +94,8 @@ export default function Home() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="text-center py-12">
         <h2 className="text-3xl font-bold text-neutral-900 mb-4">Pin Your World Together</h2>
         <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
@@ -623,16 +624,17 @@ export default function Home() {
           )}
         </div>
       </div>
-    </main>
 
-    {/* Delete Map Modal */}
-    {deleteMapModal.map && (
-      <DeleteMapModal
-        isOpen={deleteMapModal.isOpen}
-        onClose={() => setDeleteMapModal({ isOpen: false, map: null })}
-        mapCollection={deleteMapModal.map}
-      />
-    )}
-  </>
+      </main>
+
+      {/* Delete Map Modal */}
+      {deleteMapModal.map && (
+        <DeleteMapModal
+          isOpen={deleteMapModal.isOpen}
+          onClose={() => setDeleteMapModal({ isOpen: false, map: null })}
+          mapCollection={deleteMapModal.map}
+        />
+      )}
+    </>
   );
 }
