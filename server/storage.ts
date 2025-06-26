@@ -16,6 +16,7 @@ export interface IStorage {
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
   updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string): Promise<MapCollection | undefined>;
+  deleteMapCollection(mapId: string, userId: string): Promise<boolean>;
   
   // Map Viewers
   addMapViewer(data: InsertMapViewer): Promise<MapViewer>;
@@ -434,6 +435,36 @@ class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteMapCollection(mapId: string, userId: string): Promise<boolean> {
+    try {
+      // Check if the user is the owner of the map
+      const mapResult = await this.db
+        .select()
+        .from(mapCollections)
+        .where(eq(mapCollections.id, mapId))
+        .limit(1);
+      
+      if (mapResult.length === 0) {
+        return false; // Map not found
+      }
+
+      if (mapResult[0].ownerId !== userId) {
+        return false; // User is not the owner
+      }
+
+      // Delete the map collection (this will cascade delete pins, viewers, and invitations)
+      const deleteResult = await this.db
+        .delete(mapCollections)
+        .where(eq(mapCollections.id, mapId))
+        .returning();
+      
+      return deleteResult.length > 0;
+    } catch (error) {
+      console.error('Error deleting map collection:', error);
+      return false;
+    }
+  }
+
   async updateMapViewerPermission(mapId: string, userId: string, permission: string): Promise<MapViewer | undefined> {
     try {
       const result = await this.db
@@ -786,6 +817,45 @@ export class MemStorage implements IStorage {
     return updatedMap;
   }
 
+  async deleteMapCollection(mapId: string, userId: string): Promise<boolean> {
+    const map = this.mapCollections.get(mapId);
+    if (!map) return false;
+    
+    // Check if the user is the owner of the map
+    if (map.ownerId !== userId) {
+      return false;
+    }
+
+    // Delete the map collection
+    this.mapCollections.delete(mapId);
+    
+    // Delete all pins associated with this map
+    const pinsToDelete = Array.from(this.pins.entries())
+      .filter(([_, pin]) => pin.mapId === mapId)
+      .map(([id, _]) => id);
+    
+    pinsToDelete.forEach(id => this.pins.delete(id));
+    
+    // Delete all map viewers associated with this map
+    const viewersToDelete = Array.from(this.mapViewers.entries())
+      .filter(([_, viewer]) => viewer.mapId === mapId)
+      .map(([id, _]) => id);
+    
+    viewersToDelete.forEach(id => this.mapViewers.delete(id));
+    
+    // Delete all invitations associated with this map
+    if (this.mapInvitations) {
+      const invitationsToDelete = Array.from(this.mapInvitations.entries())
+        .filter(([_, invitation]) => invitation.mapId === mapId)
+        .map(([id, _]) => id);
+      
+      invitationsToDelete.forEach(id => this.mapInvitations.delete(id));
+    }
+    
+    this.saveData();
+    return true;
+  }
+
   async updateMapViewerPermission(mapId: string, userId: string, permission: string): Promise<MapViewer | undefined> {
     const viewer = Array.from(this.mapViewers.values())
       .find(mv => mv.mapId === mapId && mv.userId === userId);
@@ -964,6 +1034,10 @@ export const storage = {
   async updateMapPermissions(mapId: string, isPublic: boolean, defaultPermission: string) {
     const instance = await getStorage();
     return instance.updateMapPermissions(mapId, isPublic, defaultPermission);
+  },
+  async deleteMapCollection(mapId: string, userId: string) {
+    const instance = await getStorage();
+    return instance.deleteMapCollection(mapId, userId);
   },
   async updateMapViewerPermission(mapId: string, userId: string, permission: string) {
     const instance = await getStorage();

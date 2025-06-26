@@ -672,6 +672,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete map collection
+  app.delete("/api/maps/:mapId", async (req, res) => {
+    try {
+      const { mapId } = req.params;
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+
+      const deleted = await storage.deleteMapCollection(mapId, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Map not found or you don't have permission to delete it" });
+      }
+
+      res.json({ message: "Map deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting map:', error);
+      res.status(500).json({ message: "Failed to delete map" });
+    }
+  });
+
   // Create map invitation
   app.post("/api/maps/:mapId/invitations", async (req, res) => {
     try {
