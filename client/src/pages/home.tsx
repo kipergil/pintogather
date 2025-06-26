@@ -3,11 +3,12 @@ import { CreateMapForm } from "@/components/create-map-form";
 import { ActivityFeed } from "@/components/activity-feed";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
-import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown, Plus, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteMapModal } from "@/components/delete-map-modal";
 import { useState } from "react";
 
 interface MapCollection {
@@ -23,6 +24,10 @@ export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollection | null }>({
+    isOpen: false,
+    map: null
+  });
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
@@ -358,12 +363,22 @@ export default function Home() {
                           <span>{formatDate(map.createdAt)}</span>
                         </div>
                         
-                        <Link href={`/map/${map.shareUrl}`} className="w-full">
-                          <Button variant="default" size="sm" className="w-full">
-                            <MapPin className="h-4 w-4 mr-2" />
-                            View Map
+                        <div className="flex gap-2">
+                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
+                            <Button variant="default" size="sm" className="w-full">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              View Map
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setDeleteMapModal({ isOpen: true, map })}
+                            className="px-3"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -609,5 +624,15 @@ export default function Home() {
         </div>
       </div>
     </main>
+
+    {/* Delete Map Modal */}
+    {deleteMapModal.map && (
+      <DeleteMapModal
+        isOpen={deleteMapModal.isOpen}
+        onClose={() => setDeleteMapModal({ isOpen: false, map: null })}
+        mapCollection={deleteMapModal.map}
+      />
+    )}
+  </>
   );
 }
