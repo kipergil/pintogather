@@ -107,8 +107,24 @@ class DatabaseStorage implements IStorage {
           description TEXT,
           share_url TEXT NOT NULL UNIQUE,
           owner_id TEXT,
+          is_public BOOLEAN DEFAULT FALSE NOT NULL,
+          default_permission TEXT DEFAULT 'readonly' NOT NULL,
           created_at TIMESTAMP DEFAULT NOW() NOT NULL
         );
+      `);
+
+      // Add missing columns if they don't exist (for existing tables)
+      await this.db.execute(sql`
+        DO $$ BEGIN
+          ALTER TABLE map_collections ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE NOT NULL;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
+      `);
+      await this.db.execute(sql`
+        DO $$ BEGIN
+          ALTER TABLE map_collections ADD COLUMN IF NOT EXISTS default_permission TEXT DEFAULT 'readonly' NOT NULL;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
       `);
 
       // Create map_viewers table
@@ -117,9 +133,25 @@ class DatabaseStorage implements IStorage {
           id TEXT PRIMARY KEY,
           map_id TEXT NOT NULL REFERENCES map_collections(id) ON DELETE CASCADE,
           user_id TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'viewer',
+          permission TEXT NOT NULL DEFAULT 'readonly',
           created_at TIMESTAMP DEFAULT NOW() NOT NULL,
           UNIQUE(map_id, user_id)
         );
+      `);
+
+      // Add missing columns to map_viewers if they don't exist
+      await this.db.execute(sql`
+        DO $$ BEGIN
+          ALTER TABLE map_viewers ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'viewer' NOT NULL;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
+      `);
+      await this.db.execute(sql`
+        DO $$ BEGIN
+          ALTER TABLE map_viewers ADD COLUMN IF NOT EXISTS permission TEXT DEFAULT 'readonly' NOT NULL;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
       `);
 
       // Create pins table
