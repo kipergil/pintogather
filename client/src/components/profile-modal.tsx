@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
 import { User, Save } from "lucide-react";
 
 interface ProfileModalProps {
@@ -42,7 +41,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     
     setLoading(true);
     try {
-      // Try to load from localStorage first as fallback
       const localProfile = localStorage.getItem(`profile_${user.id}`);
       if (localProfile) {
         const parsedProfile = JSON.parse(localProfile);
@@ -52,28 +50,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           instagram_handle: parsedProfile.instagram_handle || "",
           linkedin_handle: parsedProfile.linkedin_handle || "",
         });
-      }
-
-      // Try Supabase if available
-      const supabase = getSupabase();
-      if (supabase) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error loading profile:', error);
-          // Profile table might not exist, use localStorage fallback
-        } else if (data) {
-          setProfileData({
-            full_name: data.full_name || "",
-            twitter_handle: data.twitter_handle || "",
-            instagram_handle: data.instagram_handle || "",
-            linkedin_handle: data.linkedin_handle || "",
-          });
-        }
+      } else {
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        setProfileData({
+          full_name: fullName,
+          twitter_handle: "",
+          instagram_handle: "",
+          linkedin_handle: "",
+        });
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -88,7 +72,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     setLoading(true);
     try {
-      // Save to localStorage as primary storage
       const profileToSave = {
         user_id: user.id,
         full_name: profileData.full_name,
@@ -99,73 +82,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       };
 
       localStorage.setItem(`profile_${user.id}`, JSON.stringify(profileToSave));
-
-      // Try to save to Supabase if available
-      const supabase = getSupabase();
-      if (supabase) {
-        try {
-          // First check if profile exists
-          const { data: existingProfile, error: fetchError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-
-          let supabaseError = null;
-
-          if (existingProfile) {
-            // Update existing profile
-            const { error } = await supabase
-              .from('profiles')
-              .update({
-                full_name: profileData.full_name,
-                twitter_handle: profileData.twitter_handle || null,
-                instagram_handle: profileData.instagram_handle || null,
-                linkedin_handle: profileData.linkedin_handle || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('user_id', user.id);
-            
-            supabaseError = error;
-          } else {
-            // Create new profile
-            const { error } = await supabase
-              .from('profiles')
-              .insert({
-                user_id: user.id,
-                full_name: profileData.full_name,
-                twitter_handle: profileData.twitter_handle || null,
-                instagram_handle: profileData.instagram_handle || null,
-                linkedin_handle: profileData.linkedin_handle || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-            
-            supabaseError = error;
-          }
-
-          if (supabaseError && supabaseError.code === '42P01') {
-            console.log('Profiles table not found, using local storage');
-          } else if (supabaseError && supabaseError.code === '23505') {
-            // Duplicate key error - profile already exists, ignore
-            console.log('Profile already exists in database, local version saved');
-          } else if (supabaseError) {
-            console.error('Supabase error:', supabaseError);
-            toast({
-              title: "Profile Saved Locally",
-              description: `Profile saved but cloud sync failed: ${supabaseError.message}. Your data is stored locally.`,
-              variant: "default",
-            });
-          }
-        } catch (supabaseError: any) {
-          console.error('Supabase connection error:', supabaseError);
-          toast({
-            title: "Profile Saved Locally",
-            description: "Profile saved locally. Cloud sync unavailable at the moment.",
-            variant: "default",
-          });
-        }
-      }
 
       toast({
         title: "Profile Updated",

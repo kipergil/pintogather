@@ -64,7 +64,8 @@ export default function EditPin({ params }: EditPinProps) {
         return JSON.parse(localProfile);
       }
       
-      return { full_name: user.name || "" };
+      const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+      return { full_name: fullName };
     },
     enabled: !!user,
   });

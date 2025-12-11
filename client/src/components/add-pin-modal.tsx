@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
 import { MapPin, Plus } from "lucide-react";
 
 interface AddPinModalProps {
@@ -60,12 +59,10 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  // Load user profile data when modal opens
   useEffect(() => {
     if (isOpen && user) {
       loadUserProfile();
     } else if (isOpen && !user) {
-      // Reset form when no user is logged in
       setFormData({
         userName: "",
         twitterHandle: "",
@@ -81,31 +78,16 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
     
     setProfileLoading(true);
     try {
-      // Load from localStorage first (primary storage)
       const localProfile = localStorage.getItem(`profile_${user.id}`);
       let profileData = null;
 
       if (localProfile) {
         profileData = JSON.parse(localProfile);
       } else {
-        // Try Supabase as fallback
-        const supabase = getSupabase();
-        if (supabase) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-
-          if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-            console.error('Error loading profile:', error);
-          } else if (data) {
-            profileData = data;
-          }
-        }
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        profileData = { full_name: fullName };
       }
 
-      // Populate form fields with profile data
       if (profileData) {
         setFormData({
           userName: profileData.full_name || "",
@@ -122,7 +104,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
     }
   };
 
-  // Fetch location data when selectedLocation changes
   useEffect(() => {
     if (!selectedLocation || !isOpen) {
       setLocationData(null);
@@ -301,7 +282,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Location Info */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">Selected Location</Label>
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -332,11 +312,10 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
               )}
             </div>
             <p className="text-xs text-gray-500 italic">
-              💡 You don't need to give exact location if you want to stay anonymous
+              You don't need to give exact location if you want to stay anonymous
             </p>
           </div>
 
-          {/* User Info */}
           <div className="space-y-2">
             <Label htmlFor="userName">Your Name *</Label>
             <Input
@@ -349,7 +328,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
             />
           </div>
 
-          {/* Social Links */}
           <div className="space-y-3">
             <Label>Social Links (Optional)</Label>
             
@@ -398,7 +376,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
             </div>
           </div>
 
-          {/* Optional Note */}
           <div className="space-y-2">
             <Label htmlFor="pinNote">Note (Optional)</Label>
             <Textarea
@@ -410,7 +387,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation }
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="flex space-x-3 pt-4">
             <Button 
               type="button"

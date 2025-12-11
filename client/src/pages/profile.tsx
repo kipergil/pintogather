@@ -47,8 +47,9 @@ export default function Profile() {
           linkedin_handle: parsedProfile.linkedin_handle || "",
         });
       } else {
+        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
         setProfileData({
-          full_name: user.name || "",
+          full_name: fullName,
           twitter_handle: "",
           instagram_handle: "",
           linkedin_handle: "",
