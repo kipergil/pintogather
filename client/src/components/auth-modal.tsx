@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogIn, UserPlus } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,9 +18,10 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, returnUrl }: AuthModalProps) {
   const { toast } = useToast();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   
   const [signInData, setSignInData] = useState({
     email: "",
@@ -74,6 +76,28 @@ export function AuthModal({ isOpen, onClose, returnUrl }: AuthModalProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result?.error) {
+        toast({
+          title: "Google Sign In Failed",
+          description: result.error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -167,6 +191,29 @@ export function AuthModal({ isOpen, onClose, returnUrl }: AuthModalProps) {
                 <LogIn className="h-4 w-4 mr-2" />
                 {loading ? "Signing in..." : "Sign In"}
               </Button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading}
+                data-testid="button-google-signin"
+              >
+                <SiGoogle className="h-4 w-4 mr-2" />
+                {googleLoading ? "Connecting..." : "Sign in with Google"}
+              </Button>
             </form>
           </TabsContent>
           
@@ -211,6 +258,29 @@ export function AuthModal({ isOpen, onClose, returnUrl }: AuthModalProps) {
               <Button type="submit" className="w-full" disabled={loading}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 {loading ? "Creating account..." : "Sign Up"}
+              </Button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading}
+                data-testid="button-google-signup"
+              >
+                <SiGoogle className="h-4 w-4 mr-2" />
+                {googleLoading ? "Connecting..." : "Sign up with Google"}
               </Button>
             </form>
           </TabsContent>
