@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
 import { User, Save, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 
@@ -18,7 +17,7 @@ interface ProfileData {
 
 export default function Profile() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: "",
@@ -38,37 +37,22 @@ export default function Profile() {
     
     setLoading(true);
     try {
-      // Try to load from localStorage first as fallback
       const localProfile = localStorage.getItem(`profile_${user.id}`);
       if (localProfile) {
         const parsedProfile = JSON.parse(localProfile);
         setProfileData({
-          full_name: parsedProfile.full_name || "",
+          full_name: parsedProfile.full_name || user.name || "",
           twitter_handle: parsedProfile.twitter_handle || "",
           instagram_handle: parsedProfile.instagram_handle || "",
           linkedin_handle: parsedProfile.linkedin_handle || "",
         });
-      }
-
-      // Try Supabase if available
-      const supabase = getSupabase();
-      if (supabase) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error loading profile:', error);
-        } else if (data) {
-          setProfileData({
-            full_name: data.full_name || "",
-            twitter_handle: data.twitter_handle || "",
-            instagram_handle: data.instagram_handle || "",
-            linkedin_handle: data.linkedin_handle || "",
-          });
-        }
+      } else {
+        setProfileData({
+          full_name: user.name || "",
+          twitter_handle: "",
+          instagram_handle: "",
+          linkedin_handle: "",
+        });
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -83,7 +67,6 @@ export default function Profile() {
 
     setLoading(true);
     try {
-      // Save to localStorage as primary storage
       const profileToSave = {
         user_id: user.id,
         full_name: profileData.full_name,
@@ -94,73 +77,6 @@ export default function Profile() {
       };
 
       localStorage.setItem(`profile_${user.id}`, JSON.stringify(profileToSave));
-
-      // Try to save to Supabase if available
-      const supabase = getSupabase();
-      if (supabase) {
-        try {
-          // First try to update existing profile
-          const { data: existingProfile, error: fetchError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-
-          let supabaseError = null;
-
-          if (existingProfile) {
-            // Update existing profile
-            const { error } = await supabase
-              .from('profiles')
-              .update({
-                full_name: profileData.full_name,
-                twitter_handle: profileData.twitter_handle || null,
-                instagram_handle: profileData.instagram_handle || null,
-                linkedin_handle: profileData.linkedin_handle || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('user_id', user.id);
-            
-            supabaseError = error;
-          } else {
-            // Create new profile
-            const { error } = await supabase
-              .from('profiles')
-              .insert({
-                user_id: user.id,
-                full_name: profileData.full_name,
-                twitter_handle: profileData.twitter_handle || null,
-                instagram_handle: profileData.instagram_handle || null,
-                linkedin_handle: profileData.linkedin_handle || null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-            
-            supabaseError = error;
-          }
-
-          if (supabaseError && supabaseError.code === '42P01') {
-            console.log('Profiles table not found, using local storage');
-          } else if (supabaseError && supabaseError.code === '23505') {
-            // Duplicate key error - profile already exists, ignore since we have local storage
-            console.log('Profile already exists in database, local version saved');
-          } else if (supabaseError) {
-            console.error('Supabase error:', supabaseError);
-            toast({
-              title: "Profile Saved Locally",
-              description: `Profile saved but cloud sync failed: ${supabaseError.message}. Your data is stored locally.`,
-              variant: "default",
-            });
-          }
-        } catch (supabaseError: any) {
-          console.error('Supabase connection error:', supabaseError);
-          toast({
-            title: "Profile Saved Locally",
-            description: "Profile saved locally. Cloud sync unavailable at the moment.",
-            variant: "default",
-          });
-        }
-      }
 
       toast({
         title: "Profile Updated",
@@ -177,6 +93,17 @@ export default function Profile() {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -225,6 +152,7 @@ export default function Profile() {
                   value={profileData.full_name}
                   onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                   className="h-12 text-base"
+                  data-testid="input-fullname"
                   required
                 />
               </div>
@@ -244,6 +172,7 @@ export default function Profile() {
                       value={profileData.twitter_handle}
                       onChange={(e) => setProfileData({ ...profileData, twitter_handle: e.target.value })}
                       className="pl-12 h-12 text-base"
+                      data-testid="input-twitter"
                     />
                   </div>
 
@@ -258,6 +187,7 @@ export default function Profile() {
                       value={profileData.instagram_handle}
                       onChange={(e) => setProfileData({ ...profileData, instagram_handle: e.target.value })}
                       className="pl-12 h-12 text-base"
+                      data-testid="input-instagram"
                     />
                   </div>
 
@@ -272,6 +202,7 @@ export default function Profile() {
                       value={profileData.linkedin_handle}
                       onChange={(e) => setProfileData({ ...profileData, linkedin_handle: e.target.value })}
                       className="pl-12 h-12 text-base"
+                      data-testid="input-linkedin"
                     />
                   </div>
                 </div>
@@ -282,6 +213,7 @@ export default function Profile() {
                   type="submit"
                   className="w-full h-12 text-base"
                   disabled={loading}
+                  data-testid="button-save-profile"
                 >
                   <Save className="h-5 w-5 mr-2" />
                   {loading ? "Saving..." : "Save Profile"}

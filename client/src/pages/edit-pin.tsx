@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, MapPin, Save, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSupabase } from "@/lib/supabase";
 
 interface EditPinProps {
   params: {
@@ -59,25 +58,15 @@ export default function EditPin({ params }: EditPinProps) {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      try {
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error loading profile:', error);
-        }
-        return data;
-      } catch (error) {
-        // Silently handle profile errors - table might not exist yet
-        return null;
+      
+      const localProfile = localStorage.getItem(`profile_${user.id}`);
+      if (localProfile) {
+        return JSON.parse(localProfile);
       }
+      
+      return { full_name: user.name || "" };
     },
     enabled: !!user,
-    retry: false,
   });
 
   // Populate form when pin data loads

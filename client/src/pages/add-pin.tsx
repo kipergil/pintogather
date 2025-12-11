@@ -11,7 +11,6 @@ import { reverseGeocode, type LocationData } from "@/lib/map-utils";
 import { ArrowLeft, MapPin, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSupabase } from "@/lib/supabase";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AddPinProps {
@@ -57,31 +56,12 @@ export default function AddPin({ params }: AddPinProps) {
     queryFn: async () => {
       if (!user) return null;
       
-      // Try to load from localStorage first
       const localProfile = localStorage.getItem(`profile_${user.id}`);
       if (localProfile) {
         return JSON.parse(localProfile);
       }
       
-      // Try Supabase as fallback
-      const supabase = getSupabase();
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (!error && data) {
-            return data;
-          }
-        } catch (error) {
-          console.log('No profile found in Supabase');
-        }
-      }
-      
-      return null;
+      return { full_name: user.name || "" };
     },
     enabled: !!user,
   });
