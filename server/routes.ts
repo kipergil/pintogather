@@ -4,8 +4,24 @@ import { storage } from "./storage";
 import { insertMapCollectionSchema, insertPinSchema } from "@shared/schema";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup Replit Auth
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // Production-ready health endpoints with explicit JSON serialization
   const setupJsonResponse = (req: any, res: any, next: any) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');

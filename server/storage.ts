@@ -1,12 +1,16 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, desc, sql, or, and, ne, inArray } from "drizzle-orm";
-import { mapCollections, pins, mapViewers, profiles, adminUsers, mapInvitations, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer, type Profile, type InsertProfile, type AdminUser, type InsertAdminUser, type MapInvitation, type InsertMapInvitation } from "@shared/schema";
+import { mapCollections, pins, mapViewers, profiles, adminUsers, mapInvitations, users, type MapCollection, type InsertMapCollection, type Pin, type InsertPin, type MapViewer, type InsertMapViewer, type Profile, type InsertProfile, type AdminUser, type InsertAdminUser, type MapInvitation, type InsertMapInvitation, type User, type UpsertUser } from "@shared/schema";
 import { nanoid } from "nanoid";
 import * as fs from "fs";
 import * as path from "path";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
   // Map Collections
   createMapCollection(data: InsertMapCollection): Promise<MapCollection>;
   getMapCollectionByShareUrl(shareUrl: string): Promise<MapCollection | undefined>;
@@ -55,6 +59,27 @@ class DatabaseStorage implements IStorage {
   constructor() {
     const client = postgres(process.env.DATABASE_URL!);
     this.db = drizzle(client);
+  }
+
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await this.db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async initializeDatabase(): Promise<void> {
@@ -537,6 +562,7 @@ export class MemStorage implements IStorage {
   private pins: Map<string, Pin>;
   private mapViewers: Map<string, MapViewer>;
   private mapInvitations: Map<string, MapInvitation>;
+  private usersMap: Map<string, User>;
   private dataFile: string;
 
   constructor() {
@@ -544,6 +570,7 @@ export class MemStorage implements IStorage {
     this.pins = new Map();
     this.mapViewers = new Map();
     this.mapInvitations = new Map();
+    this.usersMap = new Map();
     this.dataFile = path.join(process.cwd(), 'storage-data.json');
     this.loadData();
   }
@@ -605,6 +632,26 @@ export class MemStorage implements IStorage {
 
   async initializeDatabase(): Promise<void> {
     // No-op for memory storage
+  }
+
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    return this.usersMap.get(id);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingUser = userData.id ? this.usersMap.get(userData.id) : undefined;
+    const user: User = {
+      id: userData.id || nanoid(),
+      email: userData.email ?? null,
+      firstName: userData.firstName ?? null,
+      lastName: userData.lastName ?? null,
+      profileImageUrl: userData.profileImageUrl ?? null,
+      createdAt: existingUser?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.usersMap.set(user.id, user);
+    return user;
   }
 
   async createMapCollection(data: InsertMapCollection): Promise<MapCollection> {
