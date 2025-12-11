@@ -998,6 +998,14 @@ export const storage = {
     const instance = await getStorage();
     return instance.initializeDatabase();
   },
+  async getUser(id: string) {
+    const instance = await getStorage();
+    return instance.getUser(id);
+  },
+  async upsertUser(user: UpsertUser) {
+    const instance = await getStorage();
+    return instance.upsertUser(user);
+  },
   async createMapCollection(data: InsertMapCollection) {
     const instance = await getStorage();
     return instance.createMapCollection(data);
