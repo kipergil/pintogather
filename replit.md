@@ -29,7 +29,9 @@ PinTogather is a full-stack collaborative mapping platform that allows users to 
 - **Connection**: Environment-based configuration supporting multiple database providers
 
 ### Database Schema
-The application uses five main tables:
+The application uses seven main tables:
+- `sessions`: Session storage for Replit Auth (required for authentication)
+- `users`: User accounts from Replit Auth (id, email, name, profile image)
 - `profiles`: User profile information and subscription tiers
 - `map_collections`: Map metadata and sharing configuration
 - `pins`: Location data with social media handles and notes
@@ -39,7 +41,12 @@ The application uses five main tables:
 ## Key Components
 
 ### Authentication System
-- Supabase-based authentication with fallback support
+- **Replit Auth**: Primary authentication using OpenID Connect (supports Google, GitHub, X, Apple, and email/password)
+  - Login: Navigate to `/api/login`
+  - Logout: Navigate to `/api/logout`
+  - User data: GET `/api/auth/user` (requires authentication)
+  - Frontend hook: `useAuth()` from `@/hooks/useAuth`
+- **Supabase Auth**: Secondary authentication option with Google OAuth
 - JWT session management with automatic token refresh
 - Profile creation and management
 - Role-based access control with user groups (freemium, basic, premium)
@@ -136,4 +143,5 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 Changelog:
+- December 11, 2025. Added Replit Auth integration with OpenID Connect for user authentication
 - June 26, 2025. Initial setup
