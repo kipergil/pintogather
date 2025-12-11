@@ -33,19 +33,11 @@ function Router() {
 }
 
 function HeaderContent() {
-  const { user, signOut, loading } = useAuth();
+  const { user, logout, loading } = useAuth();
   const [location, setLocation] = useLocation();
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      setLocation('/');
-    } catch (error) {
-      console.error('Sign out error:', error);
-      // Force sign out by clearing local state even if Supabase fails
-      setLocation('/');
-      window.location.reload();
-    }
+  const handleSignOut = () => {
+    logout();
   };
 
   return (
@@ -91,12 +83,10 @@ function HeaderContent() {
                 ) : (
                   <Button
                     onClick={() => {
-                      // Pass current location as return URL if it's a map page
-                      const returnUrl = location.startsWith('/map/') ? location : undefined;
-                      const authUrl = returnUrl ? `/auth?returnUrl=${encodeURIComponent(returnUrl)}` : '/auth';
-                      setLocation(authUrl);
+                      window.location.href = '/api/login';
                     }}
                     data-auth-trigger
+                    data-testid="button-signin"
                     className="bg-primary hover:bg-primary/90 h-8 px-3 text-sm"
                   >
                     <LogIn className="h-3 w-3 mr-1" />

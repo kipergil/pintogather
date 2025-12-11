@@ -1,158 +1,34 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { getSupabase } from '@/lib/supabase';
+import { createContext, useContext } from 'react';
+import { useAuth as useReplitAuth } from '@/hooks/useAuth';
+import type { User } from '@shared/schema';
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string) => Promise<any>;
-  signInWithGoogle: () => Promise<any>;
-  signOut: () => Promise<void>;
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading, isAuthenticated } = useReplitAuth();
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function getInitialSession() {
-      try {
-        const supabase = getSupabase();
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (mounted) {
-          if (error) {
-            console.error('Error getting session:', error);
-          } else {
-            setSession(session);
-            setUser(session?.user ?? null);
-          }
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Authentication service not available:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    getInitialSession();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    let subscription: any = null;
-
-    async function setupAuthListener() {
-      try {
-        const supabase = getSupabase();
-        if (!supabase) {
-          console.warn('Supabase not initialized, retrying...');
-          // Retry after a delay
-          setTimeout(setupAuthListener, 1000);
-          return;
-        }
-        
-        const { data } = supabase.auth.onAuthStateChange(
-          async (event: string, session: Session | null) => {
-            console.log('Auth state changed:', event, session?.user?.email);
-            if (mounted) {
-              setSession(session);
-              setUser(session?.user ?? null);
-              setLoading(false);
-            }
-          }
-        );
-
-        subscription = data.subscription;
-      } catch (error) {
-        console.error('Failed to setup auth listener:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    setupAuthListener();
-
-    return () => {
-      mounted = false;
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { error: { message: 'Authentication service not available' } };
-    }
-    return await supabase.auth.signInWithPassword({ email, password });
+  const login = () => {
+    window.location.href = '/api/login';
   };
 
-  const signUp = async (email: string, password: string) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      throw new Error('Authentication service not available');
-    }
-    return await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-      }
-    });
+  const logout = () => {
+    window.location.href = '/api/logout';
   };
 
-  const signInWithGoogle = async () => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { error: { message: 'Authentication service not available' } };
-    }
-    return await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      }
-    });
-  };
-
-  const signOut = async () => {
-    try {
-      const supabase = getSupabase();
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
-    } catch (error) {
-      console.error('Supabase sign out error:', error);
-    }
-    
-    // Always clear local state regardless of Supabase success/failure
-    setUser(null);
-    setSession(null);
-  };
-
-  const value = {
-    user,
-    session,
-    loading,
-    signIn,
-    signUp,
-    signInWithGoogle,
-    signOut,
+  const value: AuthContextType = {
+    user: user ?? null,
+    loading: isLoading,
+    isAuthenticated,
+    login,
+    logout,
   };
 
   return (

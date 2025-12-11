@@ -1,136 +1,46 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogIn, UserPlus, ArrowLeft } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogIn, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Auth() {
-  const { toast } = useToast();
-  const { signIn, signUp, user } = useAuth();
-  const [location, setLocation] = useLocation();
-  const [loading, setLoading] = useState(false);
+  const { user, loading, login } = useAuth();
+  const [, setLocation] = useLocation();
   
-  // Extract return URL from query parameters
   const urlParams = new URLSearchParams(window.location.search);
   const returnUrl = urlParams.get('returnUrl');
-  
-  const [signInData, setSignInData] = useState({
-    email: "",
-    password: "",
-  });
-  
-  const [signUpData, setSignUpData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
 
-  // Redirect if already authenticated
-  if (user) {
-    if (returnUrl) {
-      setLocation(returnUrl);
-    } else {
-      setLocation('/');
+  useEffect(() => {
+    if (!loading && user) {
+      if (returnUrl) {
+        setLocation(returnUrl);
+      } else {
+        setLocation('/');
+      }
     }
-    return null;
+  }, [user, loading, returnUrl, setLocation]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const result = await signIn(signInData.email, signInData.password);
-      
-      if (result?.error) {
-        toast({
-          title: "Sign In Failed",
-          description: result.error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You have been signed in successfully.",
-          variant: "success",
-        });
-        
-        // Redirect to return URL if provided, otherwise go to home
-        if (returnUrl) {
-          setLocation(returnUrl);
-        } else {
-          setLocation('/');
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Authentication service temporarily unavailable",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (signUpData.password !== signUpData.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      const { error } = await signUp(signUpData.email, signUpData.password);
-      
-      if (error) {
-        toast({
-          title: "Sign Up Failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Welcome to PinTogather!",
-          description: "Your account is ready. Start creating community maps and pinning together.",
-          variant: "success",
-        });
-        
-        // Redirect to return URL if provided, otherwise go to home
-        if (returnUrl) {
-          setLocation(returnUrl);
-        } else {
-          setLocation('/');
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to sign up",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto p-4 py-8">
-
-
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome to PinTogather</CardTitle>
@@ -143,114 +53,26 @@ export default function Auth() {
               </div>
             )}
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                      className="h-12 text-base"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      className="h-12 text-base"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
-                      <LogIn className="h-5 w-5 mr-2" />
-                      {loading ? "Signing in..." : "Sign In"}
-                    </Button>
-                    
-                    <Link href="/">
-                      <Button type="button" variant="outline" className="w-full h-12 text-base">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Home
-                      </Button>
-                    </Link>
-                  </div>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={signUpData.email}
-                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                      className="h-12 text-base"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                      className="h-12 text-base"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={signUpData.confirmPassword}
-                      onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
-                      className="h-12 text-base"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
-                      <UserPlus className="h-5 w-5 mr-2" />
-                      {loading ? "Joining community..." : "Join PinTogather"}
-                    </Button>
-                    
-                    <Link href="/">
-                      <Button type="button" variant="outline" className="w-full h-12 text-base">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Home
-                      </Button>
-                    </Link>
-                  </div>
-                </form>
-              </TabsContent>
-            </Tabs>
+          <CardContent className="space-y-4">
+            <p className="text-center text-gray-600 text-sm">
+              Sign in with your Replit account to access all features. You can use Google, GitHub, X, Apple, or email/password.
+            </p>
+            
+            <Button 
+              onClick={login} 
+              className="w-full h-12 text-base"
+              data-testid="button-login"
+            >
+              <LogIn className="h-5 w-5 mr-2" />
+              Sign In with Replit
+            </Button>
+            
+            <Link href="/">
+              <Button type="button" variant="outline" className="w-full h-12 text-base">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Home
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
