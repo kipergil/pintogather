@@ -1,5 +1,4 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMapCollectionSchema, insertPinSchema, updateProfileSchema } from "@shared/schema";
 import type { Pin, User } from "@shared/schema";
@@ -26,7 +25,7 @@ async function isPinModifiable(pin: Pin, user: User | null): Promise<boolean> {
   return map?.defaultPermission === "editable";
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<void> {
   setupAuth(app);
 
   // --- Health & configuration -------------------------------------------------
@@ -505,7 +504,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update user group" });
     }
   });
-
-  const httpServer = createServer(app);
-  return httpServer;
 }
