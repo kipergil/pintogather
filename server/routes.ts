@@ -26,7 +26,11 @@ async function isPinModifiable(pin: Pin, user: User | null): Promise<boolean> {
 }
 
 export async function registerRoutes(app: Express): Promise<void> {
-  setupAuth(app);
+  if (process.env.DEBUG_SKIP_CLERK !== "true") {
+    setupAuth(app);
+  } else {
+    console.warn("[routes] DEBUG_SKIP_CLERK=true — Clerk middleware disabled, isAuthenticated always 401s");
+  }
 
   // --- Health & configuration -------------------------------------------------
 
