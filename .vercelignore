@@ -1,0 +1,6 @@
+# Standalone schema/permissions bootstrap tool — not part of the deployed
+# app, never needs to be uploaded/built by Vercel.
+directus
+
+# Local-only dev stack, irrelevant to a Vercel deployment.
+docker-compose.yml
