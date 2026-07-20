@@ -8,11 +8,17 @@ import type { PolicyDefinition } from "./types.js";
  * No admin_access, no app_access (no panel login), no schema/role/policy
  * access, no permission to delete users — defence in depth, not the
  * primary authorization boundary.
+ *
+ * Named distinctly ("PinTogather Service", not just "Service") because this
+ * schema/permissions tooling may run against a Directus instance shared
+ * with other projects (e.g. BucketBoard) that already have their own
+ * generically-named "Service" policy/role — reusing that name would find
+ * and overwrite their permissions instead of creating ours.
  */
 export const servicePolicy: PolicyDefinition = {
-  name: "Service",
+  name: "PinTogather Service",
   icon: "dns",
-  description: "The Express server's server-only token. Never exposed to the browser.",
+  description: "PinTogather's Express server's server-only token. Never exposed to the browser.",
   adminAccess: false,
   appAccess: false,
   role: { icon: "dns" },

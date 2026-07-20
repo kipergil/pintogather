@@ -242,7 +242,7 @@ The browser never talks to Directus directly — every request goes through the 
 | `map_viewers` | Permission grants for maps (populated on invitation accept) |
 | `map_invitations` | Email invitation tracking |
 
-Schema is declared in code (`directus/src/schema/definitions.ts`) and applied idempotently via `npm run directus:schema:apply`; permissions (a single narrowly-scoped "Service" role used by the Express server's static token) via `npm run directus:permissions:apply`.
+Schema is declared in code (`directus/src/schema/definitions.ts`) and applied idempotently via `npm run directus:schema:apply`; permissions (a single narrowly-scoped "PinTogather Service" role used by the Express server's static token) via `npm run directus:permissions:apply`.
 
 ### 5.2 Relationships
 - `map_collections.owner` → `directus_users` (many-to-one, `SET NULL` on delete)
@@ -353,7 +353,7 @@ See `.env.example` (app) and `directus/.env.example` (Directus instance) for the
 3. Production: `dist/start.js` handles environment setup
 
 ### 9.3 Local Development
-`docker compose up -d` brings up Postgres + Redis + Directus; `npm run directus:schema:apply` and `npm run directus:permissions:apply` provision the schema and a service account/token; `npm run dev` starts the Express + Vite dev server. See `replit.md` for the full walkthrough.
+Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Directus) or an existing/hosted instance. `npm run directus:schema:apply` and `npm run directus:permissions:apply` provision the schema and a service account/token either way — pointed at a hosted instance shared with other projects, they only create PinTogather's own collections and a distinctly-named `PinTogather Service` policy/role, never touching anything they didn't create. `npm run dev` starts the Express + Vite dev server. See `replit.md` for the full walkthrough.
 
 ### 9.4 Health Monitoring
 - `/api/healthcheck` for endpoint discovery
@@ -370,7 +370,7 @@ See `.env.example` (app) and `directus/.env.example` (Directus instance) for the
 - **Share URL**: Unique identifier for accessing a map
 - **Viewer**: User with access to a shared map
 - **Contributor**: User who can edit a shared map
-- **Service token**: The long-lived Directus API token used exclusively by the Express server, scoped to a narrow "Service" role with no admin/schema access
+- **Service token**: The long-lived Directus API token used exclusively by the Express server, scoped to a narrow "PinTogather Service" role with no admin/schema access
 
 ### 10.2 Version History
 | Version | Date | Changes |
