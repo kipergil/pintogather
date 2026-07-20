@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/queryClient";
 import { User, Save, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 
@@ -18,7 +20,7 @@ interface ProfileData {
 export default function Profile() {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: "",
     twitter_handle: "",
@@ -27,72 +29,49 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (user) {
-      loadProfile();
-    }
+    if (!user) return;
+    const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
+    setProfileData({
+      full_name: fullName,
+      twitter_handle: user.twitterHandle || "",
+      instagram_handle: user.instagramHandle || "",
+      linkedin_handle: user.linkedinHandle || "",
+    });
   }, [user]);
 
-  const loadProfile = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      const localProfile = localStorage.getItem(`profile_${user.id}`);
-      if (localProfile) {
-        const parsedProfile = JSON.parse(localProfile);
-        setProfileData({
-          full_name: parsedProfile.full_name || user.name || "",
-          twitter_handle: parsedProfile.twitter_handle || "",
-          instagram_handle: parsedProfile.instagram_handle || "",
-          linkedin_handle: parsedProfile.linkedin_handle || "",
-        });
-      } else {
-        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-        setProfileData({
-          full_name: fullName,
-          twitter_handle: "",
-          instagram_handle: "",
-          linkedin_handle: "",
-        });
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      const profileToSave = {
-        user_id: user.id,
-        full_name: profileData.full_name,
-        twitter_handle: profileData.twitter_handle || null,
-        instagram_handle: profileData.instagram_handle || null,
-        linkedin_handle: profileData.linkedin_handle || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      localStorage.setItem(`profile_${user.id}`, JSON.stringify(profileToSave));
-
+  const saveProfileMutation = useMutation({
+    mutationFn: async (data: ProfileData) => {
+      const response = await apiRequest("PUT", "/api/profile", {
+        fullName: data.full_name,
+        twitterHandle: data.twitter_handle || null,
+        instagramHandle: data.instagram_handle || null,
+        linkedinHandle: data.linkedin_handle || null,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Profile Updated",
         description: "Your profile has been saved successfully.",
         variant: "success",
       });
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Save Failed",
-        description: `Unable to save profile: ${error.message || 'Unknown error occurred'}`,
+        description: `Unable to save profile: ${error.message || "Unknown error occurred"}`,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const loading = saveProfileMutation.isPending;
+
+  const saveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    saveProfileMutation.mutate(profileData);
   };
 
   if (authLoading) {

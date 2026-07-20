@@ -33,7 +33,7 @@ function Router() {
 }
 
 function HeaderContent() {
-  const { user, logout, loading } = useAuth();
+  const { user, login, logout, loading } = useAuth();
   const [location, setLocation] = useLocation();
 
   const handleSignOut = () => {
@@ -82,9 +82,7 @@ function HeaderContent() {
                   </div>
                 ) : (
                   <Button
-                    onClick={() => {
-                      window.location.href = '/api/login';
-                    }}
+                    onClick={login}
                     data-auth-trigger
                     data-testid="button-signin"
                     className="bg-primary hover:bg-primary/90 h-8 px-3 text-sm"

@@ -42,15 +42,17 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   const queryClient = useQueryClient();
 
   // Fetch existing invitations
+  const invitationsUrl = `/api/maps/${mapCollection.id}/invitations`;
   const { data: invitations = [] } = useQuery<Invitation[]>({
-    queryKey: ['/api/maps', mapCollection.id, 'invitations'],
+    queryKey: [invitationsUrl],
     enabled: isOpen
   });
 
   // Update map permissions
   const updatePermissionsMutation = useMutation({
     mutationFn: async (data: { isPublic: boolean; defaultPermission: string }) => {
-      return apiRequest(`/api/maps/${mapCollection.id}/permissions`, 'PUT', data);
+      const response = await apiRequest('PUT', `/api/maps/${mapCollection.id}/permissions`, data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.shareUrl] });
@@ -71,10 +73,11 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   // Send invitation
   const sendInvitationMutation = useMutation({
     mutationFn: async (data: { email: string; permission: string }) => {
-      return apiRequest(`/api/maps/${mapCollection.id}/invitations`, 'POST', data);
+      const response = await apiRequest('POST', `/api/maps/${mapCollection.id}/invitations`, data);
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.id, 'invitations'] });
+      queryClient.invalidateQueries({ queryKey: [invitationsUrl] });
       setInviteEmail("");
       toast({
         title: "Invitation sent",
@@ -93,10 +96,11 @@ export function ShareSettingsModal({ isOpen, onClose, mapCollection }: ShareSett
   // Delete invitation
   const deleteInvitationMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      return apiRequest(`/api/invitations/${invitationId}`, 'DELETE');
+      const response = await apiRequest('DELETE', `/api/invitations/${invitationId}`);
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maps', mapCollection.id, 'invitations'] });
+      queryClient.invalidateQueries({ queryKey: [invitationsUrl] });
       toast({
         title: "Invitation removed",
         description: "Invitation has been removed successfully."

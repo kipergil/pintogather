@@ -32,14 +32,14 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
   useEffect(() => {
     const initializePlaces = async () => {
       try {
-        const configResponse = await fetch('/api/maps/config');
+        const configResponse = await fetch('/api/config');
         if (!configResponse.ok) return;
-        
+
         const config = await configResponse.json();
-        if (!config.apiKey) return;
+        if (!config.googleMapsApiKey) return;
 
         const loader = new Loader({
-          apiKey: config.apiKey,
+          apiKey: config.googleMapsApiKey,
           version: "weekly",
           libraries: ["places"]
         });

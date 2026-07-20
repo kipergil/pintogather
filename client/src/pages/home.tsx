@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
 import { ActivityFeed } from "@/components/activity-feed";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown, Plus, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,15 +32,7 @@ export default function Home() {
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (user?.id) {
-        params.append('userId', user.id);
-        params.append('ownedOnly', 'true');
-      }
-      const response = await fetch(`/api/maps?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch owned maps');
-      }
+      const response = await apiRequest("GET", "/api/maps?ownedOnly=true");
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },
@@ -49,15 +42,7 @@ export default function Home() {
   const { data: contributedMaps = [], isLoading: isLoadingContributed } = useQuery<MapCollection[]>({
     queryKey: ["/api/maps", user?.id, "contributed"],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (user?.id) {
-        params.append('userId', user.id);
-        params.append('contributedOnly', 'true');
-      }
-      const response = await fetch(`/api/maps?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch contributed maps');
-      }
+      const response = await apiRequest("GET", "/api/maps?contributedOnly=true");
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     },

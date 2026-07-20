@@ -12,14 +12,11 @@ import { apiRequest } from "@/lib/queryClient";
 
 interface UserProfile {
   id: string;
-  userId: string;
-  fullName: string;
-  twitterHandle?: string;
-  instagramHandle?: string;
-  linkedinHandle?: string;
+  fullName: string | null;
+  twitterHandle?: string | null;
+  instagramHandle?: string | null;
+  linkedinHandle?: string | null;
   userGroup: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export default function AdminPage() {
@@ -28,8 +25,9 @@ export default function AdminPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // Check if user is admin (kipergil@gmail.com)
-  const isAdmin = user?.email === 'kipergil@gmail.com';
+  // The server re-checks is_admin on every admin request; this only gates
+  // client-side navigation.
+  const isAdmin = !!user?.isAdmin;
 
   useEffect(() => {
     if (user && !isAdmin) {
@@ -40,16 +38,7 @@ export default function AdminPage() {
   const { data: users = [], isLoading } = useQuery<UserProfile[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          'x-user-email': user?.email || ''
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-      
+      const response = await apiRequest("GET", "/api/admin/users");
       return response.json();
     },
     enabled: !!user && isAdmin,
@@ -57,19 +46,7 @@ export default function AdminPage() {
 
   const updateUserGroupMutation = useMutation({
     mutationFn: async ({ userId, userGroup }: { userId: string; userGroup: string }) => {
-      const response = await fetch(`/api/admin/users/${userId}/group`, {
-        method: 'PUT',
-        headers: {
-          'x-user-email': user?.email || '',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userGroup })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update user group');
-      }
-      
+      const response = await apiRequest("PUT", `/api/admin/users/${userId}/group`, { userGroup });
       return response.json();
     },
     onSuccess: () => {
@@ -216,22 +193,19 @@ export default function AdminPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <div>
-                          <h3 className="font-semibold text-gray-900">{user.fullName}</h3>
-                          <p className="text-sm text-gray-500">ID: {user.userId}</p>
+                          <h3 className="font-semibold text-gray-900">{user.fullName || "(no name set)"}</h3>
+                          <p className="text-sm text-gray-500">ID: {user.id}</p>
                         </div>
                         <Badge className={getUserGroupColor(user.userGroup)}>
                           {user.userGroup}
                         </Badge>
-                      </div>
-                      <div className="mt-2 text-xs text-gray-400">
-                        Joined: {new Date(user.createdAt).toLocaleDateString()}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <Select
                         value={user.userGroup}
-                        onValueChange={(value) => handleUserGroupChange(user.userId, value)}
+                        onValueChange={(value) => handleUserGroupChange(user.id, value)}
                         disabled={updateUserGroupMutation.isPending}
                       >
                         <SelectTrigger className="w-32">

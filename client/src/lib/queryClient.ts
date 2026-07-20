@@ -1,10 +1,18 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getClerkToken } from "./clerkTokenStore";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
+}
+
+async function authHeaders(hasBody: boolean): Promise<HeadersInit> {
+  const headers: Record<string, string> = hasBody ? { "Content-Type": "application/json" } : {};
+  const token = await getClerkToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
 }
 
 export async function apiRequest(
@@ -14,7 +22,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: await authHeaders(!!data),
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -30,6 +38,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
+      headers: await authHeaders(false),
       credentials: "include",
     });
 
