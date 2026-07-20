@@ -1,4 +1,4 @@
-import type { InvitationStatus, MapViewerRole, Permission, UserGroup } from "./enums";
+import type { InvitationStatus, MapViewerRole, Permission, UserGroup } from "./enums.js";
 
 /**
  * Custom fields added to directus_users to support Clerk-backed accounts and
