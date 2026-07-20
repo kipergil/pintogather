@@ -11,13 +11,24 @@ const statements: string[] = [
   `CREATE UNIQUE INDEX IF NOT EXISTS map_viewers_map_user_uidx ON map_viewers (map, "user")`,
 ];
 
+/**
+ * Some managed Directus instances (e.g. Elestio) don't expose their
+ * Postgres port outside the host's own internal network, so there's no
+ * `DATABASE_URL` this script could reach even if one were guessed. Skip
+ * with a warning rather than fail the whole schema apply — the app itself
+ * still works without these composite constraints (they're a data-
+ * integrity backstop; server/storage.ts already checks for an existing
+ * map_viewers row before creating one).
+ */
 export async function applyConstraints(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error(
-      "DATABASE_URL is not set. A silent localhost fallback here would risk applying these " +
-        "constraints to the wrong database — set DATABASE_URL explicitly to the target Postgres.",
+    console.warn(
+      "  ! DATABASE_URL is not set — skipping composite unique constraints. " +
+        "The app enforces these at the application layer instead; set DATABASE_URL " +
+        "(a direct Postgres connection) to also enforce them at the database level.",
     );
+    return;
   }
   const client = new Client({ connectionString });
   await client.connect();

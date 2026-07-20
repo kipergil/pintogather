@@ -128,15 +128,15 @@ async function ensurePolicy(client: Client, def: PolicyDefinition): Promise<void
 /**
  * The Express server authenticates to Directus with one long-lived static
  * token, not a login/refresh flow. That token has to live on some
- * directus_users row — this provisions a dedicated, non-human "Service"
- * account (role: Service) and prints its token so it can be pasted into
- * directus/.env and the app's root .env as DIRECTUS_SERVICE_TOKEN.
+ * directus_users row — this provisions a dedicated, non-human
+ * "PinTogather Service" account and prints its token so it can be pasted
+ * into directus/.env and the app's root .env as DIRECTUS_SERVICE_TOKEN.
  * Re-running this script never rotates an existing token.
  */
 async function ensureServiceAccount(client: Client): Promise<void> {
-  const serviceRoleId = await findRoleByName(client, "Service");
+  const serviceRoleId = await findRoleByName(client, "PinTogather Service");
   if (!serviceRoleId) {
-    throw new Error("Service role missing — ensurePolicy should have created it.");
+    throw new Error("PinTogather Service role missing — ensurePolicy should have created it.");
   }
 
   const existing = await client.request(

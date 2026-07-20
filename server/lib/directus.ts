@@ -6,7 +6,7 @@ export type DirectusRestClient = DirectusClient<PinTogatherSchema> & RestClient<
 let serviceClient: DirectusRestClient | null = null;
 
 /**
- * Server-only client authenticated as the narrowly-scoped "Service" role
+ * Server-only client authenticated as the narrowly-scoped "PinTogather Service" role
  * (see directus/src/permissions/definitions.ts). Every request the API
  * makes to Directus goes through this client — the browser never talks to
  * Directus directly, and this token must never be sent to the client.
