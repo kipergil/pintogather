@@ -1,5 +1,5 @@
 import { createDirectus, rest, staticToken, type DirectusClient, type RestClient } from "@directus/sdk";
-import type { PinTogatherSchema } from "@shared/directus-schema";
+import type { PinTogatherSchema } from "../../shared/directus-schema.js";
 
 export type DirectusRestClient = DirectusClient<PinTogatherSchema> & RestClient<PinTogatherSchema>;
 

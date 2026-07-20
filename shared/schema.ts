@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, USER_GROUP } from "./enums";
+import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, USER_GROUP } from "./enums.js";
 
 /**
  * Domain types used throughout the app (client + server). These are the
@@ -139,4 +139,4 @@ export const insertMapInvitationSchema = z.object({
 });
 export type InsertMapInvitation = z.infer<typeof insertMapInvitationSchema>;
 
-export * from "./enums";
+export * from "./enums.js";

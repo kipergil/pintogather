@@ -1,7 +1,7 @@
 import { clerkClient, clerkMiddleware, getAuth } from "@clerk/express";
 import type { Express, NextFunction, Request, RequestHandler, Response } from "express";
-import type { User } from "@shared/schema";
-import { getUserByClerkId, upsertUserFromClerk } from "./services/users";
+import type { User } from "../shared/schema.js";
+import { getUserByClerkId, upsertUserFromClerk } from "./services/users.js";
 
 export function setupAuth(app: Express): void {
   app.use(clerkMiddleware());

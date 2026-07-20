@@ -1,6 +1,6 @@
 import { verifyWebhook } from "@clerk/express/webhooks";
 import type { Request, Response } from "express";
-import { deactivateUserByClerkId, upsertUserFromClerk } from "../services/users";
+import { deactivateUserByClerkId, upsertUserFromClerk } from "../services/users.js";
 
 /**
  * Verifies and applies Clerk's `user.*` webhooks, keeping directus_users in

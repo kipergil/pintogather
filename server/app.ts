@@ -1,7 +1,7 @@
 import express, { type Express, type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { handleClerkWebhook } from "./webhooks/clerk";
-import { log } from "./log";
+import { registerRoutes } from "./routes.js";
+import { handleClerkWebhook } from "./webhooks/clerk.js";
+import { log } from "./log.js";
 
 /**
  * Builds the Express app with every route registered, but does not bind it

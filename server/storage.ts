@@ -11,15 +11,15 @@ import type {
   InsertPin,
   UpdateProfile,
   User,
-} from "@shared/schema";
+} from "../shared/schema.js";
 import type {
   MapCollection as DirectusMapCollection,
   MapInvitation as DirectusMapInvitation,
   MapViewer as DirectusMapViewer,
   Pin as DirectusPin,
-} from "@shared/directus-schema";
-import { getServiceDirectusClient } from "./lib/directus";
-import { toDomainUser } from "./services/users";
+} from "../shared/directus-schema.js";
+import { getServiceDirectusClient } from "./lib/directus.js";
+import { toDomainUser } from "./services/users.js";
 
 const MAP_FIELDS = [
   "id",

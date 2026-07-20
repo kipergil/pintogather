@@ -1,7 +1,7 @@
 import { createItem, readItems, updateItem } from "@directus/sdk";
-import type { DirectusUser } from "@shared/directus-schema";
-import type { UpsertUser, User } from "@shared/schema";
-import { getServiceDirectusClient } from "../lib/directus";
+import type { DirectusUser } from "../../shared/directus-schema.js";
+import type { UpsertUser, User } from "../../shared/schema.js";
+import { getServiceDirectusClient } from "../lib/directus.js";
 
 const USER_FIELDS = [
   "id",

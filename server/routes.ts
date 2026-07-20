@@ -1,10 +1,10 @@
 import type { Express } from "express";
-import { storage } from "./storage";
-import { insertMapCollectionSchema, insertPinSchema, updateProfileSchema } from "@shared/schema";
-import type { Pin, User } from "@shared/schema";
+import { storage } from "./storage.js";
+import { insertMapCollectionSchema, insertPinSchema, updateProfileSchema } from "../shared/schema.js";
+import type { Pin, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth";
+import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 
 /**
  * A pin may be modified by the owner of its map, by the user who created
