@@ -10,7 +10,7 @@ import { reverseGeocode, type LocationData } from "@/lib/map-utils";
 
 import { ArrowLeft, MapPin, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AddPinProps {
@@ -50,35 +50,18 @@ export default function AddPin({ params }: AddPinProps) {
     note: "",
   });
 
-  // Load user profile data to auto-populate form
-  const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      const localProfile = localStorage.getItem(`profile_${user.id}`);
-      if (localProfile) {
-        return JSON.parse(localProfile);
-      }
-      
-      const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-      return { full_name: fullName };
-    },
-    enabled: !!user,
-  });
-
-  // Auto-populate form from profile data
+  // Auto-populate form from the signed-in user's profile
   useEffect(() => {
-    if (profile) {
-      setFormData(prev => ({
-        ...prev,
-        userName: profile.full_name || "",
-        twitterHandle: profile.twitter_handle || "",
-        instagramHandle: profile.instagram_handle || "",
-        linkedinHandle: profile.linkedin_handle || "",
-      }));
-    }
-  }, [profile]);
+    if (!user) return;
+    const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
+    setFormData((prev) => ({
+      ...prev,
+      userName: fullName || prev.userName,
+      twitterHandle: user.twitterHandle || prev.twitterHandle,
+      instagramHandle: user.instagramHandle || prev.instagramHandle,
+      linkedinHandle: user.linkedinHandle || prev.linkedinHandle,
+    }));
+  }, [user]);
 
   // Get location from URL parameters or localStorage
   useEffect(() => {
@@ -146,19 +129,7 @@ export default function AddPin({ params }: AddPinProps) {
 
   const createPinMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/maps/${shareUrl}/pins`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to add pin');
-      }
-      
+      const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins`, data);
       return response.json();
     },
     onSuccess: () => {

@@ -80,13 +80,19 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       } else {
         setActiveTab("search");
       }
-      loadUserProfile();
     }
   }, [isOpen, initialLocation]);
 
   useEffect(() => {
     if (isOpen && user) {
-      loadUserProfile();
+      const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
+      setFormData((prev) => ({
+        ...prev,
+        userName: fullName || prev.userName,
+        twitterHandle: user.twitterHandle || prev.twitterHandle,
+        instagramHandle: user.instagramHandle || prev.instagramHandle,
+        linkedinHandle: user.linkedinHandle || prev.linkedinHandle,
+      }));
     } else if (isOpen && !user) {
       setFormData({
         userName: "",
@@ -97,34 +103,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       });
     }
   }, [isOpen, user]);
-
-  const loadUserProfile = async () => {
-    if (!user) return;
-    
-    try {
-      const localProfile = localStorage.getItem(`profile_${user.id}`);
-      let profileData = null;
-
-      if (localProfile) {
-        profileData = JSON.parse(localProfile);
-      } else {
-        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-        profileData = { full_name: fullName };
-      }
-
-      if (profileData) {
-        setFormData(prev => ({
-          ...prev,
-          userName: profileData.full_name || "",
-          twitterHandle: profileData.twitter_handle || "",
-          instagramHandle: profileData.instagram_handle || "",
-          linkedinHandle: profileData.linkedin_handle || "",
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    }
-  };
 
   useEffect(() => {
     if (!selectedLocation || !isOpen || activeTab === "search") {

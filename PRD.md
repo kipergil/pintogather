@@ -1,7 +1,7 @@
 # PinTogather - Product Requirements Document (PRD)
 
-**Version:** 1.0  
-**Last Updated:** November 25, 2025  
+**Version:** 2.0
+**Last Updated:** July 20, 2026
 **Status:** Active Development (MVP)
 
 ---
@@ -41,8 +41,8 @@ Communities and teams often need to share location-based information but lack ac
 | Role | Description | Capabilities | Status |
 |------|-------------|--------------|--------|
 | **Owner** | Creator of a map collection | Full control: create, edit, delete maps; manage permissions; invite collaborators | Implemented |
-| **Contributor** | Invited user with edit access | Add, edit, delete pins on shared maps | Schema ready, partial implementation |
-| **Viewer** | User with read-only access | View maps and pins; cannot modify content | Schema ready, partial implementation |
+| **Contributor** | Invited user with edit access | Add, edit, delete pins on shared maps | Implemented |
+| **Viewer** | User with read-only access | View maps and pins; cannot modify content | Schema ready, enforced on invitation accept; not yet enforced on read |
 | **Admin** | Platform administrator | Manage user tiers; platform-wide controls | Implemented |
 
 ### 2.2 Subscription Tiers
@@ -53,12 +53,12 @@ Communities and teams often need to share location-based information but lack ac
 | **Basic** | £2/month | Expanded collaboration, priority support | Schema ready, UI placeholder |
 | **Premium** | £7/month | Unlimited maps, advanced sharing, premium features | Schema ready, UI placeholder |
 
-**Note:** Tier-based feature restrictions are not yet enforced. The `userGroup` field exists in the database but doesn't gate features currently.
+**Note:** Tier-based feature restrictions are not yet enforced. The `userGroup` field exists on the user record but doesn't gate features currently.
 
 ### 2.3 Tier Management
 - Users default to "freemium" tier upon registration
-- Admins can upgrade/downgrade user tiers via admin panel
-- Tier stored in user profile (`userGroup` field)
+- Admins can upgrade/downgrade user tiers via the admin panel
+- Tier stored on the user's `user_group` field (Directus `directus_users` collection)
 
 ---
 
@@ -67,149 +67,91 @@ Communities and teams often need to share location-based information but lack ac
 ### 3.1 User Authentication & Profile Management
 
 #### What's Implemented
-- **Provider**: Supabase Authentication (email/password only)
-- **Session Management**: JWT-based with localStorage persistence
-- **Auth UI**: Modal-based login/signup flows
-- **Profile Storage**: User profiles stored in PostgreSQL
+- **Provider**: Clerk (email/password and any OAuth providers enabled on the Clerk instance — Google, GitHub, etc.)
+- **Session Management**: Clerk session tokens, sent as `Authorization: Bearer <token>` on every API request and verified server-side by `@clerk/express`
+- **Auth UI**: Clerk's `<SignIn/>` component on `/auth`, plus a modal variant (`auth-modal.tsx`) that opens Clerk's hosted sign-in
+- **Profile Storage**: Extended fields directly on Directus's `directus_users` collection (`full_name`, `twitter_handle`, `instagram_handle`, `linkedin_handle`, `user_group`, `is_admin`, `clerk_user_id`, `avatar_url`)
+- **Directus sync**: A Clerk webhook (`/api/webhooks/clerk`, signature-verified) upserts `directus_users` on `user.created`/`user.updated`, and marks the row `suspended` on `user.deleted`. A just-in-time upsert (`getCurrentUser` in `server/clerkAuth.ts`) covers the gap before the webhook lands, or a webhook left unconfigured in local dev.
 
 #### Profile Features (Implemented)
-- Full name management
+- Full name management (editable independently of the Clerk-provided first/last name)
 - Social media handles (Twitter/X, Instagram, LinkedIn)
 - User group/tier tracking
-- Profile creation and update timestamps
+- Self-service profile editing via `PUT /api/profile`
 
 #### Current Limitations
-- **No Google OAuth**: Only email/password authentication is working
-- **No automatic profile sync**: Profile creation requires manual trigger
-- **Client-side auth trust**: API endpoints accept userId from client without server-side session verification (security risk)
-- **Fallback patterns**: App may allow limited anonymous interactions when auth fails
+- No Google/other OAuth is pre-configured — enabling additional sign-in methods is a Clerk Dashboard configuration step, not a code change
+- Tier-based feature gating (Basic/Premium) is not enforced
 
 ---
 
 ### 3.2 Map Management
 
 #### Map Collection Properties
-| Field | Type | Description | Status |
-|-------|------|-------------|--------|
-| `id` | varchar(255) | Unique identifier | Implemented |
-| `name` | text | Map name (unique per platform) | Implemented |
-| `description` | text | Optional map description | Implemented |
-| `shareUrl` | text | Unique URL for sharing | Implemented |
-| `ownerId` | varchar(255) | Owner's user ID | Implemented |
-| `isPublic` | boolean | Public visibility toggle | Implemented |
-| `defaultPermission` | text | Default permission ("readonly"/"editable") | Schema ready |
-| `createdAt` | timestamp | Creation timestamp | Implemented |
+| Field | Description | Status |
+|-------|-------------|--------|
+| `id` | Unique identifier (uuid) | Implemented |
+| `name` | Map name (unique) | Implemented |
+| `description` | Optional map description | Implemented |
+| `shareUrl` | Unique URL for sharing | Implemented |
+| `ownerId` | Owner's user id (Directus relation, not a bare string) | Implemented |
+| `isPublic` | Public visibility toggle | Implemented (not yet enforced on read — share URL alone grants access, by design) |
+| `defaultPermission` | Default permission ("readonly"/"editable") | Implemented — gates anonymous pin edits |
+| `createdAt` | Creation timestamp | Implemented |
 
 #### Map Operations
 
 | Operation | Status | Notes |
 |-----------|--------|-------|
-| Create Map | Implemented | Name + optional description, auto-generates share URL |
-| View Maps | Implemented | Dashboard shows owned maps with pin counts |
+| Create Map | Implemented | Requires sign-in; owner set from the verified session |
+| View Maps | Implemented | Dashboard shows owned + contributed maps with pin counts |
 | Filter Maps | Implemented | Filter by owned/contributed maps |
-| Delete Map | Partial | UI modal works, API has userId verification issues |
-| Edit Map | Implemented | Update sharing settings and permissions |
-
-#### Known Issues
-- **Delete API Error**: Deletion modal UI works but API call fails due to userId passing issues
-- **No server-side ownership verification**: Delete trusts client-provided userId
+| Delete Map | Implemented | Requires sign-in and ownership; cascades to pins, viewers, invitations |
+| Edit Map | Implemented | Update sharing settings and permissions; requires ownership |
 
 ---
 
 ### 3.3 Pin Management
 
 #### Pin Properties
-| Field | Type | Description | Status |
-|-------|------|-------------|--------|
-| `id` | varchar(255) | Unique identifier | Implemented |
-| `mapId` | varchar(255) | Associated map collection | Implemented |
-| `userId` | varchar(255) | Creator's user ID (optional) | Implemented |
-| `userName` | text | Creator's display name | Implemented |
-| `latitude`/`longitude` | decimal | GPS coordinates | Implemented |
-| `address` | text | Formatted address | Implemented |
-| `city`, `state`, `town`, `borough`, `postcode`, `country` | text | Location details | Implemented |
-| `twitterHandle`, `instagramHandle`, `linkedinHandle` | text | Social media links | Implemented |
-| `note` | text | Optional pin note | Implemented |
-| `createdAt` | timestamp | Creation timestamp | Implemented |
+All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonymous pins are allowed), `userName`, `latitude`/`longitude`, `address`, `city`, `state`, `town`, `borough`, `postcode`, `country`, `twitterHandle`, `instagramHandle`, `linkedinHandle`, `note`, `createdAt`.
 
 #### Pin Operations
 
 | Operation | Status | Notes |
 |-----------|--------|-------|
-| Add Pin | Implemented | Click map → geocode → fill form → save |
+| Add Pin | Implemented | Click map → geocode → fill form → save. Works signed-in or anonymous. |
 | View Pins | Implemented | Map markers + table view |
-| Edit Pin | Implemented | Modify handles, notes, location |
-| Delete Pin | Implemented | Remove from map and database |
+| Edit Pin | Implemented | Map owner, or the pin's creator, may always edit; an anonymously-created pin on a map with `defaultPermission: editable` may be edited by anyone (preserves the "share the link" flow) |
+| Delete Pin | Implemented | Same rule as edit |
 | Reverse Geocoding | Implemented | Uses OpenStreetMap Nominatim API |
-
-#### Current Limitations
-- **Anonymous pins allowed**: Pins can be created without userId (userId is optional)
-- **No permission enforcement**: Anyone can currently edit/delete any pin
-- **CSV export**: UI reference exists but feature may not be fully functional
+| CSV export | Implemented | Client-side export from the map detail page |
 
 ---
 
 ### 3.4 Sharing & Collaboration
 
-#### What's Implemented
-
 **Permission Schema:**
-| Permission Level | Intended Capabilities | Enforcement Status |
+| Permission Level | Capabilities | Enforcement Status |
 |-----------------|---------------------|-------------------|
-| **Readonly** | View map and pins only | Not enforced |
-| **Editable** | Add, edit, delete pins | Not enforced |
+| **Readonly** | View map and pins only | Enforced for anonymous pin edits on the map; not yet enforced against direct share-URL viewing |
+| **Editable** | Add, edit, delete pins | Enforced |
 
-**Map Visibility:**
-- Private/Public toggle exists in schema
-- Share URL generation works
-- No visibility enforcement in API (all maps accessible via share URL)
-
-**Map Viewers Table (Schema Ready):**
-| Field | Description | Status |
-|-------|-------------|--------|
-| `id` | Unique identifier | Schema |
-| `mapId` | Map reference | Schema |
-| `userId` | Viewer's user ID | Schema |
-| `role` | viewer/contributor | Schema |
-| `permission` | readonly/editable | Schema |
-
-**Invitation System (Partial):**
+**Invitation System:**
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Create invitation | Implemented | Creates token, stores in DB |
-| List invitations | Implemented | Shows pending invitations |
-| Delete invitation | Implemented | Removes from DB |
-| Accept invitation | Partial | Updates status but doesn't create map_viewer record |
-| Email notifications | Not implemented | SendGrid prepared but not wired |
-
-#### Critical Gaps
-- **Accepting invitations doesn't grant access**: The accept endpoint marks invitation as accepted but doesn't add user to map_viewers
-- **No permission enforcement**: API doesn't check if user has view/edit rights
-- **No email sending**: Invitations are created but not emailed to recipients
+| Create invitation | Implemented | Requires map ownership |
+| List invitations | Implemented | Requires map ownership |
+| Delete invitation | Implemented | |
+| Accept invitation | Implemented | Requires sign-in; creates the corresponding `map_viewers` row, granting real access |
+| Email notifications | Not implemented | SendGrid dependency present but not wired |
 
 ---
 
 ### 3.5 Google Maps Integration
 
-#### What's Implemented
-- **API Key**: Server-side configuration (working)
-- **Map Display**: Interactive Google Maps rendering
-- **Markers**: Standard Google Maps Marker (deprecated but functional)
-- **Click-to-add**: Select location by clicking map
-- **Touch controls**: Single-finger dragging on mobile
-- **Zoom controls**: +/- button controls
-
-#### Map Settings
-- Default center: London, UK (51.5074, -0.1278)
-- Default zoom level: 10
-- Disabled: Street view, map type selector, full-screen button
-- Gesture handling: "greedy" (easier mobile use)
-
-#### Current Limitations
-- **Deprecated Marker API**: Using `google.maps.Marker` instead of recommended `AdvancedMarkerElement`
-- **Venue search disabled**: Components exist but removed from UI
-- **No Places autocomplete**: Removed for simplified UX
+Unchanged from prior implementation — Google Maps JavaScript API (Map, Marker, Places), OpenStreetMap Nominatim as the reverse-geocoding fallback. Default center: London, UK.
 
 ---
 
@@ -217,17 +159,19 @@ Communities and teams often need to share location-based information but lack ac
 
 ### 4.1 Stack Overview
 
-| Layer | Technology | Status |
-|-------|------------|--------|
-| **Frontend** | React 18, TypeScript, Vite | Implemented |
-| **UI Framework** | Radix UI, Tailwind CSS | Implemented |
-| **State Management** | TanStack Query (React Query v5) | Implemented |
-| **Routing** | Wouter | Implemented |
-| **Backend** | Express.js, TypeScript | Implemented |
-| **Database** | PostgreSQL (via Neon) | Implemented |
-| **ORM** | Drizzle ORM | Implemented |
-| **Authentication** | Supabase Auth | Partial |
-| **Maps** | Google Maps JavaScript API | Implemented |
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, TypeScript, Vite |
+| **UI Framework** | Radix UI, Tailwind CSS |
+| **State Management** | TanStack Query (React Query v5) |
+| **Routing** | Wouter |
+| **Backend** | Express.js, TypeScript |
+| **Data store** | Directus (headless CMS) over PostgreSQL |
+| **Data access** | `@directus/sdk`, via a server-only static service token |
+| **Authentication** | Clerk (`@clerk/clerk-react` + `@clerk/express`) |
+| **Maps** | Google Maps JavaScript API |
+
+The browser never talks to Directus directly — every request goes through the Express server (`server/routes.ts` → `server/storage.ts` → Directus's REST API), which is also where Clerk sessions are verified and ownership/permission checks are enforced.
 
 ### 4.2 Project Structure
 
@@ -235,38 +179,41 @@ Communities and teams often need to share location-based information but lack ac
 ├── client/
 │   └── src/
 │       ├── components/     # Reusable UI components
-│       ├── contexts/       # React contexts (Auth)
+│       ├── contexts/       # AuthContext (wraps Clerk)
 │       ├── hooks/          # Custom React hooks
-│       ├── lib/            # Utility libraries
+│       ├── lib/            # Utility libraries (incl. Clerk token bridge)
 │       └── pages/          # Route pages
 ├── server/
-│   ├── index.ts           # Server entry point
-│   ├── routes.ts          # API route definitions
-│   ├── storage.ts         # Database operations
-│   └── vite.ts            # Vite integration
-└── shared/
-    └── schema.ts          # Drizzle schema & types
+│   ├── index.ts            # Server entry point
+│   ├── routes.ts            # API route definitions + authorization
+│   ├── storage.ts           # Directus data-access layer
+│   ├── clerkAuth.ts          # Clerk middleware + directus_users resolution
+│   ├── webhooks/clerk.ts     # Clerk → directus_users sync webhook
+│   ├── services/users.ts     # Clerk ⇄ directus_users mapping
+│   ├── lib/directus.ts       # Directus service client
+│   └── vite.ts
+├── shared/
+│   ├── schema.ts             # Domain types + zod validation (camelCase)
+│   ├── directus-schema.ts    # Typed Directus collections (snake_case)
+│   └── enums.ts
+├── directus/                 # Standalone schema/permissions bootstrap tool
+│   └── src/{schema,permissions,lib}/
+└── docker-compose.yml         # Local Directus + Postgres + Redis
 ```
 
 ### 4.3 Key Frontend Components
 
-| Component | Purpose | Status |
-|-----------|---------|--------|
-| `simple-google-map.tsx` | Google Maps display with pin markers | Active |
-| `add-pin-modal.tsx` | Form for creating new pins | Active |
-| `create-map-form.tsx` | Map collection creation form | Active |
-| `delete-map-modal.tsx` | Confirmation modal for map deletion | Active (API issues) |
-| `share-modal.tsx` | Sharing link display | Active |
-| `share-settings-modal.tsx` | Permission and invitation management | Active |
-| `pin-table.tsx` | Tabular pin display with actions | Active |
-| `profile-modal.tsx` | User profile view/edit | Active |
-| `auth-modal.tsx` | Login/signup flows | Active |
-| `activity-feed.tsx` | Recent activity display | Active |
-
-**Unused/Legacy Components:**
-- `google-map-view.tsx`, `google-map-view-fixed.tsx`, `map-view.tsx`, `map-view-old.tsx` - replaced by simple-google-map
-- `venue-search.tsx`, `venue-search-simple.tsx` - feature removed from UI
-- `test-map.tsx`, `simple-map.tsx` - development/testing only
+| Component | Purpose |
+|-----------|---------|
+| `simple-google-map.tsx` | Google Maps display with pin markers |
+| `add-pin-modal.tsx` / `add-pin.tsx` | Pin creation |
+| `create-map-form.tsx` | Map collection creation form |
+| `delete-map-modal.tsx` | Confirmation modal for map deletion |
+| `share-modal.tsx` / `share-settings-modal.tsx` | Sharing link display, permissions, invitations |
+| `pin-table.tsx` | Tabular pin display with actions |
+| `profile-modal.tsx` / `profile.tsx` | User profile view/edit |
+| `auth-modal.tsx`, `pages/auth.tsx` | Sign-in (Clerk) |
+| `activity-feed.tsx` | Recent activity display |
 
 ### 4.4 Key Pages
 
@@ -276,91 +223,35 @@ Communities and teams often need to share location-based information but lack ac
 | Map Detail | `/map/:shareUrl` | Interactive map view |
 | Profile | `/profile` | User profile management |
 | Admin | `/admin` | Admin panel for user management |
-| Auth | `/auth` | Authentication page |
-| Add Pin | `/add-pin/:mapId` | Pin creation page |
-| Edit Pin | `/edit-pin/:pinId` | Pin editing page |
+| Auth | `/auth` | Sign-in (Clerk) |
+| Add Pin | `/map/:shareUrl/add-pin` | Pin creation page |
+| Edit Pin | `/map/:shareUrl/edit-pin/:pinId` | Pin editing page |
 | Not Found | `*` | 404 page |
 
 ---
 
-## 5. Database Schema
+## 5. Database Schema (Directus collections)
 
-### 5.1 Tables Overview
+### 5.1 Collections Overview
 
-| Table | Purpose | Status |
-|-------|---------|--------|
-| `profiles` | User profile information | Active |
-| `map_collections` | Map metadata and settings | Active |
-| `pins` | Location markers with metadata | Active |
-| `map_viewers` | Permission grants for maps | Schema only (not populated) |
-| `map_invitations` | Email invitation tracking | Active |
-| `admin_users` | Admin user registry | Active |
+| Collection | Purpose |
+|-------|---------|
+| `directus_users` | Accounts, synced from Clerk; carries profile + admin fields |
+| `map_collections` | Map metadata and settings |
+| `pins` | Location markers with metadata |
+| `map_viewers` | Permission grants for maps (populated on invitation accept) |
+| `map_invitations` | Email invitation tracking |
 
-### 5.2 Schema Diagram
+Schema is declared in code (`directus/src/schema/definitions.ts`) and applied idempotently via `npm run directus:schema:apply`; permissions (a single narrowly-scoped "Service" role used by the Express server's static token) via `npm run directus:permissions:apply`.
 
-```
-┌─────────────────┐     ┌─────────────────┐
-│    profiles     │     │  admin_users    │
-├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │
-│ userId (UK)     │     │ email (UK)      │
-│ fullName        │     │ userId (UK)     │
-│ twitterHandle   │     │ createdAt       │
-│ instagramHandle │     └─────────────────┘
-│ linkedinHandle  │
-│ userGroup       │
-│ createdAt       │
-│ updatedAt       │
-└─────────────────┘
-         │
-         │ ownerId (not enforced FK)
-         ▼
-┌─────────────────┐
-│ map_collections │
-├─────────────────┤
-│ id (PK)         │◄──────────────────┐
-│ name (UK)       │                   │
-│ description     │                   │
-│ shareUrl (UK)   │                   │
-│ ownerId         │                   │
-│ isPublic        │                   │
-│ defaultPermission│                  │
-│ createdAt       │                   │
-└─────────────────┘                   │
-         │                            │
-         │ mapId (FK, cascade)        │ mapId (FK, cascade)
-         ▼                            │
-┌─────────────────┐     ┌─────────────┴───┐
-│      pins       │     │   map_viewers   │
-├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │
-│ mapId (FK)      │     │ mapId (FK)      │
-│ userId          │     │ userId          │
-│ userName        │     │ role            │
-│ latitude        │     │ permission      │
-│ longitude       │     │ createdAt       │
-│ address         │     └─────────────────┘
-│ city, state...  │           (not used)
-│ social handles  │
-│ note            │     ┌─────────────────┐
-│ createdAt       │     │ map_invitations │
-└─────────────────┘     ├─────────────────┤
-                        │ id (PK)         │
-                        │ mapId (FK)      │
-                        │ email           │
-                        │ permission      │
-                        │ invitedBy       │
-                        │ status          │
-                        │ token (UK)      │
-                        │ expiresAt       │
-                        │ createdAt       │
-                        └─────────────────┘
-```
+### 5.2 Relationships
+- `map_collections.owner` → `directus_users` (many-to-one, `SET NULL` on delete)
+- `pins.map` → `map_collections` (many-to-one, `CASCADE` on delete)
+- `pins.user` → `directus_users` (many-to-one, `SET NULL` on delete; nullable — anonymous pins)
+- `map_viewers.map` → `map_collections` (`CASCADE`), `map_viewers.user` → `directus_users` (`CASCADE`); unique per (map, user)
+- `map_invitations.map` → `map_collections` (`CASCADE`), `map_invitations.invited_by` → `directus_users` (`SET NULL`)
 
-### 5.3 Data Integrity Notes
-- **Cascade deletes**: Pins and invitations delete when parent map is deleted (via FK constraint)
-- **map_viewers cascade**: Defined in schema but table isn't populated
-- **No FK from map_collections to profiles**: ownerId is just a varchar, not enforced
+These are real, enforced foreign keys in Postgres (unlike the previous Drizzle schema, where `map_collections.ownerId` and `pins.userId` were bare, unenforced varchars).
 
 ---
 
@@ -368,168 +259,121 @@ Communities and teams often need to share location-based information but lack ac
 
 ### 6.1 Health & Configuration
 
-| Method | Endpoint | Auth | Status |
-|--------|----------|------|--------|
-| GET | `/api/healthcheck` | None | Implemented |
-| GET | `/api/app-status` | None | Implemented |
-| GET | `/api/supabase-health` | None | Implemented |
-| GET | `/api/config` | None | Implemented |
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET | `/api/healthcheck` | None |
+| GET | `/api/app-status` | None |
+| GET | `/api/directus-health` | None |
+| GET | `/api/config` | None (returns only the public Google Maps key) |
 
-### 6.2 Maps
+### 6.2 Auth & Profile
 
-| Method | Endpoint | Auth | Status | Notes |
-|--------|----------|------|--------|-------|
-| GET | `/api/maps` | Query param userId | Implemented | Returns empty if no userId |
-| POST | `/api/maps` | Body includes ownerId | Implemented | No auth verification |
-| GET | `/api/maps/:shareUrl` | None | Implemented | Anyone with URL can access |
-| DELETE | `/api/maps/:mapId` | Body includes userId | Buggy | userId verification fails |
-| PUT | `/api/maps/:mapId/permissions` | None | Implemented | No ownership check |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/api/auth/user` | Required | Returns the caller's own Directus-backed profile |
+| PUT | `/api/profile` | Required | Updates the caller's own profile only |
+| POST | `/api/webhooks/clerk` | Svix-verified | Clerk → directus_users sync |
 
-### 6.3 Pins
+### 6.3 Maps
 
-| Method | Endpoint | Auth | Status | Notes |
-|--------|----------|------|--------|-------|
-| POST | `/api/maps/:shareUrl/pins` | None | Implemented | No permission check |
-| GET | `/api/pins/:id` | None | Implemented | |
-| PUT | `/api/pins/:id` | None | Implemented | No ownership check |
-| DELETE | `/api/pins/:id` | None | Implemented | No ownership check |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/api/maps` | Required | `ownedOnly` / `contributedOnly` query flags; scoped to the caller |
+| POST | `/api/maps` | Required | Owner is the verified caller, never client input |
+| GET | `/api/maps/:shareUrl` | None | Anyone with the URL can view |
+| PUT | `/api/maps/:mapId/permissions` | Required | Must be the map owner |
+| DELETE | `/api/maps/:mapId` | Required | Must be the map owner |
 
-### 6.4 Invitations
+### 6.4 Pins
 
-| Method | Endpoint | Auth | Status | Notes |
-|--------|----------|------|--------|-------|
-| POST | `/api/maps/:mapId/invitations` | None | Implemented | No ownership check |
-| GET | `/api/maps/:mapId/invitations` | None | Implemented | |
-| POST | `/api/invitations/:token/accept` | None | Partial | Doesn't create viewer record |
-| DELETE | `/api/invitations/:id` | None | Implemented | |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| POST | `/api/maps/:shareUrl/pins` | Optional | `userId` set from the session if present, otherwise anonymous |
+| GET | `/api/pins/:id` | None | |
+| PUT | `/api/pins/:id` | Optional | Map owner / pin creator, or anyone for an anonymous pin on an editable map |
+| DELETE | `/api/pins/:id` | Optional | Same rule as PUT |
 
-### 6.5 Profiles & Admin
+### 6.5 Invitations
 
-| Method | Endpoint | Auth | Status | Notes |
-|--------|----------|------|--------|-------|
-| GET | `/api/profile/:userId` | None | Implemented | |
-| GET | `/api/admin/users` | Header x-user-email | Implemented | Checks admin_users table |
-| PUT | `/api/admin/users/:userId/group` | Header x-user-email | Implemented | |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| POST | `/api/maps/:mapId/invitations` | Required | Must be the map owner |
+| GET | `/api/maps/:mapId/invitations` | Required | Must be the map owner |
+| POST | `/api/invitations/:token/accept` | Required | Grants a `map_viewers` row |
+| DELETE | `/api/invitations/:id` | Required | |
 
-### 6.6 Utilities
+### 6.6 Admin
 
-| Method | Endpoint | Auth | Status |
-|--------|----------|------|--------|
-| GET | `/api/geocode` | None | Implemented |
-| POST | `/api/run-migration` | Service role key | Implemented |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/api/admin/users` | Required + `is_admin` | Admin status checked from the verified session, never a client header |
+| PUT | `/api/admin/users/:userId/group` | Required + `is_admin` | |
+
+### 6.7 Utilities
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET | `/api/geocode` | None |
 
 ---
 
 ## 7. User Interface
 
-### 7.1 Design System
-- **Framework**: Tailwind CSS with Radix UI primitives
-- **Icons**: Lucide React
-- **Theme**: Light mode only (dark mode CSS ready but not wired)
-- **Responsive**: Mobile-friendly with touch optimizations
-
-### 7.2 Key UI Patterns
-- Modal dialogs for forms and confirmations
-- Card-based layouts for map listings
-- Interactive map with click-to-add pins
-- Table views for pin management
-- Toast notifications for feedback
+Unchanged from the prior implementation: Tailwind + Radix UI, Lucide icons, light mode, modal-driven forms, card-based layouts, table views, toast notifications.
 
 ---
 
-## 8. Security Assessment
+## 8. Security Posture
 
-### 8.1 Critical Issues
+### 8.1 Fixed in this refactor
+| Issue | Resolution |
+|-------|------------|
+| Client-trusted `userId` on maps/pins | Ownership (`ownerId`, pin `userId`) is now always derived from the verified Clerk session server-side, never from request body/query |
+| No auth middleware on mutating endpoints | `@clerk/express` verifies every request; mutating map/pin/invitation/admin endpoints require a valid session and an ownership/admin check |
+| Admin check trusted an `x-user-email` header | Admin status is read from the authenticated user's own `is_admin` field |
+| Accepting an invitation didn't grant access | `POST /api/invitations/:token/accept` now creates the corresponding `map_viewers` row |
+| No real foreign keys | `owner`/`user`/`map` relations are enforced Postgres foreign keys with `CASCADE`/`SET NULL` behavior |
 
-| Issue | Severity | Description |
-|-------|----------|-------------|
-| Client-trusted userId | Critical | API endpoints trust client-provided userId for ownership checks |
-| No auth middleware | High | Most endpoints lack authentication verification |
-| No permission enforcement | High | Anyone can edit/delete any map or pin with the right IDs |
-| Missing rate limiting | Medium | APIs vulnerable to abuse |
-
-### 8.2 Recommendations (Not Yet Implemented)
-1. Add server-side session verification using Supabase JWT
-2. Implement middleware to extract userId from auth token
-3. Add ownership checks before destructive operations
-4. Implement rate limiting on all endpoints
-5. Validate permission levels before allowing edits
+### 8.2 Remaining / accepted gaps
+- `isPublic` is not yet enforced on read — a map's share URL is treated as the access-control boundary by design (matches the original "share the link" product model)
+- Rate limiting is not implemented
+- Email delivery for invitations (SendGrid) is not wired up
 
 ---
 
-## 9. Known Bugs & Issues
+## 9. Deployment
 
-### 9.1 Active Bugs
+### 9.1 Environment Variables
 
-| Bug | Severity | Description | Workaround |
-|-----|----------|-------------|------------|
-| Delete map API error | High | DELETE /api/maps/:mapId fails due to userId issues | None - debugging in progress |
-| Invitation accept incomplete | Medium | Accepting doesn't grant map access | Manual database entry |
-| Deprecated Google Marker | Low | Console warning about deprecated API | Functional, cosmetic issue |
+See `.env.example` (app) and `directus/.env.example` (Directus instance) for the full, current list. At a minimum: `DIRECTUS_URL`, `DIRECTUS_SERVICE_TOKEN`, `CLERK_SECRET_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_PUBLISHABLE_KEY`, `GOOGLE_MAPS_API_KEY`.
 
-### 9.2 Missing Functionality
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| Email notifications | High | SendGrid configured but not wired |
-| Permission enforcement | High | Schema ready, no enforcement |
-| Google OAuth | Medium | Not implemented |
-| Tier-based limits | Low | Schema ready, not enforced |
-| Real-time updates | Low | Not implemented |
-| CSV export | Low | Partial/unclear status |
-
----
-
-## 10. Deployment
-
-### 10.1 Environment Variables
-
-| Variable | Required | Description | Status |
-|----------|----------|-------------|--------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string | Configured |
-| `SUPABASE_URL` | Yes | Supabase project URL | Configured |
-| `SUPABASE_ANON_KEY` | Yes | Supabase anonymous key | Configured |
-| `GOOGLE_MAPS_API_KEY` | Yes | Google Maps API key | Configured |
-| `SENDGRID_API_KEY` | No | SendGrid API key (for email) | Not configured |
-
-### 10.2 Build Process
+### 9.2 Build Process
 1. Client: Vite builds React app to `dist/public`
 2. Server: ESBuild bundles TypeScript to `dist/index.js`
 3. Production: `dist/start.js` handles environment setup
 
-### 10.3 Health Monitoring
+### 9.3 Local Development
+`docker compose up -d` brings up Postgres + Redis + Directus; `npm run directus:schema:apply` and `npm run directus:permissions:apply` provision the schema and a service account/token; `npm run dev` starts the Express + Vite dev server. See `replit.md` for the full walkthrough.
+
+### 9.4 Health Monitoring
 - `/api/healthcheck` for endpoint discovery
 - `/api/app-status` for load balancer health checks
-- CORS-enabled for external monitoring systems
+- `/api/directus-health` for Directus-specific debugging
 
 ---
 
-## 11. Technical Debt Summary
+## 10. Appendix
 
-| Area | Issue | Priority |
-|------|-------|----------|
-| Map components | Multiple legacy components need cleanup | Low |
-| Auth enforcement | Client-side only, needs server validation | Critical |
-| Invitation flow | Incomplete - doesn't create viewer records | High |
-| Venue search | Components exist but feature removed | Low |
-| Schema vs migration | Some discrepancies between Drizzle schema and DB | Medium |
-
----
-
-## 12. Appendix
-
-### 12.1 Glossary
+### 10.1 Glossary
 - **Map Collection**: A named container for pins
 - **Pin**: A geographic marker with metadata
 - **Share URL**: Unique identifier for accessing a map
 - **Viewer**: User with access to a shared map
 - **Contributor**: User who can edit a shared map
+- **Service token**: The long-lived Directus API token used exclusively by the Express server, scoped to a narrow "Service" role with no admin/schema access
 
-### 12.2 Version History
+### 10.2 Version History
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0 | Jul 20, 2026 | Backend migrated from Supabase/Drizzle to Directus; authentication migrated from Replit Auth to Clerk; several security gaps closed (see §8.1) |
 | 1.0 | Nov 25, 2025 | Initial PRD documenting current state with accurate implementation status |
-
----
-
-*This document reflects the actual current implementation state of PinTogather. Features marked as "schema ready" or "partial" are not fully functional. Security issues are documented for prioritization.*

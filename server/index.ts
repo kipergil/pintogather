@@ -1,9 +1,16 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { storage } from "./storage";
+import { handleClerkWebhook } from "./webhooks/clerk";
 
 const app = express();
+
+// Registered before express.json(): Clerk's webhook signature is computed
+// over the exact request bytes, so this route needs the raw body rather
+// than the app-wide JSON-parsed one.
+app.post("/api/webhooks/clerk", express.raw({ type: "application/json" }), handleClerkWebhook);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -38,15 +45,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize database first - warn if fails
-  try {
-    await storage.initializeDatabase();
-  } catch (error) {
-    console.error('❌ DATABASE CONNECTION FAILED');
-    console.error('All API requests will fail until database is properly configured');
-    console.error('Error:', error.message);
-  }
-
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -25,16 +25,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         <div className="space-y-4 py-4">
           <p className="text-center text-gray-600 text-sm">
-            Sign in with your Replit account to access all features. You can use Google, GitHub, X, Apple, or email/password.
+            Sign in to access all features.
           </p>
-          
-          <Button 
-            onClick={handleLogin} 
+
+          <Button
+            onClick={handleLogin}
             className="w-full"
             data-testid="button-login"
           >
             <LogIn className="h-4 w-4 mr-2" />
-            Sign In with Replit
+            Sign In
           </Button>
         </div>
       </DialogContent>

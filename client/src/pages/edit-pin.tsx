@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, MapPin, Save, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface EditPinProps {
   params: {
@@ -25,13 +26,24 @@ interface PinFormData {
   note: string;
 }
 
+interface PinRecord {
+  id: string;
+  userId: string | null;
+  userName: string;
+  address?: string;
+  twitterHandle?: string;
+  instagramHandle?: string;
+  linkedinHandle?: string;
+  note?: string;
+}
+
 export default function EditPin({ params }: EditPinProps) {
   const { shareUrl, pinId } = params;
   const { toast } = useToast();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<PinFormData>({
     userName: "",
@@ -42,35 +54,12 @@ export default function EditPin({ params }: EditPinProps) {
   });
 
   // Fetch pin data
-  const { data: pin, isLoading: pinLoading, error: pinError } = useQuery({
+  const { data: pin, isLoading: pinLoading, error: pinError } = useQuery<PinRecord>({
     queryKey: [`/api/pins/${pinId}`],
-    queryFn: async () => {
-      const response = await fetch(`/api/pins/${pinId}`);
-      if (!response.ok) {
-        throw new Error('Pin not found');
-      }
-      return response.json();
-    },
   });
 
-  // Fetch user profile to auto-populate empty fields
-  const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      
-      const localProfile = localStorage.getItem(`profile_${user.id}`);
-      if (localProfile) {
-        return JSON.parse(localProfile);
-      }
-      
-      const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ');
-      return { full_name: fullName };
-    },
-    enabled: !!user,
-  });
-
-  // Populate form when pin data loads
+  // Populate form when pin data loads, falling back to the signed-in user's
+  // own profile for empty fields
   useEffect(() => {
     if (pin) {
       // Check if user owns this pin
@@ -84,32 +73,20 @@ export default function EditPin({ params }: EditPinProps) {
         return;
       }
 
-      // Populate with pin data, fallback to profile data for empty fields
+      const fullName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ");
       setFormData({
-        userName: pin.userName || (profile?.full_name) || "",
-        twitterHandle: pin.twitterHandle || (profile?.twitter_handle) || "",
-        instagramHandle: pin.instagramHandle || (profile?.instagram_handle) || "",
-        linkedinHandle: pin.linkedinHandle || (profile?.linkedin_handle) || "",
+        userName: pin.userName || fullName || "",
+        twitterHandle: pin.twitterHandle || user?.twitterHandle || "",
+        instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
+        linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
         note: pin.note || "",
       });
     }
-  }, [pin, profile, user, shareUrl, setLocation, toast]);
+  }, [pin, user, shareUrl, setLocation, toast]);
 
   const updatePinMutation = useMutation({
     mutationFn: async (data: PinFormData) => {
-      const response = await fetch(`/api/pins/${pinId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to update pin');
-      }
-      
+      const response = await apiRequest("PUT", `/api/pins/${pinId}`, data);
       return response.json();
     },
     onSuccess: () => {

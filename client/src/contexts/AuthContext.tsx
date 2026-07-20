@@ -1,6 +1,7 @@
-import { createContext, useContext } from 'react';
-import { useAuth as useReplitAuth } from '@/hooks/useAuth';
-import type { User } from '@shared/schema';
+import { createContext, useContext } from "react";
+import { useClerk } from "@clerk/clerk-react";
+import { useAuth as useAppAuth } from "@/hooks/useAuth";
+import type { User } from "@shared/schema";
 
 interface AuthContextType {
   user: User | null;
@@ -13,35 +14,24 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useReplitAuth();
-
-  const login = () => {
-    window.location.href = '/api/login';
-  };
-
-  const logout = () => {
-    window.location.href = '/api/logout';
-  };
+  const { user, isLoading, isAuthenticated } = useAppAuth();
+  const { openSignIn, signOut } = useClerk();
 
   const value: AuthContextType = {
     user: user ?? null,
     loading: isLoading,
     isAuthenticated,
-    login,
-    logout,
+    login: () => openSignIn(),
+    logout: () => signOut(),
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
