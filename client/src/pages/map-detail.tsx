@@ -123,10 +123,10 @@ export default function MapDetail({ params }: MapDetailProps) {
       {/* Map Header */}
       <Card className="border-border">
         <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{mapCollection.name}</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
                 {isOwner && (
                   <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
                     <Crown className="h-3 w-3" />
@@ -138,7 +138,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
               {isOwner && (
                 <Button
                   variant="outline"
