@@ -327,7 +327,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               value={formData.userName}
               onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
               required
-              autoFocus={!!initialLocation}
               data-testid="input-user-name"
             />
           </div>

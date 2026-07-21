@@ -81,7 +81,6 @@ export function CreateMapForm({ onCreated }: CreateMapFormProps) {
           placeholder="e.g. Our favourite coffee spots"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          autoFocus
           required
           data-testid="input-map-name"
         />

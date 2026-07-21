@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, Loader2, X } from "lucide-react";
-import { Loader } from "@googlemaps/js-api-loader";
+import { loadGoogleMaps } from "@/lib/google-maps";
 
 interface PlaceResult {
   placeId: string;
@@ -30,25 +30,16 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const initializePlaces = async () => {
       try {
-        const configResponse = await fetch('/api/config');
-        if (!configResponse.ok) return;
+        await loadGoogleMaps();
+        if (cancelled) return;
 
-        const config = await configResponse.json();
-        if (!config.googleMapsApiKey) return;
-
-        const loader = new Loader({
-          apiKey: config.googleMapsApiKey,
-          version: "weekly",
-          libraries: ["places"]
-        });
-
-        await loader.load();
-        
         const mapDiv = document.createElement('div');
         const map = new google.maps.Map(mapDiv, { center: { lat: 0, lng: 0 }, zoom: 1 });
-        
+
         setPlacesService(new google.maps.places.PlacesService(map));
         setAutocompleteService(new google.maps.places.AutocompleteService());
       } catch (error) {
@@ -57,6 +48,9 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
     };
 
     initializePlaces();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
