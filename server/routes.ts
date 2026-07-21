@@ -5,6 +5,7 @@ import type { Pin, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
+import { USER_GROUP } from "../shared/enums.js";
 
 /**
  * A pin may be modified by the owner of its map, by the user who created
@@ -491,7 +492,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const { userId } = req.params;
       const { userGroup } = req.body;
-      if (!["freemium", "basic", "premium"].includes(userGroup)) {
+      if (!USER_GROUP.includes(userGroup)) {
         return res.status(400).json({ message: "Invalid user group" });
       }
 

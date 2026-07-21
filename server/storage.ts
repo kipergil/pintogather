@@ -1,5 +1,6 @@
-import { createItem, deleteItem, readItems, updateItem } from "@directus/sdk";
+import { createItem, deleteItem, readItems, readUsers, updateItem, updateUser } from "@directus/sdk";
 import { nanoid } from "nanoid";
+import type { UserGroup } from "../shared/enums.js";
 import type {
   MapCollection,
   MapInvitation,
@@ -186,7 +187,7 @@ export interface IStorage {
   isAdmin(userId: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
   getUserProfile(userId: string): Promise<User | undefined>;
-  updateUserGroup(userId: string, userGroup: string): Promise<User | undefined>;
+  updateUserGroup(userId: string, userGroup: UserGroup): Promise<User | undefined>;
   updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined>;
 }
 
@@ -525,7 +526,7 @@ class DirectusStorage implements IStorage {
 
   async isAdmin(userId: string): Promise<boolean> {
     const rows = await this.client.request(
-      readItems("directus_users", {
+      readUsers({
         filter: { id: { _eq: userId }, is_admin: { _eq: true } },
         fields: ["id"],
         limit: 1,
@@ -535,22 +536,22 @@ class DirectusStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    const rows = await this.client.request(readItems("directus_users", { fields: USER_FIELDS, limit: -1 }));
+    const rows = await this.client.request(readUsers({ fields: USER_FIELDS, limit: -1 }));
     return (rows as any[]).map(toDomainUser);
   }
 
   async getUserProfile(userId: string): Promise<User | undefined> {
     const rows = await this.client.request(
-      readItems("directus_users", { filter: { id: { _eq: userId } }, fields: USER_FIELDS, limit: 1 }),
+      readUsers({ filter: { id: { _eq: userId } }, fields: USER_FIELDS, limit: 1 }),
     );
     const row = rows[0];
     return row ? toDomainUser(row as any) : undefined;
   }
 
-  async updateUserGroup(userId: string, userGroup: string): Promise<User | undefined> {
+  async updateUserGroup(userId: string, userGroup: UserGroup): Promise<User | undefined> {
     try {
       const updated = await this.client.request(
-        updateItem("directus_users", userId, { user_group: userGroup }, { fields: USER_FIELDS }),
+        updateUser(userId, { user_group: userGroup }, { fields: USER_FIELDS }),
       );
       return toDomainUser(updated as any);
     } catch (error) {
@@ -562,8 +563,7 @@ class DirectusStorage implements IStorage {
   async updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined> {
     try {
       const updated = await this.client.request(
-        updateItem(
-          "directus_users",
+        updateUser(
           userId,
           {
             full_name: data.fullName,
