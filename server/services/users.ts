@@ -1,4 +1,4 @@
-import { createItem, readItems, updateItem } from "@directus/sdk";
+import { createUser, readUsers, updateUser } from "@directus/sdk";
 import type { DirectusUser } from "../../shared/directus-schema.js";
 import type { UpsertUser, User } from "../../shared/schema.js";
 import { getServiceDirectusClient } from "../lib/directus.js";
@@ -41,7 +41,7 @@ export function toDomainUser(row: DirectusUser): User {
 export async function getUserByClerkId(clerkUserId: string): Promise<User | undefined> {
   const client = getServiceDirectusClient();
   const rows = await client.request(
-    readItems("directus_users", {
+    readUsers({
       filter: { clerk_user_id: { _eq: clerkUserId } },
       fields: USER_FIELDS,
       limit: 1,
@@ -54,7 +54,7 @@ export async function getUserByClerkId(clerkUserId: string): Promise<User | unde
 export async function getUserById(id: string): Promise<User | undefined> {
   const client = getServiceDirectusClient();
   const rows = await client.request(
-    readItems("directus_users", {
+    readUsers({
       filter: { id: { _eq: id } },
       fields: USER_FIELDS,
       limit: 1,
@@ -73,14 +73,17 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
  * Upserts a directus_users row for a Clerk identity, looked up by
  * `clerk_user_id` first, falling back to email so a user who signed up with
  * a password and later returns via Google gets linked to their existing row
- * rather than duplicated. `is_admin` is granted (never revoked here) the
- * first time a configured admin email signs in.
+ * rather than duplicated — this can also link to a pre-existing native
+ * Directus panel account with the same email (e.g. the bootstrap admin
+ * account); only the Clerk-sync fields below are ever written, never
+ * `role`/`password`, so that's safe. `is_admin` is granted (never revoked
+ * here) the first time a configured admin email signs in.
  */
 export async function upsertUserFromClerk(input: UpsertUser): Promise<User> {
   const client = getServiceDirectusClient();
 
   const byClerkId = await client.request(
-    readItems("directus_users", {
+    readUsers({
       filter: { clerk_user_id: { _eq: input.clerkUserId } },
       fields: USER_FIELDS,
       limit: 1,
@@ -91,7 +94,7 @@ export async function upsertUserFromClerk(input: UpsertUser): Promise<User> {
     (input.email
       ? ((
           await client.request(
-            readItems("directus_users", {
+            readUsers({
               filter: { email: { _eq: input.email } },
               fields: USER_FIELDS,
               limit: 1,
@@ -113,13 +116,12 @@ export async function upsertUserFromClerk(input: UpsertUser): Promise<User> {
   };
 
   if (existing) {
-    await client.request(updateItem("directus_users", existing.id, payload, { fields: USER_FIELDS }));
+    await client.request(updateUser(existing.id, payload, { fields: USER_FIELDS }));
     return toDomainUser({ ...existing, ...payload });
   }
 
   const created = await client.request(
-    createItem(
-      "directus_users",
+    createUser(
       { ...payload, full_name: [input.firstName, input.lastName].filter(Boolean).join(" ") || null },
       { fields: USER_FIELDS },
     ),
@@ -130,7 +132,7 @@ export async function upsertUserFromClerk(input: UpsertUser): Promise<User> {
 export async function deactivateUserByClerkId(clerkUserId: string): Promise<void> {
   const client = getServiceDirectusClient();
   const rows = await client.request(
-    readItems("directus_users", {
+    readUsers({
       filter: { clerk_user_id: { _eq: clerkUserId } },
       fields: ["id"],
       limit: 1,
@@ -138,5 +140,5 @@ export async function deactivateUserByClerkId(clerkUserId: string): Promise<void
   );
   const user = rows[0] as { id: string } | undefined;
   if (!user) return;
-  await client.request(updateItem("directus_users", user.id, { status: "suspended" }, { fields: ["id"] }));
+  await client.request(updateUser(user.id, { status: "suspended" }, { fields: ["id"] }));
 }
