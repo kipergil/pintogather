@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Download } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Share2, Crown } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
-import { useToast } from "@/hooks/use-toast";
 
 interface MapDetailProps {
   params: {
@@ -49,7 +49,6 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
@@ -58,9 +57,9 @@ export default function MapDetail({ params }: MapDetailProps) {
   if (isLoading) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-4"></div>
-          <div className="h-96 bg-gray-200 rounded"></div>
+        <div className="animate-pulse space-y-6">
+          <div className="h-32 bg-muted rounded-2xl" />
+          <div className="h-96 bg-muted rounded-2xl" />
         </div>
       </main>
     );
@@ -69,16 +68,16 @@ export default function MapDetail({ params }: MapDetailProps) {
   if (error || !mapCollection) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <h2 className="text-xl font-semibold text-red-600 mb-2">Map Not Found</h2>
-            <p className="text-neutral-600 mb-4">
-              The map collection you're looking for doesn't exist or the URL is invalid.
+        <Card className="border-border">
+          <CardContent className="pt-8 pb-8 text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Map not found</h2>
+            <p className="text-muted-foreground mb-5">
+              This map doesn't exist, or the link is no longer valid.
             </p>
             <Link href="/">
               <Button>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
+                Back to home
               </Button>
             </Link>
           </CardContent>
@@ -88,86 +87,27 @@ export default function MapDetail({ params }: MapDetailProps) {
   }
 
   const contributorsCount = new Set(mapCollection.pins.map(pin => pin.userName)).size;
-
-  const exportToCSV = () => {
-    if (!mapCollection.pins.length) {
-      toast({
-        title: "No data to export",
-        description: "This map has no pins to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const headers = [
-      'Name',
-      'Address',
-      'City',
-      'State',
-      'Country',
-      'Latitude',
-      'Longitude',
-      'Twitter',
-      'Instagram',
-      'LinkedIn',
-      'Note',
-      'Date Added'
-    ];
-
-    const csvData = mapCollection.pins.map(pin => [
-      pin.userName || '',
-      pin.address || '',
-      pin.city || '',
-      pin.state || '',
-      pin.country || '',
-      pin.latitude || '',
-      pin.longitude || '',
-      pin.twitterHandle || '',
-      pin.instagramHandle || '',
-      pin.linkedinHandle || '',
-      pin.note || '',
-      new Date(pin.createdAt).toLocaleDateString()
-    ]);
-
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${mapCollection.name}-pins.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "CSV exported",
-      description: `${mapCollection.pins.length} pins exported to ${mapCollection.name}-pins.csv`,
-    });
-  };
+  const isOwner = !!user && user.id === mapCollection.ownerId;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
       {/* Anonymous User Notice */}
       {!user && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <h3 className="font-medium text-amber-900">Viewing as Guest</h3>
+                <h3 className="font-medium text-amber-900">Viewing as a guest</h3>
                 <p className="text-sm text-amber-800 mt-1">
-                  You're viewing this map as a guest. You can pin locations, but they will be saved anonymously. 
-                  <button 
+                  You can still drop pins, but they'll be saved anonymously.{" "}
+                  <button
                     onClick={() => setIsAuthModalOpen(true)}
-                    className="font-medium underline hover:no-underline ml-1"
+                    className="font-medium underline hover:no-underline"
                   >
-                    Sign in or sign up
-                  </button>
-                  {" "}to pin with your profile and connect with the community.
+                    Sign in
+                  </button>{" "}
+                  to pin with your profile.
                 </p>
               </div>
             </div>
@@ -176,26 +116,30 @@ export default function MapDetail({ params }: MapDetailProps) {
       )}
 
       {/* Map Header */}
-      <Card>
+      <Card className="border-border">
         <CardContent className="p-6">
-          {/* Title Row with Action Buttons */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-neutral-900">{mapCollection.name}</h2>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{mapCollection.name}</h1>
+                {isOwner && (
+                  <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
+                    <Crown className="h-3 w-3" />
+                    Owner
+                  </Badge>
+                )}
+              </div>
               {mapCollection.description && (
-                <p className="text-neutral-600 mt-1">{mapCollection.description}</p>
+                <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
             </div>
-            <div className="flex items-center space-x-2 ml-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsShareModalOpen(true)}
-              >
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setIsShareModalOpen(true)} data-testid="button-share-map">
+                <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
               <Link href="/">
-                <Button variant="outline" size="sm">
+                <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
@@ -203,45 +147,28 @@ export default function MapDetail({ params }: MapDetailProps) {
             </div>
           </div>
 
-          {/* Stats Row */}
-          <div className="flex items-center space-x-4 mb-4">
-            <span className="text-sm text-neutral-500">
-              <MapPin className="h-4 w-4 inline mr-1" />
-              {mapCollection.pinCount} pins
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" />
+              {mapCollection.pinCount} {mapCollection.pinCount === 1 ? "pin" : "pins"}
             </span>
-            <span className="text-sm text-neutral-500">
-              <Users className="h-4 w-4 inline mr-1" />
-              {contributorsCount} contributors
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
             </span>
-          </div>
-
-          {/* Community Note */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="h-4 w-4 text-blue-600" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-medium text-blue-900 mb-1">Community Collaboration</h4>
-                <p className="text-sm text-blue-800 leading-relaxed">
-                  This is a shared community map where anyone with the URL can view and add pins. 
-                  Click anywhere on the map to add your location and connect with others in the community!
-                </p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Map View */}
       <SimpleGoogleMap mapCollection={mapCollection} />
-      
-      {/* Pin Table - Always shown at bottom */}
-      <Card>
+
+      {/* Pins management */}
+      <Card className="border-border">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Pins ({mapCollection.pinCount})</h3>
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+          </h2>
           <PinTable pins={mapCollection.pins} mapOwnerId={mapCollection.ownerId} shareUrl={mapCollection.shareUrl} />
         </CardContent>
       </Card>

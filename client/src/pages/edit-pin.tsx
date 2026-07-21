@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, MapPin, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, AtSign, Link2, MapPin, Save, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -134,11 +134,11 @@ export default function EditPin({ params }: EditPinProps) {
 
   if (pinLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Loading Pin...</h2>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-border">
+          <CardContent className="p-8 text-center">
+            <Loader2 className="h-7 w-7 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-lg font-semibold">Loading pin...</h2>
           </CardContent>
         </Card>
       </div>
@@ -147,13 +147,15 @@ export default function EditPin({ params }: EditPinProps) {
 
   if (pinError || !pin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Pin Not Found</h2>
-            <p className="text-gray-600 mb-4">The pin you're trying to edit doesn't exist or you don't have permission to edit it.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-border">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-lg font-semibold mb-2">Pin not found</h2>
+            <p className="text-muted-foreground mb-5 text-sm">
+              This pin doesn't exist or you don't have permission to edit it.
+            </p>
             <Link href={`/map/${shareUrl}`}>
-              <Button className="w-full">Back to Map</Button>
+              <Button className="w-full">Back to map</Button>
             </Link>
           </CardContent>
         </Card>
@@ -162,116 +164,102 @@ export default function EditPin({ params }: EditPinProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto p-4 py-8">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-xl mx-auto p-4 py-10">
+        <Link href={`/map/${shareUrl}`}>
+          <Button variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground">
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back to map
+          </Button>
+        </Link>
+
         <div className="mb-6">
-          <div className="flex items-center mb-2">
-            <MapPin className="h-6 w-6 mr-3 text-gray-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Edit Pin</h1>
+          <div className="flex items-center gap-2.5 mb-1.5">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <MapPin className="h-4 w-4" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Edit pin</h1>
           </div>
-          
-          {pin.address && (
-            <p className="text-sm text-gray-600">
-              Location: {pin.address}
-            </p>
-          )}
+          {pin.address && <p className="text-sm text-muted-foreground ml-11">{pin.address}</p>}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Pin Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="border-border">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="userName">Your Name *</Label>
+                <Label htmlFor="userName">Your name</Label>
                 <Input
                   id="userName"
                   type="text"
                   placeholder="Enter your name"
                   value={formData.userName}
                   onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                  className="h-12 text-base touch-target"
                   required
+                  data-testid="input-user-name"
                 />
               </div>
 
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Social Media (Optional)</Label>
-                
-                <div className="space-y-4">
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="Twitter handle (without @)"
-                      value={formData.twitterHandle}
-                      onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.621 5.367 11.988 11.988 11.988s11.987-5.367 11.987-11.988C24.004 5.367 18.637.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.321-1.295C3.897 14.475 3.365 13.48 3.365 12.017s.532-2.458 1.763-3.676C6.001 7.536 7.152 7.046 8.449 7.046s2.448.49 3.321 1.295c1.231 1.218 1.763 2.213 1.763 3.676s-.532 2.458-1.763 3.676c-.873.805-2.024 1.295-3.321 1.295z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="Instagram handle (without @)"
-                      value={formData.instagramHandle}
-                      onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600">
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                      </svg>
-                    </div>
-                    <Input
-                      placeholder="LinkedIn profile URL or handle"
-                      value={formData.linkedinHandle}
-                      onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                      className="pl-12 h-12 text-base touch-target"
-                    />
-                  </div>
+              <div className="space-y-2.5">
+                <Label className="text-sm text-muted-foreground">Social links (optional)</Label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="X (Twitter) handle"
+                    value={formData.twitterHandle}
+                    onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
+                    className="pl-9"
+                    data-testid="input-twitter"
+                  />
+                </div>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Instagram handle"
+                    value={formData.instagramHandle}
+                    onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
+                    className="pl-9"
+                    data-testid="input-instagram"
+                  />
+                </div>
+                <div className="relative">
+                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="LinkedIn profile"
+                    value={formData.linkedinHandle}
+                    onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
+                    className="pl-9"
+                    data-testid="input-linkedin"
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="note">Note (Optional)</Label>
+                <Label htmlFor="note">Note (optional)</Label>
                 <Textarea
                   id="note"
                   placeholder="Add a note about this location..."
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  className="min-h-[100px] text-base resize-none"
-                  rows={4}
+                  rows={3}
+                  data-testid="input-note"
                 />
               </div>
 
-              <div className="pt-4 space-y-3">
-                <Button 
-                  type="submit"
-                  className="w-full h-12 text-base touch-target"
-                  disabled={loading || updatePinMutation.isPending || !formData.userName.trim()}
-                >
-                  <Save className="h-5 w-5 mr-2" />
-                  {loading || updatePinMutation.isPending ? "Updating Pin..." : "Update Pin"}
-                </Button>
-                
-                <Link href={`/map/${shareUrl}`} className="block">
-                  <Button variant="outline" className="w-full h-12 text-base touch-target">
-                    <ArrowLeft className="h-5 w-5 mr-2" />
-                    Back to Map
+              <div className="flex gap-3 pt-1">
+                <Link href={`/map/${shareUrl}`} className="flex-1">
+                  <Button type="button" variant="outline" className="w-full">
+                    Cancel
                   </Button>
                 </Link>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={loading || updatePinMutation.isPending || !formData.userName.trim()}
+                  data-testid="button-update-pin"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {loading || updatePinMutation.isPending ? "Saving..." : "Save changes"}
+                </Button>
               </div>
             </form>
           </CardContent>

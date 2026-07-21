@@ -6,11 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlacesSearch } from "./places-search";
-import { MapPin, Plus, Search, MousePointer2, Building2, User, MessageSquare } from "lucide-react";
+import {
+  MapPin,
+  Plus,
+  Search,
+  MousePointer2,
+  AtSign,
+  ChevronDown,
+  Link2,
+} from "lucide-react";
 
 interface AddPinModalProps {
   isOpen: boolean;
@@ -52,22 +61,27 @@ interface PlaceResult {
   lng: number;
 }
 
+const NOTE_MAX_LENGTH = 280;
+
+const emptyForm: PinFormData = {
+  userName: "",
+  twitterHandle: "",
+  instagramHandle: "",
+  linkedinHandle: "",
+  note: "",
+};
+
 export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: initialLocation }: AddPinModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const [activeTab, setActiveTab] = useState<"search" | "custom">(initialLocation ? "custom" : "search");
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address?: string } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
-  
-  const [formData, setFormData] = useState<PinFormData>({
-    userName: "",
-    twitterHandle: "",
-    instagramHandle: "",
-    linkedinHandle: "",
-    note: "",
-  });
+  const [showSocialLinks, setShowSocialLinks] = useState(false);
+
+  const [formData, setFormData] = useState<PinFormData>(emptyForm);
 
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -93,14 +107,11 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
         instagramHandle: user.instagramHandle || prev.instagramHandle,
         linkedinHandle: user.linkedinHandle || prev.linkedinHandle,
       }));
+      if (user.twitterHandle || user.instagramHandle || user.linkedinHandle) {
+        setShowSocialLinks(true);
+      }
     } else if (isOpen && !user) {
-      setFormData({
-        userName: "",
-        twitterHandle: "",
-        instagramHandle: "",
-        linkedinHandle: "",
-        note: "",
-      });
+      setFormData(emptyForm);
     }
   }, [isOpen, user]);
 
@@ -118,7 +129,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
         const response = await fetch(
           `/api/geocode?lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`
         );
-        
+
         if (response.ok) {
           const data = await response.json();
           setLocationData(data);
@@ -177,19 +188,17 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "Pin added successfully!",
+        title: "Pin added",
+        description: "Your pin is now live on the map.",
+        variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${mapCollection.shareUrl}`] });
       handleClose();
     },
     onError: (error: any) => {
-      let errorMessage = "Failed to add pin";
-      let errorDetails = error.message || "Please try again";
-      
       toast({
-        title: errorMessage,
-        description: errorDetails,
+        title: "Couldn't add pin",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -197,7 +206,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.userName.trim()) {
       toast({
         title: "Name required",
@@ -207,7 +216,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       return;
     }
 
-    const currentLocation = activeTab === "search" ? 
+    const currentLocation = activeTab === "search" ?
       (selectedPlace ? { lat: selectedPlace.lat, lng: selectedPlace.lng, address: selectedPlace.address } : null) :
       selectedLocation;
 
@@ -241,198 +250,160 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   };
 
   const handleClose = () => {
-    setFormData({
-      userName: "",
-      twitterHandle: "",
-      instagramHandle: "",
-      linkedinHandle: "",
-      note: "",
-    });
+    setFormData(emptyForm);
     setLocationData(null);
     setSelectedPlace(null);
     setSelectedLocation(null);
     setActiveTab("search");
+    setShowSocialLinks(false);
     onClose();
   };
 
   const hasValidLocation = activeTab === "search" ? !!selectedPlace : !!selectedLocation;
+  const socialLinksFilledCount = [formData.twitterHandle, formData.instagramHandle, formData.linkedinHandle].filter(
+    Boolean
+  ).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[9999]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            Add New Pin
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[9999] p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2 min-w-0">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <MapPin className="h-4 w-4" />
+            </div>
+            Add a pin
           </DialogTitle>
-          <DialogDescription>
-            Search for a place or use your selected location on the map
-          </DialogDescription>
+          <DialogDescription>Search for a place, or use the spot you picked on the map.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-5 min-w-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "search" | "custom")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="search" className="flex items-center gap-2" data-testid="tab-search">
                 <Search className="h-4 w-4" />
-                Search Place
+                Search
               </TabsTrigger>
               <TabsTrigger value="custom" className="flex items-center gap-2" data-testid="tab-custom">
                 <MousePointer2 className="h-4 w-4" />
-                Map Click
+                Map location
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="search" className="mt-4 space-y-3">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-gray-500" />
-                  Search for a venue or address
-                </Label>
-                <PlacesSearch 
-                  onPlaceSelect={handlePlaceSelect}
-                  placeholder="Search restaurants, cafes, landmarks..."
-                />
-              </div>
+            <TabsContent value="search" className="mt-3 space-y-3">
+              <PlacesSearch
+                onPlaceSelect={handlePlaceSelect}
+                placeholder="Search restaurants, cafes, landmarks..."
+              />
 
-              {selectedPlace && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium text-green-900">{selectedPlace.name}</div>
-                      <div className="text-sm text-green-700">{selectedPlace.address}</div>
-                    </div>
-                  </div>
+              {selectedPlace && <LocationPreview title={selectedPlace.name} subtitle={selectedPlace.address} />}
+            </TabsContent>
+
+            <TabsContent value="custom" className="mt-3">
+              {isLoadingLocation ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-xl border border-border bg-muted/40 p-4">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+                  Looking up address...
+                </div>
+              ) : selectedLocation ? (
+                <LocationPreview
+                  title={locationData?.address || `${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`}
+                  subtitle={[locationData?.city, locationData?.state].filter(Boolean).join(", ") || undefined}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-6 rounded-xl border border-dashed border-border">
+                  Click anywhere on the map to drop a pin here
                 </div>
               )}
             </TabsContent>
-
-            <TabsContent value="custom" className="mt-4">
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                {isLoadingLocation ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
-                    Loading location details...
-                  </div>
-                ) : selectedLocation ? (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      {locationData?.address ? (
-                        <>
-                          <div className="font-medium text-gray-900">{locationData.address}</div>
-                          {(locationData.city || locationData.state) && (
-                            <div className="text-sm text-gray-600">
-                              {[locationData.city, locationData.state].filter(Boolean).join(', ')}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-sm text-gray-700">
-                          {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 text-center py-2">
-                    Click on the map to select a location
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-2 italic">
-                Tip: You can click anywhere on the map for a custom location
-              </p>
-            </TabsContent>
           </Tabs>
 
-          <div className="border-t pt-5 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="userName" className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-500" />
-                Your Name *
-              </Label>
-              <Input
-                id="userName"
-                type="text"
-                placeholder="Enter your name"
-                value={formData.userName}
-                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                required
-                data-testid="input-user-name"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-gray-700">Social Links (Optional)</Label>
-              
-              <div className="grid gap-3">
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
-                  </div>
-                  <Input
-                    placeholder="X (Twitter) handle"
-                    value={formData.twitterHandle}
-                    onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                    className="pl-10"
-                    data-testid="input-twitter"
-                  />
-                </div>
-
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-                    </svg>
-                  </div>
-                  <Input
-                    placeholder="Instagram handle"
-                    value={formData.instagramHandle}
-                    onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                    className="pl-10"
-                    data-testid="input-instagram"
-                  />
-                </div>
-
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
-                  </div>
-                  <Input
-                    placeholder="LinkedIn profile"
-                    value={formData.linkedinHandle}
-                    onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                    className="pl-10"
-                    data-testid="input-linkedin"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pinNote" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-gray-500" />
-                Note (Optional)
-              </Label>
-              <Textarea
-                id="pinNote"
-                placeholder="Add a note about this location..."
-                value={formData.note}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                rows={2}
-                data-testid="input-note"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="userName">Your name</Label>
+            <Input
+              id="userName"
+              type="text"
+              placeholder="How should we credit this pin?"
+              value={formData.userName}
+              onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+              required
+              autoFocus={!!initialLocation}
+              data-testid="input-user-name"
+            />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pinNote">Note</Label>
+              <span className="text-xs text-muted-foreground">
+                {formData.note.length}/{NOTE_MAX_LENGTH}
+              </span>
+            </div>
+            <Textarea
+              id="pinNote"
+              placeholder="What makes this place worth pinning?"
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
+              rows={2}
+              data-testid="input-note"
+            />
+          </div>
+
+          <Collapsible open={showSocialLinks} onOpenChange={setShowSocialLinks}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+                data-testid="button-toggle-social-links"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" />
+                  Social links {socialLinksFilledCount > 0 && `(${socialLinksFilledCount} added)`}
+                  <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showSocialLinks ? "rotate-180" : ""}`} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3 space-y-2.5">
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="X (Twitter) handle"
+                  value={formData.twitterHandle}
+                  onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
+                  className="pl-9"
+                  data-testid="input-twitter"
+                />
+              </div>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Instagram handle"
+                  value={formData.instagramHandle}
+                  onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
+                  className="pl-9"
+                  data-testid="input-instagram"
+                />
+              </div>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="LinkedIn profile"
+                  value={formData.linkedinHandle}
+                  onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
+                  className="pl-9"
+                  data-testid="input-linkedin"
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <p className="text-xs text-muted-foreground/80 leading-relaxed">
+            Anyone with access to this map can see the details you add here.
+          </p>
+
+          <div className="flex gap-3 pt-1">
+            <Button
               type="button"
               variant="outline"
               className="flex-1"
@@ -441,18 +412,32 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="submit"
               className="flex-1"
               disabled={createPinMutation.isPending || isLoadingLocation || !hasValidLocation}
               data-testid="button-add-pin"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {createPinMutation.isPending ? "Adding..." : "Add Pin"}
+              {createPinMutation.isPending ? "Adding..." : "Add pin"}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LocationPreview({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-3.5">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <MapPin className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <div className="font-medium text-foreground text-sm truncate">{title}</div>
+        {subtitle && <div className="text-xs text-muted-foreground truncate">{subtitle}</div>}
+      </div>
+    </div>
   );
 }

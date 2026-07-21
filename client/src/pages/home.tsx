@@ -1,35 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
-import { ActivityFeed } from "@/components/activity-feed";
+import { MapCard, MapCardSkeleton, type MapCollectionSummary } from "@/components/map-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
-import { Share2, ExternalLink, LogIn, MapPin, Check, X, Crown, Plus, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import {
+  Share2,
+  LogIn,
+  MapPin,
+  Plus,
+  Users,
+  Compass,
+  Sparkles,
+  Building2,
+  Globe2,
+  HeartHandshake,
+  PartyPopper,
+  Landmark,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
 import { useState } from "react";
 
-interface MapCollection {
-  id: string;
-  name: string;
-  description?: string;
-  shareUrl: string;
-  createdAt: string;
-  pinCount: number;
-}
-
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollection | null }>({
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollectionSummary | null }>({
     isOpen: false,
-    map: null
+    map: null,
   });
-  const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollection[]>({
+
+  const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollectionSummary[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/maps?ownedOnly=true");
@@ -39,7 +45,7 @@ export default function Home() {
     enabled: !authLoading && !!user?.id,
   });
 
-  const { data: contributedMaps = [], isLoading: isLoadingContributed } = useQuery<MapCollection[]>({
+  const { data: contributedMaps = [], isLoading: isLoadingContributed } = useQuery<MapCollectionSummary[]>({
     queryKey: ["/api/maps", user?.id, "contributed"],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/maps?contributedOnly=true");
@@ -49,568 +55,64 @@ export default function Home() {
     enabled: !authLoading && !!user?.id,
   });
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return "Today";
-    if (diffInDays === 1) return "Yesterday";
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-    return `${Math.floor(diffInDays / 30)} months ago`;
-  };
-
-  const handleCopyMapUrl = async (shareUrl: string, mapName: string) => {
+  const handleCopyMapUrl = async (map: MapCollectionSummary) => {
     try {
-      const url = `${window.location.origin}/map/${shareUrl}`;
+      const url = `${window.location.origin}/map/${map.shareUrl}`;
       await navigator.clipboard.writeText(url);
       toast({
-        title: "Link copied!",
-        description: `Map "${mapName}" link copied to clipboard`,
+        title: "Link copied",
+        description: `Share link for "${map.name}" copied to clipboard`,
+        variant: "success",
       });
     } catch (error) {
       toast({
-        title: "Failed to copy",
-        description: "Unable to copy link to clipboard",
+        title: "Couldn't copy link",
+        description: "Please copy the URL manually from the map page",
         variant: "destructive",
       });
     }
   };
 
+  const totalPins = ownedMaps.reduce((sum, map) => sum + (map.pinCount || 0), 0);
+  const firstName = user?.firstName || user?.fullName?.split(" ")[0];
+
   return (
     <>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="text-center py-12">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-4">Pin Your World Together</h2>
-        <p className="text-lg text-neutral-600 max-w-2xl mx-auto mb-8">
-          Create collaborative maps where communities gather, share locations, and build connections through shared experiences.
-        </p>
-        
-        {user && (
-          <div className="max-w-md mx-auto mb-8">
-            <Button 
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              size="lg"
-              className="w-full"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Create New Map
-              {showCreateForm ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-            </Button>
-            
-            {showCreateForm && (
-              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                <CreateMapForm />
-              </div>
-            )}
-          </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {user ? (
+          <SignedInDashboard
+            firstName={firstName}
+            ownedMaps={ownedMaps}
+            contributedMaps={contributedMaps}
+            isLoadingOwned={isLoadingOwned}
+            isLoadingContributed={isLoadingContributed}
+            totalPins={totalPins}
+            onCreateClick={() => setIsCreateOpen(true)}
+            onCopyLink={handleCopyMapUrl}
+            onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
+          />
+        ) : (
+          <AnonymousLanding />
         )}
-        
-        {!user && (
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600">1</span>
-                </div>
-                <h3 className="font-semibold mb-2">Create a Map</h3>
-                <p className="text-sm text-neutral-600">Start by creating a new collaborative map with a name and description.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-green-600">2</span>
-                </div>
-                <h3 className="font-semibold mb-2">Share the URL</h3>
-                <p className="text-sm text-neutral-600">Get a unique shareable URL that allows anyone to view and contribute to your map.</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-purple-600">3</span>
-                </div>
-                <h3 className="font-semibold mb-2">Pin Together</h3>
-                <p className="text-sm text-neutral-600">Contributors click on the map to add pins and gather around shared locations and experiences.</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
 
-      {/* Activity Feed - visible only to anonymous users */}
-      {!user && (
-        <div className="max-w-2xl mx-auto mb-12">
-          <ActivityFeed />
-        </div>
-      )}
-
-      {/* Pricing Tiers - visible only to anonymous users */}
-      {!user && (
-        <div className="max-w-5xl mx-auto mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-3">Choose Your Plan</h2>
-            <p className="text-neutral-600">Free plan available now. Premium features coming soon!</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Free Plan */}
-            <Card className="relative">
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-lg">Free</CardTitle>
-                <div className="text-2xl font-bold">$0</div>
-                <p className="text-sm text-neutral-600">Perfect for getting started</p>
-                <Badge variant="secondary" className="bg-green-100 text-green-800">Available Now</Badge>
-              </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Create unlimited maps</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Add unlimited pins</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Share maps with anyone</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Community collaboration</span>
-                </li>
-                <li className="flex items-center">
-                  <X className="h-4 w-4 text-red-400 mr-3" />
-                  <span className="text-sm text-neutral-500">CSV export</span>
-                </li>
-                <li className="flex items-center">
-                  <X className="h-4 w-4 text-red-400 mr-3" />
-                  <span className="text-sm text-neutral-500">Venue search</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Basic Plan */}
-          <Card className="relative border-blue-200">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-lg text-blue-700">Basic</CardTitle>
-              <div className="text-2xl font-bold">£2<span className="text-base font-normal">/month</span></div>
-              <p className="text-sm text-neutral-600">Enhanced collaboration tools</p>
-              <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Everything in Free</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">CSV export for data analysis</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Venue search integration</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Priority support</span>
-                </li>
-                <li className="flex items-center">
-                  <X className="h-4 w-4 text-red-400 mr-3" />
-                  <span className="text-sm text-neutral-500">Advanced analytics</span>
-                </li>
-                <li className="flex items-center">
-                  <X className="h-4 w-4 text-red-400 mr-3" />
-                  <span className="text-sm text-neutral-500">Custom branding</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Premium Plan */}
-          <Card className="relative border-purple-200 bg-gradient-to-b from-purple-50 to-white">
-            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-              <Badge className="bg-purple-600 text-white">
-                <Crown className="h-3 w-3 mr-1" />
-                Most Popular
-              </Badge>
-            </div>
-            <CardHeader className="text-center pb-4 pt-6">
-              <CardTitle className="text-lg text-purple-700">Premium</CardTitle>
-              <div className="text-2xl font-bold">£7<span className="text-base font-normal">/month</span></div>
-              <p className="text-sm text-neutral-600">Full-featured collaboration platform</p>
-              <Badge variant="outline" className="border-orange-200 text-orange-700">Coming Soon</Badge>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Everything in Basic</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Advanced analytics dashboard</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Custom map branding</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">API access for integrations</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">White-label options</span>
-                </li>
-                <li className="flex items-center">
-                  <Check className="h-4 w-4 text-green-500 mr-3" />
-                  <span className="text-sm">Dedicated support</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-          <div className="text-center mt-8">
-            <p className="text-sm text-neutral-600">
-              Join our waitlist to be notified when premium features become available!
-            </p>
-          </div>
-        </div>
-      )}
-
-      {!user && (
-        <div className="max-w-md mx-auto mb-12 text-center">
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-2">Get Started</h3>
-              <p className="text-neutral-600 mb-4">Sign in to create maps where communities can pin together.</p>
-              <Link href="/auth" className="w-full">
-                <Button className="w-full">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Sign In to Create Maps
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {user && (ownedMaps.length > 0 || isLoadingOwned) && (
-        <div className="mt-12">
-          <Card className="border border-gray-200">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Created</h3>
-            
-              {isLoadingOwned ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {[...Array(3)].map((_, i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
-                        <div className="h-4 bg-gray-200 rounded mb-3"></div>
-                        <div className="h-3 bg-gray-200 rounded mb-4"></div>
-                        <div className="flex justify-between">
-                          <div className="h-3 bg-gray-200 rounded w-20"></div>
-                          <div className="flex space-x-2">
-                            <div className="h-6 w-6 bg-gray-200 rounded"></div>
-                            <div className="h-6 w-6 bg-gray-200 rounded"></div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {(ownedMaps || []).map((map) => (
-                    <Card key={map.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
-                          <Badge variant="outline" className="text-xs">
-                            Owner
-                          </Badge>
-                        </div>
-                        
-                        {map.description && (
-                          <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
-                        )}
-                        
-                        <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
-                          <span>{map.pinCount} pins</span>
-                          <span>{formatDate(map.createdAt)}</span>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Link href={`/map/${map.shareUrl}`} className="flex-1">
-                            <Button variant="default" size="sm" className="w-full">
-                              <MapPin className="h-4 w-4 mr-2" />
-                              View Map
-                            </Button>
-                          </Link>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setDeleteMapModal({ isOpen: true, map })}
-                            className="px-3"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Maps You Contributed To Section */}
-      {user && (contributedMaps.length > 0 || isLoadingContributed) && (
-        <div className="mt-12">
-          <Card className="border border-gray-200">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-semibold text-neutral-900 mb-6">Maps You Contributed To</h3>
-            
-              {isLoadingContributed ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {[...Array(3)].map((_, i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
-                        <div className="h-5 bg-neutral-200 rounded mb-3"></div>
-                        <div className="h-4 bg-neutral-200 rounded mb-2"></div>
-                        <div className="h-4 bg-neutral-200 rounded w-2/3"></div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {(contributedMaps || []).map((map) => (
-                    <Card key={map.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="font-semibold text-neutral-900 line-clamp-1">{map.name}</h4>
-                          <Badge variant="secondary" className="text-xs">
-                            Contributor
-                          </Badge>
-                        </div>
-                        
-                        {map.description && (
-                          <p className="text-sm text-neutral-600 mb-3 line-clamp-2">{map.description}</p>
-                        )}
-                        
-                        <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
-                          <span>{map.pinCount} pins</span>
-                          <span>{formatDate(map.createdAt)}</span>
-                        </div>
-                        
-                        <Link href={`/map/${map.shareUrl}`} className="w-full">
-                          <Button variant="default" size="sm" className="w-full">
-                            <MapPin className="h-4 w-4 mr-2" />
-                            View Map
-                          </Button>
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Step-by-step guide for signed-in users */}
-      {user && (
-        <div className="mt-16 mb-12">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-neutral-900 mb-2">Getting Started Guide</h3>
-            <p className="text-neutral-600">Follow these simple steps to create your first collaborative map</p>
-          </div>
-          
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Step 1 */}
-            <Card className="border-2 border-blue-100 bg-blue-50/50">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-white">1</span>
-                </div>
-                <h4 className="text-lg font-semibold text-blue-900 mb-3">Create Your Map</h4>
-                <p className="text-sm text-blue-800 mb-4">Click the "Create New Map" button above to start a new collaborative map. Give it a descriptive name and optional description.</p>
-                <div className="bg-white/70 rounded-lg p-3 border border-blue-200">
-                  <p className="text-xs text-blue-700 font-medium">💡 Tip: Choose a clear name that describes the purpose of your map</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Step 2 */}
-            <Card className="border-2 border-green-100 bg-green-50/50">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-white">2</span>
-                </div>
-                <h4 className="text-lg font-semibold text-green-900 mb-3">Share Your Map</h4>
-                <p className="text-sm text-green-800 mb-4">Copy the map URL and share it with friends, colleagues, or your community. Anyone with the link can view and add pins.</p>
-                <div className="bg-white/70 rounded-lg p-3 border border-green-200">
-                  <p className="text-xs text-green-700 font-medium">💡 Tip: Share via social media, email, or messaging apps</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Step 3 */}
-            <Card className="border-2 border-purple-100 bg-purple-50/50">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-white">3</span>
-                </div>
-                <h4 className="text-lg font-semibold text-purple-900 mb-3">Pin Together</h4>
-                <p className="text-sm text-purple-800 mb-4">Contributors click anywhere on the map to add pins with their information. Watch your community gather around shared locations!</p>
-                <div className="bg-white/70 rounded-lg p-3 border border-purple-200">
-                  <p className="text-xs text-purple-700 font-medium">💡 Tip: Encourage detailed pin descriptions to build stronger connections</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Use Cases Section */}
-      <div className="mt-20 mb-12">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-neutral-900 mb-4">Perfect for Every Community</h2>
-          <p className="text-lg text-neutral-600 max-w-3xl mx-auto">
-            Discover how teams, families, and communities use PinTogather to connect and share meaningful locations
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {/* Team Locations */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                  <path d="M16 16h3v2h-3v3h-2v-3h-3v-2h3v-3h2v3z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Team Locations</h3>
-              <p className="text-neutral-600 mb-4">Create maps for your team members so everyone knows where colleagues are located. Build stronger connections across distributed teams.</p>
-              <div className="text-sm text-teal-600 font-medium">Perfect for: Remote teams, distributed workforces, company offices</div>
-            </CardContent>
-          </Card>
-
-          {/* Remote Teams */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Distributed Teams</h3>
-              <p className="text-neutral-600 mb-4">Connect remote workers across the globe. Share office locations, coworking spaces, and team meetup spots.</p>
-              <div className="text-sm text-blue-600 font-medium">Perfect for: Remote companies, digital nomads, freelance networks</div>
-            </CardContent>
-          </Card>
-
-          {/* Families */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zM4 18v-6h2.5l6 6H4zm6.5 0v-6h2l6 6h-8zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Family Connections</h3>
-              <p className="text-neutral-600 mb-4">Keep families connected across cities and countries. Share homes, vacation spots, and special places that matter.</p>
-              <div className="text-sm text-pink-600 font-medium">Perfect for: Extended families, military families, expats</div>
-            </CardContent>
-          </Card>
-
-          {/* Friends */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16 17v2H2v-2s0-4 7-4 7 4 7 4zM12.5 7.5A3.5 3.5 0 1 0 9 4a3.5 3.5 0 0 0 3.5 3.5zM15.5 7.5A3.5 3.5 0 1 0 19 4a3.5 3.5 0 0 0-3.5 3.5z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Friend Groups</h3>
-              <p className="text-neutral-600 mb-4">Plan hangouts and discover new spots together. Share favorite restaurants, bars, and hidden gems with your crew.</p>
-              <div className="text-sm text-green-600 font-medium">Perfect for: College friends, hobby groups, social circles</div>
-            </CardContent>
-          </Card>
-
-          {/* Clubs & Communities */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Clubs & Organizations</h3>
-              <p className="text-neutral-600 mb-4">Build community around shared interests. Map club locations, event venues, and member meetup spots.</p>
-              <div className="text-sm text-purple-600 font-medium">Perfect for: Sports clubs, book clubs, volunteer groups</div>
-            </CardContent>
-          </Card>
-
-          {/* Businesses */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Brand Locations</h3>
-              <p className="text-neutral-600 mb-4">Showcase franchise locations and venues. Let customers discover and share their favorite brand experiences.</p>
-              <div className="text-sm text-orange-600 font-medium">Perfect for: Franchises, restaurant chains, retail networks</div>
-            </CardContent>
-          </Card>
-
-
-
-          {/* Events */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-3">Event Planning</h3>
-              <p className="text-neutral-600 mb-4">Coordinate gatherings and celebrations. Share venues, accommodation options, and local recommendations with attendees.</p>
-              <div className="text-sm text-indigo-600 font-medium">Perfect for: Weddings, conferences, reunion planning</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="text-center mt-12">
-          <p className="text-lg text-neutral-600 mb-6">Ready to bring your community together?</p>
-          {!user && (
-            <Link href="/auth">
-              <Button size="lg" className="px-8 py-3">
-                <LogIn className="h-5 w-5 mr-2" />
-                Get Started Free
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
-
+        <UseCasesSection showCta={!user} />
       </main>
+
+      {/* Create Map Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Create a new map
+            </DialogTitle>
+            <DialogDescription>
+              Give it a name and description — you'll get a shareable link right after.
+            </DialogDescription>
+          </DialogHeader>
+          <CreateMapForm onCreated={() => setIsCreateOpen(false)} />
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Map Modal */}
       {deleteMapModal.map && (
@@ -621,5 +123,303 @@ export default function Home() {
         />
       )}
     </>
+  );
+}
+
+interface SignedInDashboardProps {
+  firstName?: string;
+  ownedMaps: MapCollectionSummary[];
+  contributedMaps: MapCollectionSummary[];
+  isLoadingOwned: boolean;
+  isLoadingContributed: boolean;
+  totalPins: number;
+  onCreateClick: () => void;
+  onCopyLink: (map: MapCollectionSummary) => void;
+  onDeleteMap: (map: MapCollectionSummary) => void;
+}
+
+function SignedInDashboard({
+  firstName,
+  ownedMaps,
+  contributedMaps,
+  isLoadingOwned,
+  isLoadingContributed,
+  totalPins,
+  onCreateClick,
+  onCopyLink,
+  onDeleteMap,
+}: SignedInDashboardProps) {
+  return (
+    <div className="animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+          </h1>
+          <p className="text-muted-foreground mt-1">Manage your maps and see where your community is gathering.</p>
+        </div>
+        <Button onClick={onCreateClick} size="lg" className="sm:w-auto w-full" data-testid="button-create-map">
+          <Plus className="h-4 w-4 mr-2" />
+          Create new map
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
+        <StatTile label="Maps created" value={ownedMaps.length} icon={<MapPin className="h-4 w-4" />} />
+        <StatTile label="Total pins" value={totalPins} icon={<Sparkles className="h-4 w-4" />} />
+        <StatTile
+          label="Contributing to"
+          value={contributedMaps.length}
+          icon={<Users className="h-4 w-4" />}
+        />
+      </div>
+
+      {/* Maps management */}
+      <Tabs defaultValue="owned" className="w-full">
+        <TabsList>
+          <TabsTrigger value="owned" data-testid="tab-my-maps">
+            My maps {ownedMaps.length > 0 && `(${ownedMaps.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="contributed" data-testid="tab-contributed-maps">
+            Contributed {contributedMaps.length > 0 && `(${contributedMaps.length})`}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="owned" className="mt-6">
+          {isLoadingOwned ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <MapCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : ownedMaps.length === 0 ? (
+            <EmptyState
+              icon={<MapPin className="h-8 w-8" />}
+              title="No maps yet"
+              description="Create your first map to start collecting pins from your community."
+              action={
+                <Button onClick={onCreateClick} data-testid="button-create-first-map">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create your first map
+                </Button>
+              }
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {ownedMaps.map((map) => (
+                <MapCard key={map.id} map={map} role="owner" onCopyLink={onCopyLink} onDelete={onDeleteMap} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="contributed" className="mt-6">
+          {isLoadingContributed ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <MapCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : contributedMaps.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-8 w-8" />}
+              title="No contributions yet"
+              description="Once you add a pin to someone else's shared map, it'll show up here."
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {contributedMaps.map((map) => (
+                <MapCard key={map.id} map={map} role="contributor" onCopyLink={onCopyLink} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function StatTile({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+        {icon}
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="text-2xl sm:text-3xl font-bold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-16 px-4 rounded-2xl border border-dashed border-border bg-muted/30">
+      <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-4">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-foreground mb-1.5">{title}</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mb-5">{description}</p>
+      {action}
+    </div>
+  );
+}
+
+function AnonymousLanding() {
+  return (
+    <div className="animate-fade-in">
+      <div className="text-center py-10 sm:py-16">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground mb-6">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          Collaborative maps, made simple
+        </div>
+        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground mb-5 max-w-3xl mx-auto">
+          Pin your world, together
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+          Create a shared map in seconds. Send the link, and let your community drop pins, add notes, and gather
+          around the places that matter.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link href="/auth">
+            <Button size="lg" className="px-8" data-testid="button-get-started">
+              <LogIn className="h-4 w-4 mr-2" />
+              Get started — it's free
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-5 max-w-4xl mx-auto mb-4">
+        <HowItWorksStep
+          step={1}
+          icon={<Plus className="h-5 w-5" />}
+          title="Create a map"
+          description="Name it, describe it, done. No setup, no credit card."
+        />
+        <HowItWorksStep
+          step={2}
+          icon={<Share2 className="h-5 w-5" />}
+          title="Share the link"
+          description="Anyone with the URL can view it and drop pins right away."
+        />
+        <HowItWorksStep
+          step={3}
+          icon={<MapPin className="h-5 w-5" />}
+          title="Pin together"
+          description="Watch your community's favourite places show up in real time."
+        />
+      </div>
+    </div>
+  );
+}
+
+function HowItWorksStep({
+  step,
+  icon,
+  title,
+  description,
+}: {
+  step: number;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card className="border-border">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            {icon}
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground">STEP {step}</span>
+        </div>
+        <h3 className="font-semibold text-foreground mb-1.5">{title}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+const USE_CASES = [
+  {
+    icon: Building2,
+    title: "Distributed teams",
+    description: "Map where colleagues are based and build stronger connections across offices and time zones.",
+  },
+  {
+    icon: Globe2,
+    title: "Digital nomads",
+    description: "Share coworking spaces, cafes, and meetup spots with a globally scattered community.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "Families & friends",
+    description: "Keep everyone connected across cities — homes, hangouts, and the places that matter.",
+  },
+  {
+    icon: Compass,
+    title: "Clubs & communities",
+    description: "Map club venues, event spaces, and member meetup spots around shared interests.",
+  },
+  {
+    icon: Landmark,
+    title: "Brand locations",
+    description: "Showcase franchise or store locations and let customers share their favourites.",
+  },
+  {
+    icon: PartyPopper,
+    title: "Event planning",
+    description: "Coordinate venues, accommodation, and local tips for weddings, reunions, and conferences.",
+  },
+];
+
+function UseCasesSection({ showCta }: { showCta: boolean }) {
+  return (
+    <div className="mt-16 mb-8">
+      <div className="text-center mb-10">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-3">
+          Built for every kind of community
+        </h2>
+        <p className="text-muted-foreground max-w-2xl mx-auto">
+          However your group comes together, PinTogather gives it a shared home on the map.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto">
+        {USE_CASES.map(({ icon: Icon, title, description }) => (
+          <Card key={title} className="border-border hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <Icon className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">{title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {showCta && (
+        <div className="text-center mt-12">
+          <Link href="/auth">
+            <Button size="lg" className="px-8" data-testid="button-get-started-footer">
+              <LogIn className="h-4 w-4 mr-2" />
+              Get started free
+            </Button>
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
