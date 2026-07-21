@@ -183,6 +183,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       postcode: "",
       country: ""
     });
+    // Name the pin after the venue so search-built maps read as a list of places.
+    setFormData((prev) => ({ ...prev, userName: place.name }));
   };
 
   const createPinMutation = useMutation({
