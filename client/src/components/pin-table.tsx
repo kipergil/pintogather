@@ -215,10 +215,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
             data-testid="input-search-pins"
           />
         </div>
-        <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        {user?.isAdmin && (
+          <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       {filteredPins.length === 0 ? (
