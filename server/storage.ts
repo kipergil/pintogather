@@ -10,6 +10,7 @@ import type {
   InsertMapInvitation,
   InsertMapViewer,
   InsertPin,
+  UpdateMapDetails,
   UpdateProfile,
   User,
 } from "../shared/schema.js";
@@ -30,6 +31,8 @@ const MAP_FIELDS = [
   "owner",
   "is_public",
   "default_permission",
+  "note_label",
+  "note_prompt",
   "date_created",
 ] as const;
 
@@ -94,6 +97,8 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     ownerId: row.owner,
     isPublic: row.is_public,
     defaultPermission: row.default_permission,
+    noteLabel: row.note_label,
+    notePrompt: row.note_prompt,
     createdAt: new Date(row.date_created),
   };
 }
@@ -161,6 +166,7 @@ export interface IStorage {
     isPublic: boolean,
     defaultPermission: string,
   ): Promise<MapCollection | undefined>;
+  updateMapDetails(mapId: string, data: UpdateMapDetails): Promise<MapCollection | undefined>;
   deleteMapCollection(mapId: string, userId: string): Promise<boolean>;
 
   // Map Viewers
@@ -208,6 +214,8 @@ class DirectusStorage implements IStorage {
           owner: data.ownerId ?? null,
           is_public: data.isPublic ?? false,
           default_permission: data.defaultPermission ?? "readonly",
+          note_label: data.noteLabel ?? null,
+          note_prompt: data.notePrompt ?? null,
         },
         { fields: MAP_FIELDS },
       ),
@@ -294,6 +302,22 @@ class DirectusStorage implements IStorage {
       return toMapCollection(updated as unknown as DirectusMapCollection);
     } catch (error) {
       console.error("Error updating map permissions:", error);
+      return undefined;
+    }
+  }
+
+  async updateMapDetails(mapId: string, data: UpdateMapDetails): Promise<MapCollection | undefined> {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (data.name !== undefined) payload.name = data.name;
+      if (data.description !== undefined) payload.description = data.description;
+      if (data.noteLabel !== undefined) payload.note_label = data.noteLabel || null;
+      if (data.notePrompt !== undefined) payload.note_prompt = data.notePrompt || null;
+
+      const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
+      return toMapCollection(updated as unknown as DirectusMapCollection);
+    } catch (error) {
+      console.error("Error updating map details:", error);
       return undefined;
     }
   }

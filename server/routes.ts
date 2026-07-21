@@ -1,6 +1,11 @@
 import type { Express } from "express";
 import { storage } from "./storage.js";
-import { insertMapCollectionSchema, insertPinSchema, updateProfileSchema } from "../shared/schema.js";
+import {
+  insertMapCollectionSchema,
+  insertPinSchema,
+  updateMapDetailsSchema,
+  updateProfileSchema,
+} from "../shared/schema.js";
 import type { Pin, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
@@ -193,6 +198,41 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error updating map permissions:", error);
       res.status(500).json({ message: "Failed to update map permissions" });
+    }
+  });
+
+  app.put("/api/maps/:mapId/details", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { mapId } = req.params;
+      const map = await storage.getMapCollectionById(mapId);
+      if (!map) return res.status(404).json({ message: "Map not found" });
+      if (map.ownerId !== user.id) {
+        return res.status(403).json({ message: "You don't have permission to edit this map" });
+      }
+
+      const data = updateMapDetailsSchema.parse(req.body);
+
+      if (data.name && data.name !== map.name) {
+        const existingMap = await storage.getMapCollectionByName(data.name);
+        if (existingMap && existingMap.id !== mapId) {
+          return res.status(400).json({ message: "A map collection with this name already exists" });
+        }
+      }
+
+      const updatedMap = await storage.updateMapDetails(mapId, data);
+      if (!updatedMap) return res.status(404).json({ message: "Map not found" });
+
+      res.json(updatedMap);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        console.error("Error updating map details:", error);
+        res.status(500).json({ message: "Failed to update map details" });
+      }
     }
   });
 

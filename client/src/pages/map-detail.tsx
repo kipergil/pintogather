@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Share2, Crown } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
+import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 
@@ -23,6 +25,8 @@ interface MapCollection {
   description?: string;
   shareUrl: string;
   ownerId?: string;
+  noteLabel?: string | null;
+  notePrompt?: string | null;
   createdAt: string;
   pinCount: number;
   pins: Array<{
@@ -48,6 +52,7 @@ interface MapCollection {
 export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { user } = useAuth();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
@@ -134,6 +139,17 @@ export default function MapDetail({ params }: MapDetailProps) {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  data-testid="button-edit-map"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setIsShareModalOpen(true)} data-testid="button-share-map">
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
@@ -169,7 +185,12 @@ export default function MapDetail({ params }: MapDetailProps) {
           <h2 className="text-lg font-semibold text-foreground mb-4">
             Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
           </h2>
-          <PinTable pins={mapCollection.pins} mapOwnerId={mapCollection.ownerId} shareUrl={mapCollection.shareUrl} />
+          <PinTable
+            pins={mapCollection.pins}
+            mapOwnerId={mapCollection.ownerId}
+            shareUrl={mapCollection.shareUrl}
+            noteLabel={mapCollection.noteLabel}
+          />
         </CardContent>
       </Card>
 
@@ -186,6 +207,29 @@ export default function MapDetail({ params }: MapDetailProps) {
         onClose={() => setIsAuthModalOpen(false)}
         returnUrl={`/map/${params.shareUrl}`}
       />
+
+      {/* Edit Map Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Edit map
+            </DialogTitle>
+            <DialogDescription>Update the name, description, or pin note question.</DialogDescription>
+          </DialogHeader>
+          <CreateMapForm
+            mapId={mapCollection.id}
+            initialValues={{
+              name: mapCollection.name,
+              description: mapCollection.description ?? "",
+              noteLabel: mapCollection.noteLabel ?? "",
+              notePrompt: mapCollection.notePrompt ?? "",
+            }}
+            onCreated={() => setIsEditModalOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

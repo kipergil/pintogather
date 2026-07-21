@@ -5,6 +5,12 @@ import { MapPin } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 
+function escapeHtml(value: string): string {
+  const div = document.createElement('div');
+  div.textContent = value;
+  return div.innerHTML;
+}
+
 interface Pin {
   id: string;
   userName: string;
@@ -28,6 +34,8 @@ interface SimpleMapProps {
     id: string;
     name: string;
     shareUrl: string;
+    noteLabel?: string | null;
+    notePrompt?: string | null;
     pins: Pin[];
   };
 }
@@ -160,14 +168,15 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       if (pin.city) locationParts.push(pin.city);
       if (pin.state) locationParts.push(pin.state);
       const locationText = locationParts.join(', ');
+      const noteLabel = mapCollection.noteLabel || 'Note';
 
       // Info window
       const infoWindow = new google.maps.InfoWindow({
         content: `
           <div style="padding: 8px; min-width: 150px;">
-            <h3 style="margin: 0 0 4px 0; font-weight: 600;">${pin.userName}</h3>
-            ${locationText ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${locationText}</p>` : ''}
-            ${pin.note ? `<p style="margin: 4px 0; font-size: 12px;">${pin.note}</p>` : ''}
+            <h3 style="margin: 0 0 4px 0; font-weight: 600;">${escapeHtml(pin.userName)}</h3>
+            ${locationText ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${escapeHtml(locationText)}</p>` : ''}
+            ${pin.note ? `<p style="margin: 4px 0; font-size: 12px;"><strong>${escapeHtml(noteLabel)}:</strong> ${escapeHtml(pin.note)}</p>` : ''}
           </div>
         `
       });

@@ -47,6 +47,15 @@ export const mapCollectionsCollection: CollectionDefinition = {
     textField("share_url", { required: true, unique: true }),
     booleanField("is_public", false),
     selectField("default_permission", PERMISSION, { defaultValue: "readonly", nullable: false }),
+    textField("note_label", {
+      nullable: true,
+      maxLength: 60,
+      note: "Custom label for the pin note field, e.g. 'Favourite dish'. Falls back to \"Note\" when empty.",
+    }),
+    richTextField("note_prompt", {
+      nullable: true,
+      note: "Custom question/prompt shown under the note label, e.g. 'What should people order here?'.",
+    }),
     dateCreatedField(),
   ],
   relationFields: [mapOwner],

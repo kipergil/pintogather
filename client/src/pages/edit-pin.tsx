@@ -37,6 +37,11 @@ interface PinRecord {
   note?: string;
 }
 
+interface MapCollectionSettings {
+  noteLabel?: string | null;
+  notePrompt?: string | null;
+}
+
 export default function EditPin({ params }: EditPinProps) {
   const { shareUrl, pinId } = params;
   const { toast } = useToast();
@@ -57,6 +62,13 @@ export default function EditPin({ params }: EditPinProps) {
   const { data: pin, isLoading: pinLoading, error: pinError } = useQuery<PinRecord>({
     queryKey: [`/api/pins/${pinId}`],
   });
+
+  // Fetch the map's custom note label/prompt, if configured
+  const { data: mapCollection } = useQuery<MapCollectionSettings>({
+    queryKey: [`/api/maps/${shareUrl}`],
+  });
+  const noteLabel = mapCollection?.noteLabel || "Note";
+  const notePrompt = mapCollection?.notePrompt || null;
 
   // Populate form when pin data loads, falling back to the signed-in user's
   // own profile for empty fields
@@ -234,10 +246,11 @@ export default function EditPin({ params }: EditPinProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="note">Note (optional)</Label>
+                <Label htmlFor="note">{noteLabel} (optional)</Label>
+                {notePrompt && <p className="text-xs text-muted-foreground -mt-1">{notePrompt}</p>}
                 <Textarea
                   id="note"
-                  placeholder="Add a note about this location..."
+                  placeholder={notePrompt || "Add a note about this location..."}
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   rows={3}
