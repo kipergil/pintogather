@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,20 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Download, MapPin, Trash2, Twitter, Instagram, Linkedin, Edit } from "lucide-react";
+import {
+  Search,
+  Download,
+  MapPin,
+  Trash2,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Edit,
+  ChevronDown,
+  MessageSquareText,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
 
@@ -34,6 +47,8 @@ interface PinTableProps {
   pins: Pin[];
   mapOwnerId?: string;
   shareUrl?: string;
+  /** Custom label for the note field configured on this map, e.g. "Favourite dish". Falls back to "Note". */
+  noteLabel?: string | null;
 }
 
 const AVATAR_PALETTE = [
@@ -91,12 +106,39 @@ function SocialLinks({ pin }: { pin: Pin }) {
   );
 }
 
-export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
+function NoteToggle({ expanded, onClick }: { expanded: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+      data-testid="button-toggle-note"
+    >
+      <MessageSquareText className="h-3.5 w-3.5" />
+      {expanded ? "Hide note" : "Show note"}
+      <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+    </button>
+  );
+}
+
+function NoteContent({ label, note }: { label: string; note: string }) {
+  return (
+    <div className="mt-2 rounded-lg bg-muted/50 border border-border p-3">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
+      <p className="text-sm text-foreground/90 whitespace-pre-wrap">{note}</p>
+    </div>
+  );
+}
+
+export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+
+  const resolvedNoteLabel = noteLabel || "Note";
 
   const canDeletePin = (pin: Pin) => {
     if (!user) return false;
@@ -112,6 +154,15 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
     if (shareUrl) {
       setLocation(`/map/${shareUrl}/edit-pin/${pin.id}`);
     }
+  };
+
+  const toggleNote = (pinId: string) => {
+    setExpandedNoteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(pinId)) next.delete(pinId);
+      else next.add(pinId);
+      return next;
+    });
   };
 
   const deletePinMutation = useMutation({
@@ -151,6 +202,23 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
     pin.note?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const pinIdsWithNotes = filteredPins.filter((pin) => pin.note).map((pin) => pin.id);
+  const allNotesExpanded =
+    pinIdsWithNotes.length > 0 && pinIdsWithNotes.every((id) => expandedNoteIds.has(id));
+
+  const toggleAllNotes = () => {
+    setExpandedNoteIds((prev) => {
+      if (allNotesExpanded) {
+        const next = new Set(prev);
+        pinIdsWithNotes.forEach((id) => next.delete(id));
+        return next;
+      }
+      const next = new Set(prev);
+      pinIdsWithNotes.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
   const exportPins = () => {
     if (filteredPins.length === 0) {
       toast({
@@ -162,7 +230,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
     }
 
     const csvContent = [
-      ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", "Note", "Added Date"].join(","),
+      ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", resolvedNoteLabel, "Added Date"].join(","),
       ...filteredPins.map(pin => [
         pin.userName,
         [pin.city, pin.town].filter(Boolean).join(', ') || "",
@@ -215,10 +283,29 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
             data-testid="input-search-pins"
           />
         </div>
-        <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          {pinIdsWithNotes.length > 0 && (
+            <Button variant="outline" size="sm" onClick={toggleAllNotes} data-testid="button-toggle-all-notes">
+              {allNotesExpanded ? (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Hide all notes
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Show all notes
+                </>
+              )}
+            </Button>
+          )}
+          {user?.isAdmin && (
+            <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       {filteredPins.length === 0 ? (
@@ -285,7 +372,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
                     </div>
                   )}
 
-                  {pin.note && <p className="text-sm text-foreground/80 mb-3 italic">&ldquo;{pin.note}&rdquo;</p>}
+                  {pin.note && (
+                    <div className="mb-3">
+                      <NoteToggle expanded={expandedNoteIds.has(pin.id)} onClick={() => toggleNote(pin.id)} />
+                      {expandedNoteIds.has(pin.id) && <NoteContent label={resolvedNoteLabel} note={pin.note} />}
+                    </div>
+                  )}
 
                   <SocialLinks pin={pin} />
                 </CardContent>
@@ -300,61 +392,82 @@ export function PinTable({ pins, mapOwnerId, shareUrl }: PinTableProps) {
                 <tr className="border-b border-border bg-muted/40">
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{resolvedNoteLabel}</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Added</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredPins.map((pin) => (
-                  <tr key={pin.id} className="border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
-                          <span className="text-xs font-semibold">{getInitials(pin.userName)}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
-                          {pin.note && <div className="text-xs text-muted-foreground line-clamp-1">{pin.note}</div>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-sm text-foreground">
-                      {[pin.city, pin.town].filter(Boolean).join(', ') || pin.country || '—'}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <SocialLinks pin={pin} />
-                    </td>
-                    <td className="py-3.5 px-4 text-sm text-muted-foreground">
-                      {formatDate(pin.createdAt)}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1">
-                        {canEditPin(pin) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditPin(pin)}
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canDeletePin(pin) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeletePin(pin.id)}
-                            disabled={deletePinMutation.isPending}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredPins.map((pin) => {
+                  const expanded = expandedNoteIds.has(pin.id);
+                  return (
+                    <Fragment key={pin.id}>
+                      <tr
+                        className={`hover:bg-muted/30 transition-colors ${expanded ? "" : "border-b border-border last:border-b-0"}`}
+                      >
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
+                              <span className="text-xs font-semibold">{getInitials(pin.userName)}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-sm text-foreground">
+                          {[pin.city, pin.town].filter(Boolean).join(', ') || pin.country || '—'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {pin.note ? (
+                            <NoteToggle expanded={expanded} onClick={() => toggleNote(pin.id)} />
+                          ) : (
+                            <span className="text-sm text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <SocialLinks pin={pin} />
+                        </td>
+                        <td className="py-3.5 px-4 text-sm text-muted-foreground">
+                          {formatDate(pin.createdAt)}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1">
+                            {canEditPin(pin) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditPin(pin)}
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDeletePin(pin) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeletePin(pin.id)}
+                                disabled={deletePinMutation.isPending}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && pin.note && (
+                        <tr className="border-b border-border last:border-b-0">
+                          <td colSpan={6} className="px-4 pb-3.5 -mt-1">
+                            <NoteContent label={resolvedNoteLabel} note={pin.note} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

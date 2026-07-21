@@ -35,6 +35,8 @@ export interface MapCollection {
   owner: string | null;
   is_public: boolean;
   default_permission: Permission;
+  note_label: string | null;
+  note_prompt: string | null;
   date_created: string;
 }
 

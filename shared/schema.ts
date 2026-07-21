@@ -47,6 +47,10 @@ export interface MapCollection {
   ownerId: string | null;
   isPublic: boolean;
   defaultPermission: (typeof PERMISSION)[number];
+  /** Custom label for the pin note field on this map, e.g. "Favourite dish". Falls back to "Note" when null. */
+  noteLabel: string | null;
+  /** Custom question/prompt shown under the note label, e.g. "What should people order here?". */
+  notePrompt: string | null;
   createdAt: Date;
 }
 
@@ -56,8 +60,18 @@ export const insertMapCollectionSchema = z.object({
   ownerId: z.string().nullable().optional(),
   isPublic: z.boolean().optional(),
   defaultPermission: z.enum(PERMISSION).optional(),
+  noteLabel: z.string().trim().max(60).nullable().optional(),
+  notePrompt: z.string().trim().nullable().optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
+
+export const updateMapDetailsSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().trim().nullable().optional(),
+  noteLabel: z.string().trim().max(60).nullable().optional(),
+  notePrompt: z.string().trim().nullable().optional(),
+});
+export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
 
 export interface Pin {
   id: string;

@@ -27,6 +27,8 @@ interface AddPinModalProps {
   mapCollection: {
     id: string;
     shareUrl: string;
+    noteLabel?: string | null;
+    notePrompt?: string | null;
   };
   selectedLocation: {
     lat: number;
@@ -75,6 +77,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const noteLabel = mapCollection.noteLabel || "Note";
+  const notePrompt = mapCollection.notePrompt || null;
 
   const [activeTab, setActiveTab] = useState<"search" | "custom">(initialLocation ? "custom" : "search");
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address?: string } | null>(null);
@@ -333,14 +337,15 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="pinNote">Note</Label>
+              <Label htmlFor="pinNote">{noteLabel}</Label>
               <span className="text-xs text-muted-foreground">
                 {formData.note.length}/{NOTE_MAX_LENGTH}
               </span>
             </div>
+            {notePrompt && <p className="text-xs text-muted-foreground -mt-1.5">{notePrompt}</p>}
             <Textarea
               id="pinNote"
-              placeholder="What makes this place worth pinning?"
+              placeholder={notePrompt || "What makes this place worth pinning?"}
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
               rows={2}
