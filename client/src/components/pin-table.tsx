@@ -24,6 +24,7 @@ import {
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
 import { OpenInDirectusButton } from "@/components/open-in-directus-button";
+import { buildSocialUrl } from "@/lib/social-links";
 
 interface Pin {
   id: string;
@@ -98,7 +99,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
     <div className="flex items-center gap-2.5">
       {pin.twitterHandle && (
         <a
-          href={`https://twitter.com/${pin.twitterHandle}`}
+          href={buildSocialUrl("twitter", pin.twitterHandle)!}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -109,7 +110,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
       )}
       {pin.instagramHandle && (
         <a
-          href={`https://instagram.com/${pin.instagramHandle}`}
+          href={buildSocialUrl("instagram", pin.instagramHandle)!}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -120,7 +121,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
       )}
       {pin.linkedinHandle && (
         <a
-          href={`https://linkedin.com/in/${pin.linkedinHandle}`}
+          href={buildSocialUrl("linkedin", pin.linkedinHandle)!}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}

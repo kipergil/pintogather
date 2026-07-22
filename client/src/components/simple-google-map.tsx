@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { MapPin, Maximize2 } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
+import { buildSocialUrl } from '../lib/social-links';
 
 function escapeHtml(value: string): string {
   const div = document.createElement('div');
@@ -37,19 +38,22 @@ const ICONS = {
 // plus the Google Maps link, whichever of these exist for this pin.
 function buildLinksRow(pin: Pin): string {
   const links: string[] = [];
-  if (pin.twitterHandle) {
+  const twitterUrl = buildSocialUrl('twitter', pin.twitterHandle);
+  if (twitterUrl) {
     links.push(
-      `<a href="https://twitter.com/${escapeHtml(pin.twitterHandle)}" target="_blank" rel="noopener noreferrer" title="Twitter" style="color:#475569; display:inline-flex;">${ICONS.twitter}</a>`,
+      `<a href="${escapeHtml(twitterUrl)}" target="_blank" rel="noopener noreferrer" title="Twitter" style="color:#475569; display:inline-flex;">${ICONS.twitter}</a>`,
     );
   }
-  if (pin.instagramHandle) {
+  const instagramUrl = buildSocialUrl('instagram', pin.instagramHandle);
+  if (instagramUrl) {
     links.push(
-      `<a href="https://instagram.com/${escapeHtml(pin.instagramHandle)}" target="_blank" rel="noopener noreferrer" title="Instagram" style="color:#475569; display:inline-flex;">${ICONS.instagram}</a>`,
+      `<a href="${escapeHtml(instagramUrl)}" target="_blank" rel="noopener noreferrer" title="Instagram" style="color:#475569; display:inline-flex;">${ICONS.instagram}</a>`,
     );
   }
-  if (pin.linkedinHandle) {
+  const linkedinUrl = buildSocialUrl('linkedin', pin.linkedinHandle);
+  if (linkedinUrl) {
     links.push(
-      `<a href="https://linkedin.com/in/${escapeHtml(pin.linkedinHandle)}" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color:#475569; display:inline-flex;">${ICONS.linkedin}</a>`,
+      `<a href="${escapeHtml(linkedinUrl)}" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color:#475569; display:inline-flex;">${ICONS.linkedin}</a>`,
     );
   }
   if (pin.googleMapsUrl) {

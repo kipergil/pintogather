@@ -148,7 +148,7 @@ export default function Profile() {
                       </svg>
                     </div>
                     <Input
-                      placeholder="Twitter handle (without @)"
+                      placeholder="Twitter handle or profile URL"
                       value={profileData.twitter_handle}
                       onChange={(e) => setProfileData({ ...profileData, twitter_handle: e.target.value })}
                       className="pl-12 h-12 text-base"
@@ -163,7 +163,7 @@ export default function Profile() {
                       </svg>
                     </div>
                     <Input
-                      placeholder="Instagram handle (without @)"
+                      placeholder="Instagram handle or profile URL"
                       value={profileData.instagram_handle}
                       onChange={(e) => setProfileData({ ...profileData, instagram_handle: e.target.value })}
                       className="pl-12 h-12 text-base"
