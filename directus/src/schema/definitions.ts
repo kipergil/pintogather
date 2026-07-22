@@ -56,6 +56,11 @@ export const mapCollectionsCollection: CollectionDefinition = {
       nullable: true,
       note: "Custom question/prompt shown under the note label, e.g. 'What should people order here?'.",
     }),
+    textField("branding_logo_url", {
+      nullable: true,
+      maxLength: 500,
+      note: "Optional custom logo shown instead of PinTogather branding on this map's public /p/:shareUrl page.",
+    }),
     dateCreatedField(),
   ],
   relationFields: [mapOwner],

@@ -9,20 +9,22 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, MessageSquareText, Plus, Save } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, ImageIcon, MessageSquareText, Plus, Save } from "lucide-react";
 
 interface MapDetailsFormData {
   name: string;
   description: string;
   noteLabel: string;
   notePrompt: string;
+  brandingLogoUrl: string;
 }
 
 interface CreateMapFormProps {
   onCreated?: () => void;
   /** When set, the form edits this existing map instead of creating a new one. */
   mapId?: string;
-  initialValues?: Partial<MapDetailsFormData>;
+  /** shareUrl is only used to show the public branded-page link in edit mode — it's never submitted. */
+  initialValues?: Partial<MapDetailsFormData> & { shareUrl?: string };
 }
 
 export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapFormProps) {
@@ -37,10 +39,24 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
     description: initialValues?.description ?? "",
     noteLabel: initialValues?.noteLabel ?? "",
     notePrompt: initialValues?.notePrompt ?? "",
+    brandingLogoUrl: initialValues?.brandingLogoUrl ?? "",
   });
   const [showNoteCustomization, setShowNoteCustomization] = useState(
     !!(initialValues?.noteLabel || initialValues?.notePrompt),
   );
+  const [showBranding, setShowBranding] = useState(!!initialValues?.brandingLogoUrl);
+
+  const publicUrl = initialValues?.shareUrl ? `${window.location.origin}/p/${initialValues.shareUrl}` : null;
+
+  const copyPublicUrl = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      toast({ title: "Link copied", description: "Public map link copied to clipboard", variant: "success" });
+    } catch {
+      toast({ title: "Couldn't copy link", description: "Please copy it manually", variant: "destructive" });
+    }
+  };
 
   const createMapMutation = useMutation({
     mutationFn: async (data: MapDetailsFormData) => {
@@ -49,6 +65,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         description: data.description,
         noteLabel: data.noteLabel.trim() || null,
         notePrompt: data.notePrompt.trim() || null,
+        brandingLogoUrl: data.brandingLogoUrl.trim() || null,
         ownerId: user?.id || null,
       };
       const response = await apiRequest("POST", "/api/maps", mapData);
@@ -80,6 +97,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         description: data.description,
         noteLabel: data.noteLabel.trim() || null,
         notePrompt: data.notePrompt.trim() || null,
+        brandingLogoUrl: data.brandingLogoUrl.trim() || null,
       };
       const response = await apiRequest("PUT", `/api/maps/${mapId}/details`, mapData);
       return response.json();
@@ -188,6 +206,81 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
               data-testid="input-note-prompt"
             />
           </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible open={showBranding} onOpenChange={setShowBranding}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+            data-testid="button-toggle-branding"
+          >
+            <span className="flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5" />
+              Public branding
+              <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showBranding ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3 space-y-3">
+          <p className="text-xs text-muted-foreground -mt-1">
+            Add your own logo and this map gets a clean, read-only public page with no PinTogather branding —
+            just your logo, the description above, and the map.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="brandingLogoUrl">Logo URL</Label>
+            <Input
+              id="brandingLogoUrl"
+              type="url"
+              placeholder="https://yoursite.com/logo.png"
+              value={formData.brandingLogoUrl}
+              onChange={(e) => setFormData({ ...formData, brandingLogoUrl: e.target.value })}
+              maxLength={500}
+              data-testid="input-branding-logo-url"
+            />
+            {formData.brandingLogoUrl.trim() && (
+              <img
+                src={formData.brandingLogoUrl.trim()}
+                alt="Logo preview"
+                className="h-10 max-w-[160px] object-contain rounded border border-border p-1"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+                onLoad={(e) => {
+                  (e.target as HTMLImageElement).style.display = "block";
+                }}
+              />
+            )}
+          </div>
+
+          {publicUrl && (
+            <div className="space-y-1.5">
+              <Label>Public page link</Label>
+              <div className="flex gap-2">
+                <Input value={publicUrl} readOnly className="bg-muted/40 text-xs" data-testid="input-public-url" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={copyPublicUrl}
+                  data-testid="button-copy-public-url"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" className="shrink-0" asChild>
+                  <a href={publicUrl} target="_blank" rel="noopener noreferrer" data-testid="link-preview-public-url">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Share this link instead of the regular one to hide PinTogather branding entirely.
+              </p>
+            </div>
+          )}
         </CollapsibleContent>
       </Collapsible>
 

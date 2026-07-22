@@ -37,6 +37,7 @@ export interface MapCollection {
   default_permission: Permission;
   note_label: string | null;
   note_prompt: string | null;
+  branding_logo_url: string | null;
   date_created: string;
 }
 

@@ -49,6 +49,8 @@ interface PinTableProps {
   shareUrl?: string;
   /** Custom label for the note field configured on this map, e.g. "Favourite dish". Falls back to "Note". */
   noteLabel?: string | null;
+  /** Public/embedded views: no edit/delete actions and no CSV export, regardless of who's viewing. */
+  readOnly?: boolean;
 }
 
 const AVATAR_PALETTE = [
@@ -130,7 +132,7 @@ function NoteContent({ label, note }: { label: string; note: string }) {
   );
 }
 
-export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProps) {
+export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -141,12 +143,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProp
   const resolvedNoteLabel = noteLabel || "Note";
 
   const canDeletePin = (pin: Pin) => {
-    if (!user) return false;
+    if (readOnly || !user) return false;
     return user.id === mapOwnerId || user.id === pin.userId;
   };
 
   const canEditPin = (pin: Pin) => {
-    if (!user) return false;
+    if (readOnly || !user) return false;
     return user.id === pin.userId;
   };
 
@@ -299,7 +301,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProp
               )}
             </Button>
           )}
-          {user?.isAdmin && (
+          {!readOnly && user?.isAdmin && (
             <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
               <Download className="h-4 w-4 mr-2" />
               Export CSV
@@ -316,7 +318,9 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProp
           </h3>
           <p className="text-sm text-muted-foreground">
             {pins.length === 0
-              ? "Click on the map to add the first pin to this collection."
+              ? readOnly
+                ? "This map doesn't have any pins yet."
+                : "Click on the map to add the first pin to this collection."
               : "Try adjusting your search terms."
             }
           </p>
@@ -395,7 +399,9 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProp
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{resolvedNoteLabel}</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Added</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                  {!readOnly && (
+                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -432,35 +438,37 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel }: PinTableProp
                         <td className="py-3.5 px-4 text-sm text-muted-foreground">
                           {formatDate(pin.createdAt)}
                         </td>
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-1">
-                            {canEditPin(pin) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditPin(pin)}
-                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDeletePin(pin) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeletePin(pin.id)}
-                                disabled={deletePinMutation.isPending}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
+                        {!readOnly && (
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1">
+                              {canEditPin(pin) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditPin(pin)}
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDeletePin(pin) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeletePin(pin.id)}
+                                  disabled={deletePinMutation.isPending}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                       {expanded && pin.note && (
                         <tr className="border-b border-border last:border-b-0">
-                          <td colSpan={6} className="px-4 pb-3.5 -mt-1">
+                          <td colSpan={readOnly ? 5 : 6} className="px-4 pb-3.5 -mt-1">
                             <NoteContent label={resolvedNoteLabel} note={pin.note} />
                           </td>
                         </tr>

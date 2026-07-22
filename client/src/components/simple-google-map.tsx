@@ -38,9 +38,11 @@ interface SimpleMapProps {
     notePrompt?: string | null;
     pins: Pin[];
   };
+  /** Disables click-to-add-pin, for public/embedded views where visitors can only view. */
+  readOnly?: boolean;
 }
 
-export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
+export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapProps) {
   console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
   
   const mapRef = useRef<HTMLDivElement>(null);
@@ -101,18 +103,20 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
         mapInstanceRef.current = map;
         console.log('Google Maps instance created successfully');
 
-        // Add click listener for new pins
-        map.addListener('click', (e: google.maps.MapMouseEvent) => {
-          console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
-          if (e.latLng) {
-            setSelectedLocation({
-              lat: e.latLng.lat(),
-              lng: e.latLng.lng(),
-              address: `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`
-            });
-            setIsAddPinModalOpen(true);
-          }
-        });
+        // Add click listener for new pins (view-only maps skip this entirely)
+        if (!readOnly) {
+          map.addListener('click', (e: google.maps.MapMouseEvent) => {
+            console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
+            if (e.latLng) {
+              setSelectedLocation({
+                lat: e.latLng.lat(),
+                lng: e.latLng.lng(),
+                address: `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`
+              });
+              setIsAddPinModalOpen(true);
+            }
+          });
+        }
 
         updatePins();
         console.log('Map initialization complete');
@@ -234,15 +238,17 @@ export function SimpleGoogleMap({ mapCollection }: SimpleMapProps) {
       </Card>
 
       {/* Add Pin Modal */}
-      <AddPinModal
-        isOpen={isAddPinModalOpen}
-        onClose={() => {
-          setIsAddPinModalOpen(false);
-          setSelectedLocation(null);
-        }}
-        mapCollection={mapCollection}
-        selectedLocation={selectedLocation}
-      />
+      {!readOnly && (
+        <AddPinModal
+          isOpen={isAddPinModalOpen}
+          onClose={() => {
+            setIsAddPinModalOpen(false);
+            setSelectedLocation(null);
+          }}
+          mapCollection={mapCollection}
+          selectedLocation={selectedLocation}
+        />
+      )}
     </div>
   );
 }
