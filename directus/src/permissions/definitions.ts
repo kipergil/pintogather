@@ -42,6 +42,17 @@ export const servicePolicy: PolicyDefinition = {
     { collection: "map_invitations", action: "read" },
     { collection: "map_invitations", action: "update" },
     { collection: "map_invitations", action: "delete" },
+    // Per-user map-branding logo uploads (see server/storage.ts's
+    // uploadUserLogo) — files live under map-logos/<userId>/ so each
+    // user's uploads are isolated in their own subfolder.
+    { collection: "directus_files", action: "create" },
+    { collection: "directus_files", action: "read" },
+    { collection: "directus_files", action: "update" },
+    { collection: "directus_files", action: "delete" },
+    { collection: "directus_folders", action: "create" },
+    { collection: "directus_folders", action: "read" },
+    { collection: "directus_folders", action: "update" },
+    { collection: "directus_folders", action: "delete" },
   ],
 };
 

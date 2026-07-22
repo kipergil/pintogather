@@ -31,6 +31,23 @@ export async function apiRequest(
   return res;
 }
 
+/** Multipart file upload — no Content-Type header, the browser sets the multipart boundary itself. */
+export async function apiUpload(url: string, file: File): Promise<Response> {
+  const token = await getClerkToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+    credentials: "include",
+  });
+
+  await throwIfResNotOk(res);
+  return res;
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;

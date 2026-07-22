@@ -10,8 +10,23 @@ import {
 import type { Pin, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import multer from "multer";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { USER_GROUP } from "../shared/enums.js";
+
+const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_LOGO_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, GIF, or SVG image."));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 /**
  * A pin may be modified by the owner of its map, by the user who created
@@ -115,6 +130,51 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // --- Uploads --------------------------------------------------------------------
+  // Map branding logos. Uploaded files live in Directus under a per-user
+  // subfolder (map-logos/<userId>/), but the browser never talks to Directus
+  // directly — it only ever sees our own /api/uploads/:fileId URL, which we
+  // proxy server-side using the service token.
+
+  app.post("/api/uploads/logo", isAuthenticated, (req, res, next) => {
+    logoUpload.single("file")(req, res, (error: unknown) => {
+      if (error) return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid upload" });
+      next();
+    });
+  }, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+      const fileId = await storage.uploadUserLogo(user.id, req.file);
+      res.status(201).json({ url: `/api/uploads/${fileId}` });
+    } catch (error: any) {
+      console.error("Logo upload error:", error);
+      res.status(400).json({ message: error.message || "Failed to upload logo" });
+    }
+  });
+
+  app.get("/api/uploads/:fileId", async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const directusUrl = process.env.DIRECTUS_URL;
+      const serviceToken = process.env.DIRECTUS_SERVICE_TOKEN;
+
+      const assetResponse = await fetch(`${directusUrl}/assets/${encodeURIComponent(fileId)}`, {
+        headers: { Authorization: `Bearer ${serviceToken}` },
+      });
+      if (!assetResponse.ok) return res.status(assetResponse.status === 404 ? 404 : 502).end();
+
+      res.setHeader("Content-Type", assetResponse.headers.get("content-type") || "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.send(Buffer.from(await assetResponse.arrayBuffer()));
+    } catch (error) {
+      console.error("Error fetching uploaded asset:", error);
+      res.status(500).json({ message: "Failed to fetch asset" });
     }
   });
 

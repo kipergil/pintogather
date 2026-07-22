@@ -1,4 +1,15 @@
-import { createItem, createItems, deleteItem, readItems, readUsers, updateItem, updateUser } from "@directus/sdk";
+import {
+  createFolder,
+  createItem,
+  createItems,
+  deleteItem,
+  readFolders,
+  readItems,
+  readUsers,
+  updateItem,
+  updateUser,
+  uploadFiles,
+} from "@directus/sdk";
 import { nanoid } from "nanoid";
 import type { UserGroup } from "../shared/enums.js";
 import type {
@@ -222,7 +233,19 @@ export interface IStorage {
   getUserProfile(userId: string): Promise<User | undefined>;
   updateUserGroup(userId: string, userGroup: UserGroup): Promise<User | undefined>;
   updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined>;
+
+  // Uploads
+  uploadUserLogo(userId: string, file: UploadableFile): Promise<string>;
 }
+
+export interface UploadableFile {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+}
+
+/** Root folder (no parent) all per-user branding-logo subfolders live under. */
+const LOGO_ROOT_FOLDER_NAME = "map-logos";
 
 class DirectusStorage implements IStorage {
   private get client() {
@@ -599,6 +622,55 @@ class DirectusStorage implements IStorage {
       console.error("Error updating user group:", error);
       return undefined;
     }
+  }
+
+  private rootLogoFolderIdPromise: Promise<string> | null = null;
+
+  /** Finds (or creates once) the shared "map-logos" root folder every per-user subfolder nests under. */
+  private async ensureRootLogoFolder(): Promise<string> {
+    if (!this.rootLogoFolderIdPromise) {
+      this.rootLogoFolderIdPromise = (async () => {
+        const existing = await this.client.request(
+          readFolders({
+            filter: { name: { _eq: LOGO_ROOT_FOLDER_NAME }, parent: { _null: true } },
+            fields: ["id"],
+            limit: 1,
+          }),
+        );
+        if (existing[0]) return existing[0].id;
+
+        const created = await this.client.request(
+          createFolder({ name: LOGO_ROOT_FOLDER_NAME }, { fields: ["id"] }),
+        );
+        return created.id;
+      })();
+    }
+    return this.rootLogoFolderIdPromise;
+  }
+
+  /** Finds (or creates) this user's own subfolder, so each user's uploaded logos are isolated from everyone else's. */
+  private async ensureUserLogoFolder(userId: string): Promise<string> {
+    const rootId = await this.ensureRootLogoFolder();
+    const existing = await this.client.request(
+      readFolders({ filter: { name: { _eq: userId }, parent: { _eq: rootId } }, fields: ["id"], limit: 1 }),
+    );
+    if (existing[0]) return existing[0].id;
+
+    const created = await this.client.request(
+      createFolder({ name: userId, parent: rootId }, { fields: ["id"] }),
+    );
+    return created.id;
+  }
+
+  async uploadUserLogo(userId: string, file: UploadableFile): Promise<string> {
+    const folderId = await this.ensureUserLogoFolder(userId);
+
+    const formData = new FormData();
+    formData.append("folder", folderId);
+    formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
+
+    const created = await this.client.request(uploadFiles(formData, { fields: ["id"] }));
+    return created.id;
   }
 
   async updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined> {
