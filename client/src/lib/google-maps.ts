@@ -79,11 +79,15 @@ export function isGoogleMapsLoaded(): boolean {
 }
 
 /**
- * A shareable Google Maps link for a venue. `placeId` (when known) makes the
- * link open directly on that place's card instead of just a bare coordinate.
+ * A shareable Google Maps link for a venue. Per Google's Maps URLs docs, the
+ * `query` should be a human-readable search string (name/address) rather than
+ * bare coordinates — that's what opens directly on the venue's own place
+ * card instead of just dropping a generic pin at some coordinates. `placeId`
+ * (when known) disambiguates further, e.g. for a chain with several branches.
  */
-export function buildGoogleMapsUrl(venue: { lat: number; lng: number; placeId?: string }): string {
-  const params = new URLSearchParams({ api: "1", query: `${venue.lat},${venue.lng}` });
+export function buildGoogleMapsUrl(venue: { lat: number; lng: number; name?: string; address?: string; placeId?: string }): string {
+  const queryText = [venue.name, venue.address].filter(Boolean).join(", ") || `${venue.lat},${venue.lng}`;
+  const params = new URLSearchParams({ api: "1", query: queryText });
   if (venue.placeId) params.set("query_place_id", venue.placeId);
   return `https://www.google.com/maps/search/?${params.toString()}`;
 }

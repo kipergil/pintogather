@@ -201,7 +201,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
             latitude: String(match.lat),
             longitude: String(match.lng),
             address: match.address || null,
-            googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, placeId: match.id }),
+            googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, name: match.name, address: match.address, placeId: match.id }),
           };
         });
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
