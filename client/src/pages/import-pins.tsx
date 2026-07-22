@@ -4,6 +4,7 @@ import { useLocation, Link } from "wouter";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
+  ClipboardPaste,
   FileUp,
   Loader2,
   MapPin,
@@ -38,6 +40,13 @@ interface ImportItem {
   selectedIndex: number;
 }
 
+function parseTextLines(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.split(",")[0]?.trim() ?? "")
+    .filter((line) => line.length > 0);
+}
+
 async function parseFile(file: File): Promise<string[]> {
   const lowerName = file.name.toLowerCase();
 
@@ -50,11 +59,7 @@ async function parseFile(file: File): Promise<string[]> {
       .map((cell) => cell.trim());
   }
 
-  const text = await file.text();
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.split(",")[0]?.trim() ?? "")
-    .filter((line) => line.length > 0);
+  return parseTextLines(await file.text());
 }
 
 // Runs `fn` over `items` with limited concurrency, calling `onItem` as each finishes.
@@ -82,6 +87,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const [isParsing, setIsParsing] = useState(false);
   const [isSearchingAll, setIsSearchingAll] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
+  const [pasteText, setPasteText] = useState("");
 
   const updateItem = useCallback((id: string, patch: Partial<ImportItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -107,27 +113,30 @@ export default function ImportPins({ params }: ImportPinsProps) {
     }
   }, [updateItem]);
 
+  const startImportFromNames = (names: string[]) => {
+    if (names.length === 0) {
+      toast({
+        title: "No venue names found",
+        description: "Didn't find any readable rows to import.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const newItems: ImportItem[] = names.map((name) => ({
+      id: nanoid(),
+      name,
+      status: "idle",
+      matches: [],
+      selectedIndex: 0,
+    }));
+    setItems(newItems);
+    searchAll(newItems);
+  };
+
   const handleFile = async (file: File) => {
     setIsParsing(true);
     try {
-      const names = await parseFile(file);
-      if (names.length === 0) {
-        toast({
-          title: "No venue names found",
-          description: "The file didn't contain any readable rows.",
-          variant: "destructive",
-        });
-        return;
-      }
-      const newItems: ImportItem[] = names.map((name) => ({
-        id: nanoid(),
-        name,
-        status: "idle",
-        matches: [],
-        selectedIndex: 0,
-      }));
-      setItems(newItems);
-      searchAll(newItems);
+      startImportFromNames(await parseFile(file));
     } catch (error: any) {
       toast({
         title: "Couldn't read file",
@@ -137,6 +146,10 @@ export default function ImportPins({ params }: ImportPinsProps) {
     } finally {
       setIsParsing(false);
     }
+  };
+
+  const handlePasteImport = () => {
+    startImportFromNames(parseTextLines(pasteText));
   };
 
   const searchAll = async (list: ImportItem[]) => {
@@ -294,6 +307,33 @@ export default function ImportPins({ params }: ImportPinsProps) {
                 </>
               )}
             </Button>
+
+            <div className="flex items-center gap-3 max-w-sm mx-auto my-6">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or paste a list</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="max-w-sm mx-auto text-left space-y-2">
+              <Textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder={"Paste venue names, one per line —\nEiffel Tower\nBritish Museum\nColosseum"}
+                rows={5}
+                className="text-sm"
+                data-testid="input-paste-venues"
+              />
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handlePasteImport}
+                disabled={!pasteText.trim()}
+                data-testid="button-import-pasted"
+              >
+                <ClipboardPaste className="h-4 w-4 mr-2" />
+                Import pasted list
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
