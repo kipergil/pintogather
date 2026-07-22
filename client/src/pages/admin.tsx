@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, Users, Settings, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 
 interface UserProfile {
   id: string;
@@ -217,6 +218,7 @@ export default function AdminPage() {
                           <SelectItem value="premium">Premium</SelectItem>
                         </SelectContent>
                       </Select>
+                      <OpenInDirectusButton collection="directus_users" itemId={user.id} />
                     </div>
                   </div>
                 ))}
