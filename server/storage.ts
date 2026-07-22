@@ -222,6 +222,7 @@ export interface IStorage {
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
   createPins(data: InsertPin[]): Promise<Pin[]>;
+  upsertPins(mapId: string, data: InsertPin[]): Promise<{ created: Pin[]; updated: Pin[] }>;
   getPinsByMapId(mapId: string): Promise<Pin[]>;
   getPinById(id: string): Promise<Pin | undefined>;
   updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
@@ -516,6 +517,40 @@ class DirectusStorage implements IStorage {
       createItems("pins", data.map(toDirectusPinInput), { fields: PIN_FIELDS }),
     );
     return (created as unknown as DirectusPin[]).map(toPin);
+  }
+
+  /**
+   * Bulk-imports pins into a map, matching against existing pins by name
+   * (case/whitespace-insensitive) so re-importing a list — e.g. after
+   * correcting a spreadsheet — refreshes the matching pin's location/address
+   * instead of piling up duplicates. Anything on the existing pin outside
+   * the imported fields (note, social handles, original contributor) is
+   * left untouched.
+   */
+  async upsertPins(mapId: string, data: InsertPin[]): Promise<{ created: Pin[]; updated: Pin[] }> {
+    const existing = await this.getPinsByMapId(mapId);
+    const existingByName = new Map(existing.map((pin) => [pin.userName.trim().toLowerCase(), pin]));
+
+    const toCreate: InsertPin[] = [];
+    const toUpdate: { id: string; data: InsertPin }[] = [];
+
+    for (const pin of data) {
+      const match = existingByName.get(pin.userName.trim().toLowerCase());
+      if (match) {
+        toUpdate.push({ id: match.id, data: pin });
+      } else {
+        toCreate.push(pin);
+      }
+    }
+
+    const created = await this.createPins(toCreate);
+    const updated: Pin[] = [];
+    for (const { id, data: updateData } of toUpdate) {
+      const result = await this.updatePin(id, updateData);
+      if (result) updated.push(result);
+    }
+
+    return { created, updated };
   }
 
   async getPinsByMapId(mapId: string): Promise<Pin[]> {

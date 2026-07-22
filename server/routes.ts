@@ -482,8 +482,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const { pins } = bulkInsertPinsSchema.parse(req.body);
       const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id }));
 
-      const created = await storage.createPins(data);
-      res.status(201).json(created);
+      const result = await storage.upsertPins(mapCollection.id, data);
+      res.status(201).json(result);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`);
