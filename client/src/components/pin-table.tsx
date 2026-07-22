@@ -19,6 +19,7 @@ import {
   MessageSquareText,
   Eye,
   EyeOff,
+  ExternalLink,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
@@ -40,6 +41,7 @@ interface Pin {
   instagramHandle?: string;
   linkedinHandle?: string;
   note?: string;
+  googleMapsUrl?: string | null;
   createdAt: string;
 }
 
@@ -51,6 +53,25 @@ interface PinTableProps {
   noteLabel?: string | null;
   /** Public/embedded views: no edit/delete actions and no CSV export, regardless of who's viewing. */
   readOnly?: boolean;
+  /** Called when a row is clicked, so the map can pan/zoom to that pin. */
+  onPinSelect?: (pinId: string) => void;
+}
+
+function GoogleMapsLink({ url }: { url?: string | null }) {
+  if (!url) return <span className="text-sm text-muted-foreground/60">—</span>;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+      data-testid="link-google-maps"
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+      View
+    </a>
+  );
 }
 
 const AVATAR_PALETTE = [
@@ -79,6 +100,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
           href={`https://twitter.com/${pin.twitterHandle}`}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <Twitter className="h-4 w-4" />
@@ -89,6 +111,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
           href={`https://instagram.com/${pin.instagramHandle}`}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <Instagram className="h-4 w-4" />
@@ -99,6 +122,7 @@ function SocialLinks({ pin }: { pin: Pin }) {
           href={`https://linkedin.com/in/${pin.linkedinHandle}`}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <Linkedin className="h-4 w-4" />
@@ -112,7 +136,10 @@ function NoteToggle({ expanded, onClick }: { expanded: boolean; onClick: () => v
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
       data-testid="button-toggle-note"
     >
@@ -132,7 +159,7 @@ function NoteContent({ label, note }: { label: string; note: string }) {
   );
 }
 
-export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false }: PinTableProps) {
+export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -330,7 +357,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
           {/* Mobile Card Layout */}
           <div className="block lg:hidden space-y-3">
             {filteredPins.map((pin) => (
-              <Card key={pin.id} className="border-border">
+              <Card
+                key={pin.id}
+                className={`border-border ${onPinSelect ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+                onClick={() => onPinSelect?.(pin.id)}
+                data-testid={`row-pin-${pin.id}`}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -342,7 +374,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                         <p className="text-xs text-muted-foreground">{formatDate(pin.createdAt)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {canEditPin(pin) && (
                         <Button
                           variant="ghost"
@@ -376,6 +408,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                     </div>
                   )}
 
+                  {pin.googleMapsUrl && (
+                    <div className="mb-2">
+                      <GoogleMapsLink url={pin.googleMapsUrl} />
+                    </div>
+                  )}
+
                   {pin.note && (
                     <div className="mb-3">
                       <NoteToggle expanded={expandedNoteIds.has(pin.id)} onClick={() => toggleNote(pin.id)} />
@@ -396,6 +434,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                 <tr className="border-b border-border bg-muted/40">
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Map</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{resolvedNoteLabel}</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Added</th>
@@ -410,7 +449,9 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                   return (
                     <Fragment key={pin.id}>
                       <tr
-                        className={`hover:bg-muted/30 transition-colors ${expanded ? "" : "border-b border-border last:border-b-0"}`}
+                        className={`transition-colors ${expanded ? "" : "border-b border-border last:border-b-0"} ${onPinSelect ? "cursor-pointer hover:bg-muted/50" : "hover:bg-muted/30"}`}
+                        onClick={() => onPinSelect?.(pin.id)}
+                        data-testid={`row-pin-${pin.id}`}
                       >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
@@ -426,6 +467,9 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                           {[pin.city, pin.town].filter(Boolean).join(', ') || pin.country || '—'}
                         </td>
                         <td className="py-3.5 px-4">
+                          <GoogleMapsLink url={pin.googleMapsUrl} />
+                        </td>
+                        <td className="py-3.5 px-4">
                           {pin.note ? (
                             <NoteToggle expanded={expanded} onClick={() => toggleNote(pin.id)} />
                           ) : (
@@ -439,7 +483,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                           {formatDate(pin.createdAt)}
                         </td>
                         {!readOnly && (
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
                               {canEditPin(pin) && (
                                 <Button
@@ -468,7 +512,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                       </tr>
                       {expanded && pin.note && (
                         <tr className="border-b border-border last:border-b-0">
-                          <td colSpan={readOnly ? 5 : 6} className="px-4 pb-3.5 -mt-1">
+                          <td colSpan={readOnly ? 6 : 7} className="px-4 pb-3.5 -mt-1">
                             <NoteContent label={resolvedNoteLabel} note={pin.note} />
                           </td>
                         </tr>

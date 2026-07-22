@@ -101,6 +101,7 @@ export const pinsCollection: CollectionDefinition = {
     textField("instagram_handle", { nullable: true }),
     textField("linkedin_handle", { nullable: true }),
     richTextField("note", { nullable: true }),
+    textField("google_maps_url", { nullable: true, note: "Link to this venue on Google Maps, captured at import/creation time." }),
     dateCreatedField(),
   ],
   relationFields: [pinMap, pinUser],

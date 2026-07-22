@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, AtSign, Link2, MapPin, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, AtSign, ExternalLink, Link2, MapPin, Save, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -35,6 +35,7 @@ interface PinRecord {
   instagramHandle?: string;
   linkedinHandle?: string;
   note?: string;
+  googleMapsUrl?: string | null;
 }
 
 interface MapCollectionSettings {
@@ -193,6 +194,18 @@ export default function EditPin({ params }: EditPinProps) {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Edit pin</h1>
           </div>
           {pin.address && <p className="text-sm text-muted-foreground ml-11">{pin.address}</p>}
+          {pin.googleMapsUrl && (
+            <a
+              href={pin.googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline ml-11 mt-1"
+              data-testid="link-google-maps"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View on Google Maps
+            </a>
+          )}
         </div>
 
         <Card className="border-border">

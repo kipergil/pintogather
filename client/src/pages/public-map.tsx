@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Users } from "lucide-react";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
@@ -36,6 +36,7 @@ interface MapCollection {
     instagramHandle?: string;
     linkedinHandle?: string;
     note?: string;
+    googleMapsUrl?: string | null;
     createdAt: string;
   }>;
 }
@@ -49,6 +50,7 @@ export default function PublicMap({ params }: PublicMapProps) {
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
   });
+  const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
 
   useEffect(() => {
     if (mapCollection?.name) {
@@ -107,7 +109,7 @@ export default function PublicMap({ params }: PublicMapProps) {
           </div>
         </div>
 
-        <SimpleGoogleMap mapCollection={mapCollection} readOnly />
+        <SimpleGoogleMap mapCollection={mapCollection} readOnly focusRequest={focusRequest} />
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">
@@ -118,6 +120,7 @@ export default function PublicMap({ params }: PublicMapProps) {
             mapOwnerId={mapCollection.ownerId}
             noteLabel={mapCollection.noteLabel}
             readOnly
+            onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
           />
         </div>
       </div>

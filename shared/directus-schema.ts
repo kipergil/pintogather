@@ -59,6 +59,7 @@ export interface Pin {
   instagram_handle: string | null;
   linkedin_handle: string | null;
   note: string | null;
+  google_maps_url: string | null;
   date_created: string;
 }
 

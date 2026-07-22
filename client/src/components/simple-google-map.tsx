@@ -26,6 +26,7 @@ interface Pin {
   instagramHandle?: string;
   linkedinHandle?: string;
   note?: string;
+  googleMapsUrl?: string | null;
   createdAt: string;
 }
 
@@ -40,14 +41,17 @@ interface SimpleMapProps {
   };
   /** Disables click-to-add-pin, for public/embedded views where visitors can only view. */
   readOnly?: boolean;
+  /** Bumped by the parent (e.g. a pin-table row click) to pan/zoom to and open a specific pin. */
+  focusRequest?: { pinId: string; nonce: number } | null;
 }
 
-export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapProps) {
+export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest }: SimpleMapProps) {
   console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
-  
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
@@ -141,12 +145,26 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
     }
   }, [mapCollection.pins]);
 
+  useEffect(() => {
+    if (!focusRequest || !mapInstanceRef.current) return;
+    const marker = markersByPinIdRef.current.get(focusRequest.pinId);
+    const position = marker?.getPosition();
+    if (!marker || !position) return;
+
+    mapInstanceRef.current.panTo(position);
+    if ((mapInstanceRef.current.getZoom() ?? 0) < 16) {
+      mapInstanceRef.current.setZoom(16);
+    }
+    google.maps.event.trigger(marker, 'click');
+  }, [focusRequest]);
+
   const updatePins = () => {
     if (!mapInstanceRef.current) return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+    markersByPinIdRef.current.clear();
 
     // Add markers for each pin
     mapCollection.pins.forEach(pin => {
@@ -181,6 +199,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
             <h3 style="margin: 0 0 4px 0; font-weight: 600;">${escapeHtml(pin.userName)}</h3>
             ${locationText ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${escapeHtml(locationText)}</p>` : ''}
             ${pin.note ? `<p style="margin: 4px 0; font-size: 12px;"><strong>${escapeHtml(noteLabel)}:</strong> ${escapeHtml(pin.note)}</p>` : ''}
+            ${pin.googleMapsUrl ? `<p style="margin: 4px 0;"><a href="${escapeHtml(pin.googleMapsUrl)}" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: #1E40AF;">View on Google Maps</a></p>` : ''}
           </div>
         `
       });
@@ -190,6 +209,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
       });
 
       markersRef.current.push(marker);
+      markersByPinIdRef.current.set(pin.id, marker);
     });
 
     // Fit bounds if multiple pins

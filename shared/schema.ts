@@ -95,6 +95,7 @@ export interface Pin {
   instagramHandle: string | null;
   linkedinHandle: string | null;
   note: string | null;
+  googleMapsUrl: string | null;
   createdAt: Date;
 }
 
@@ -115,6 +116,7 @@ export const insertPinSchema = z.object({
   instagramHandle: z.string().nullable().optional(),
   linkedinHandle: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
+  googleMapsUrl: z.string().trim().max(500).nullable().optional(),
 });
 export type InsertPin = z.infer<typeof insertPinSchema>;
 
