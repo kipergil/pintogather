@@ -78,6 +78,16 @@ export function isGoogleMapsLoaded(): boolean {
   return window.google?.maps != null;
 }
 
+/**
+ * A shareable Google Maps link for a venue. `placeId` (when known) makes the
+ * link open directly on that place's card instead of just a bare coordinate.
+ */
+export function buildGoogleMapsUrl(venue: { lat: number; lng: number; placeId?: string }): string {
+  const params = new URLSearchParams({ api: "1", query: `${venue.lat},${venue.lng}` });
+  if (venue.placeId) params.set("query_place_id", venue.placeId);
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
 export interface VenueResult {
   id: string;
   name: string;

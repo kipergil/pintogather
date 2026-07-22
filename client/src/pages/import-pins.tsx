@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { searchVenues, type VenueResult } from "@/lib/google-maps";
+import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
 import {
   ArrowLeft,
   ArrowUp,
@@ -201,6 +201,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
             latitude: String(match.lat),
             longitude: String(match.lng),
             address: match.address || null,
+            googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, placeId: match.id }),
           };
         });
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });

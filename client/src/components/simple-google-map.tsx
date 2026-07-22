@@ -11,6 +11,55 @@ function escapeHtml(value: string): string {
   return div.innerHTML;
 }
 
+// Minimal inline SVGs mirroring lucide-react's icon paths, so the map popup's
+// icons match the ones used elsewhere in the app without pulling in React.
+function iconSvg(paths: string): string {
+  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
+const ICONS = {
+  twitter: iconSvg(
+    '<path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/>',
+  ),
+  instagram: iconSvg(
+    '<rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>',
+  ),
+  linkedin: iconSvg(
+    '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/>',
+  ),
+  externalLink: iconSvg(
+    '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  ),
+};
+
+// A single compact row of icon links: socials (whichever handles are set)
+// plus the Google Maps link, whichever of these exist for this pin.
+function buildLinksRow(pin: Pin): string {
+  const links: string[] = [];
+  if (pin.twitterHandle) {
+    links.push(
+      `<a href="https://twitter.com/${escapeHtml(pin.twitterHandle)}" target="_blank" rel="noopener noreferrer" title="Twitter" style="color:#475569; display:inline-flex;">${ICONS.twitter}</a>`,
+    );
+  }
+  if (pin.instagramHandle) {
+    links.push(
+      `<a href="https://instagram.com/${escapeHtml(pin.instagramHandle)}" target="_blank" rel="noopener noreferrer" title="Instagram" style="color:#475569; display:inline-flex;">${ICONS.instagram}</a>`,
+    );
+  }
+  if (pin.linkedinHandle) {
+    links.push(
+      `<a href="https://linkedin.com/in/${escapeHtml(pin.linkedinHandle)}" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color:#475569; display:inline-flex;">${ICONS.linkedin}</a>`,
+    );
+  }
+  if (pin.googleMapsUrl) {
+    links.push(
+      `<a href="${escapeHtml(pin.googleMapsUrl)}" target="_blank" rel="noopener noreferrer" title="View on Google Maps" style="color:#1E40AF; display:inline-flex;">${ICONS.externalLink}</a>`,
+    );
+  }
+  if (links.length === 0) return '';
+  return `<div style="display:flex; align-items:center; gap:8px; margin-top:6px;">${links.join('')}</div>`;
+}
+
 interface Pin {
   id: string;
   userName: string;
@@ -26,6 +75,7 @@ interface Pin {
   instagramHandle?: string;
   linkedinHandle?: string;
   note?: string;
+  googleMapsUrl?: string | null;
   createdAt: string;
 }
 
@@ -40,14 +90,17 @@ interface SimpleMapProps {
   };
   /** Disables click-to-add-pin, for public/embedded views where visitors can only view. */
   readOnly?: boolean;
+  /** Bumped by the parent (e.g. a pin-table row click) to pan/zoom to and open a specific pin. */
+  focusRequest?: { pinId: string; nonce: number } | null;
 }
 
-export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapProps) {
+export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest }: SimpleMapProps) {
   console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
-  
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
@@ -141,12 +194,26 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
     }
   }, [mapCollection.pins]);
 
+  useEffect(() => {
+    if (!focusRequest || !mapInstanceRef.current) return;
+    const marker = markersByPinIdRef.current.get(focusRequest.pinId);
+    const position = marker?.getPosition();
+    if (!marker || !position) return;
+
+    mapInstanceRef.current.panTo(position);
+    if ((mapInstanceRef.current.getZoom() ?? 0) < 16) {
+      mapInstanceRef.current.setZoom(16);
+    }
+    google.maps.event.trigger(marker, 'click');
+  }, [focusRequest]);
+
   const updatePins = () => {
     if (!mapInstanceRef.current) return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+    markersByPinIdRef.current.clear();
 
     // Add markers for each pin
     mapCollection.pins.forEach(pin => {
@@ -174,13 +241,15 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
       const locationText = locationParts.join(', ');
       const noteLabel = mapCollection.noteLabel || 'Note';
 
-      // Info window
+      // Info window — compact: title, optional location/note, then a single
+      // row of social icons and/or the Google Maps link, whichever exist.
       const infoWindow = new google.maps.InfoWindow({
         content: `
-          <div style="padding: 8px; min-width: 150px;">
-            <h3 style="margin: 0 0 4px 0; font-weight: 600;">${escapeHtml(pin.userName)}</h3>
-            ${locationText ? `<p style="margin: 4px 0; color: #666; font-size: 12px;">${escapeHtml(locationText)}</p>` : ''}
-            ${pin.note ? `<p style="margin: 4px 0; font-size: 12px;"><strong>${escapeHtml(noteLabel)}:</strong> ${escapeHtml(pin.note)}</p>` : ''}
+          <div style="padding: 2px 20px 4px 2px; min-width: 130px; max-width: 220px; font-family: inherit;">
+            <div style="font-weight: 600; font-size: 13px; line-height: 1.3; color: #111827;">${escapeHtml(pin.userName)}</div>
+            ${locationText ? `<div style="margin-top: 2px; color: #666; font-size: 11px;">${escapeHtml(locationText)}</div>` : ''}
+            ${pin.note ? `<div style="margin-top: 4px; font-size: 12px; color: #374151;"><strong>${escapeHtml(noteLabel)}:</strong> ${escapeHtml(pin.note)}</div>` : ''}
+            ${buildLinksRow(pin)}
           </div>
         `
       });
@@ -190,6 +259,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false }: SimpleMapPr
       });
 
       markersRef.current.push(marker);
+      markersByPinIdRef.current.set(pin.id, marker);
     });
 
     // Fit bounds if multiple pins

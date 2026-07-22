@@ -46,6 +46,7 @@ interface MapCollection {
     instagramHandle?: string;
     linkedinHandle?: string;
     note?: string;
+    googleMapsUrl?: string | null;
     createdAt: string;
   }>;
 }
@@ -54,6 +55,7 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
   const { user } = useAuth();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
@@ -184,7 +186,7 @@ export default function MapDetail({ params }: MapDetailProps) {
       </Card>
 
       {/* Map View */}
-      <SimpleGoogleMap mapCollection={mapCollection} />
+      <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} />
 
       {/* Pins management */}
       <Card className="border-border">
@@ -197,6 +199,7 @@ export default function MapDetail({ params }: MapDetailProps) {
             mapOwnerId={mapCollection.ownerId}
             shareUrl={mapCollection.shareUrl}
             noteLabel={mapCollection.noteLabel}
+            onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
           />
         </CardContent>
       </Card>
