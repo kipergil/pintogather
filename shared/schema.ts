@@ -118,6 +118,11 @@ export const insertPinSchema = z.object({
 });
 export type InsertPin = z.infer<typeof insertPinSchema>;
 
+export const bulkInsertPinsSchema = z.object({
+  pins: z.array(insertPinSchema.omit({ mapId: true, userId: true })).min(1).max(200),
+});
+export type BulkInsertPins = z.infer<typeof bulkInsertPinsSchema>;
+
 export interface MapViewer {
   id: string;
   mapId: string;

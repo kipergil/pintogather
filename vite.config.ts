@@ -24,6 +24,14 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  // `root` is `client/`, so without this Vite would look for .env files
+  // there instead of the project root where the real `.env` lives — a
+  // plain `vite build` (not run through server/index.ts, which loads
+  // dotenv itself) would silently bake in empty VITE_* values instead of
+  // erroring, and esbuild's minifier would then dead-code-eliminate
+  // everything after the `if (!PUBLISHABLE_KEY) throw ...` check in
+  // main.tsx as unreachable.
+  envDir: path.resolve(import.meta.dirname),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

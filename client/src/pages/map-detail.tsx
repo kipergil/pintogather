@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,12 @@ export default function MapDetail({ params }: MapDetailProps) {
                   Edit
                 </Button>
               )}
+              <Link href={`/map/${mapCollection.shareUrl}/import`}>
+                <Button variant="outline" size="sm" data-testid="button-import-pins-link">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={() => setIsShareModalOpen(true)} data-testid="button-share-map">
                 <Share2 className="h-4 w-4 mr-2" />
                 Share

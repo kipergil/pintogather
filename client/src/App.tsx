@@ -23,6 +23,7 @@ import Profile from "@/pages/profile";
 import Auth from "@/pages/auth";
 import AddPin from "@/pages/add-pin";
 import EditPin from "@/pages/edit-pin";
+import ImportPins from "@/pages/import-pins";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { LogIn, MapPinned, Shield, User, LogOut } from "lucide-react";
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/p/:shareUrl" component={PublicMap} />
       <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
+      <Route path="/map/:shareUrl/import" component={ImportPins} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route component={NotFound} />
     </Switch>
