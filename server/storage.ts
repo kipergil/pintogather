@@ -531,17 +531,26 @@ class DirectusStorage implements IStorage {
     const existing = await this.getPinsByMapId(mapId);
     const existingByName = new Map(existing.map((pin) => [pin.userName.trim().toLowerCase(), pin]));
 
+    // Collapse repeated names within the incoming batch itself (last one
+    // wins) — otherwise pasting/uploading the same venue twice in one list
+    // creates two pins instead of one, since neither would match an
+    // *existing* pin yet.
+    const dedupedByName = new Map<string, InsertPin>();
+    for (const pin of data) {
+      dedupedByName.set(pin.userName.trim().toLowerCase(), pin);
+    }
+
     const toCreate: InsertPin[] = [];
     const toUpdate: { id: string; data: InsertPin }[] = [];
 
-    for (const pin of data) {
-      const match = existingByName.get(pin.userName.trim().toLowerCase());
+    dedupedByName.forEach((pin, name) => {
+      const match = existingByName.get(name);
       if (match) {
         toUpdate.push({ id: match.id, data: pin });
       } else {
         toCreate.push(pin);
       }
-    }
+    });
 
     const created = await this.createPins(toCreate);
     const updated: Pin[] = [];
