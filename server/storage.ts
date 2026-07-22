@@ -1,4 +1,4 @@
-import { createItem, deleteItem, readItems, readUsers, updateItem, updateUser } from "@directus/sdk";
+import { createItem, createItems, deleteItem, readItems, readUsers, updateItem, updateUser } from "@directus/sdk";
 import { nanoid } from "nanoid";
 import type { UserGroup } from "../shared/enums.js";
 import type {
@@ -128,6 +128,27 @@ function toPin(row: DirectusPin): Pin {
   };
 }
 
+function toDirectusPinInput(data: InsertPin) {
+  return {
+    map: data.mapId,
+    user: data.userId ?? null,
+    user_name: data.userName,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    address: data.address ?? null,
+    city: data.city ?? null,
+    state: data.state ?? null,
+    town: data.town ?? null,
+    borough: data.borough ?? null,
+    postcode: data.postcode ?? null,
+    country: data.country ?? null,
+    twitter_handle: data.twitterHandle ?? null,
+    instagram_handle: data.instagramHandle ?? null,
+    linkedin_handle: data.linkedinHandle ?? null,
+    note: data.note ?? null,
+  };
+}
+
 function toMapViewer(row: DirectusMapViewer): MapViewer {
   return {
     id: row.id,
@@ -186,6 +207,7 @@ export interface IStorage {
 
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
+  createPins(data: InsertPin[]): Promise<Pin[]>;
   getPinsByMapId(mapId: string): Promise<Pin[]>;
   getPinById(id: string): Promise<Pin | undefined>;
   updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
@@ -457,30 +479,17 @@ class DirectusStorage implements IStorage {
 
   async createPin(data: InsertPin): Promise<Pin> {
     const created = await this.client.request(
-      createItem(
-        "pins",
-        {
-          map: data.mapId,
-          user: data.userId ?? null,
-          user_name: data.userName,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          address: data.address ?? null,
-          city: data.city ?? null,
-          state: data.state ?? null,
-          town: data.town ?? null,
-          borough: data.borough ?? null,
-          postcode: data.postcode ?? null,
-          country: data.country ?? null,
-          twitter_handle: data.twitterHandle ?? null,
-          instagram_handle: data.instagramHandle ?? null,
-          linkedin_handle: data.linkedinHandle ?? null,
-          note: data.note ?? null,
-        },
-        { fields: PIN_FIELDS },
-      ),
+      createItem("pins", toDirectusPinInput(data), { fields: PIN_FIELDS }),
     );
     return toPin(created as unknown as DirectusPin);
+  }
+
+  async createPins(data: InsertPin[]): Promise<Pin[]> {
+    if (data.length === 0) return [];
+    const created = await this.client.request(
+      createItems("pins", data.map(toDirectusPinInput), { fields: PIN_FIELDS }),
+    );
+    return (created as unknown as DirectusPin[]).map(toPin);
   }
 
   async getPinsByMapId(mapId: string): Promise<Pin[]> {

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { storage } from "./storage.js";
 import {
+  bulkInsertPinsSchema,
   insertMapCollectionSchema,
   insertPinSchema,
   updateMapDetailsSchema,
@@ -402,6 +403,34 @@ export async function registerRoutes(app: Express): Promise<void> {
       } else {
         console.error("Pin creation error:", error);
         res.status(500).json({ message: "Failed to create pin" });
+      }
+    }
+  });
+
+  // Bulk import (e.g. from a venue-name list) — requires an account so a
+  // batch of pins is always attributable, unlike the single anonymous-friendly
+  // add-pin flow above.
+  app.post("/api/maps/:shareUrl/pins/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const { shareUrl } = req.params;
+      const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { pins } = bulkInsertPinsSchema.parse(req.body);
+      const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id }));
+
+      const created = await storage.createPins(data);
+      res.status(201).json(created);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`);
+        res.status(400).json({ message: `Validation failed: ${errorMessages.join(", ")}`, errors: error.errors });
+      } else {
+        console.error("Bulk pin creation error:", error);
+        res.status(500).json({ message: "Failed to import pins" });
       }
     }
   });
