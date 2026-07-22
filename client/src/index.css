@@ -299,31 +299,21 @@
 /*
  * Compact Google Maps InfoWindow (pin popup).
  * Google always reserves a fixed 48px-tall row (.gm-style-iw-chr) above the
- * content purely to host the close button, which shows up as a large empty
- * band above the pin title. Collapse that row and float the button over the
- * content's corner instead so the popup hugs its actual content.
+ * content purely to host its own close button, which shows up as a large
+ * empty band above the pin title. Repositioning that button with CSS gets
+ * clipped by the bubble's own rounded-corner overflow, so instead we hide
+ * Google's row entirely and render our own close control inside the popup
+ * content (see simple-google-map.tsx), which we fully control.
  */
 .gm-style-iw-chr {
-  height: 0 !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-}
-.gm-style-iw-chr .gm-ui-hover-effect {
-  position: absolute !important;
-  top: 0 !important;
-  right: 0 !important;
-  width: 20px !important;
-  height: 20px !important;
-  z-index: 1;
-}
-.gm-style-iw-chr .gm-ui-hover-effect > span {
-  margin: 3px !important;
-  width: 14px !important;
-  height: 14px !important;
+  display: none !important;
 }
 .gm-style-iw-d {
+  /* Google sets inline overflow:scroll, which forces a visible scrollbar
+     even when content fits — our content is intentionally short, so let it
+     size naturally instead. */
   overflow: visible !important;
 }
 .gm-style-iw-c {
-  padding: 0 !important;
+  padding: 4px !important;
 }
