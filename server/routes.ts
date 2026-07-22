@@ -598,6 +598,23 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // --- Admin ------------------------------------------------------------------------
 
+  // Lets admins jump straight to a record's own edit page in the Directus
+  // admin panel (maps, pins, users) for a quick manual fix. Gated on our own
+  // is_admin flag, not Directus's — an admin still needs their own separate
+  // Directus login to actually use the panel once they get there.
+  app.get("/api/admin/directus-url", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || !(await storage.isAdmin(user.id))) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      res.json({ url: process.env.DIRECTUS_URL || null });
+    } catch (error) {
+      console.error("Error fetching Directus URL:", error);
+      res.status(500).json({ message: "Failed to fetch Directus URL" });
+    }
+  });
+
   app.get("/api/admin/users", isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);

@@ -12,6 +12,7 @@ import { ShareModal } from "@/components/share-modal";
 import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
+import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 
 interface MapDetailProps {
   params: {
@@ -163,6 +164,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
+              <OpenInDirectusButton collection="map_collections" itemId={mapCollection.id} label="Directus" />
               <Link href="/">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />

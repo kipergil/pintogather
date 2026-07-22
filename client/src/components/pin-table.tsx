@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
+import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 
 interface Pin {
   id: string;
@@ -396,6 +397,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
+                      <OpenInDirectusButton collection="pins" itemId={pin.id} />
                     </div>
                   </div>
 
@@ -506,6 +508,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               )}
+                              <OpenInDirectusButton collection="pins" itemId={pin.id} />
                             </div>
                           </td>
                         )}
