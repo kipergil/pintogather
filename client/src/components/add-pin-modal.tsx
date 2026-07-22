@@ -375,7 +375,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               <div className="relative">
                 <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="X (Twitter) handle"
+                  placeholder="X (Twitter) handle or URL"
                   value={formData.twitterHandle}
                   onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
                   className="pl-9"
@@ -385,7 +385,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               <div className="relative">
                 <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Instagram handle"
+                  placeholder="Instagram handle or URL"
                   value={formData.instagramHandle}
                   onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
                   className="pl-9"
@@ -395,7 +395,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               <div className="relative">
                 <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="LinkedIn profile"
+                  placeholder="LinkedIn handle or URL"
                   value={formData.linkedinHandle}
                   onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
                   className="pl-9"

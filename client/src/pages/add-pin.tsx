@@ -275,7 +275,7 @@ export default function AddPin({ params }: AddPinProps) {
                   type="text"
                   value={formData.twitterHandle}
                   onChange={(e) => handleInputChange('twitterHandle', e.target.value)}
-                  placeholder="@username"
+                  placeholder="@username or full profile URL"
                   className="mt-1"
                 />
               </div>
@@ -289,7 +289,7 @@ export default function AddPin({ params }: AddPinProps) {
                   type="text"
                   value={formData.instagramHandle}
                   onChange={(e) => handleInputChange('instagramHandle', e.target.value)}
-                  placeholder="@username"
+                  placeholder="@username or full profile URL"
                   className="mt-1"
                 />
               </div>
@@ -303,7 +303,7 @@ export default function AddPin({ params }: AddPinProps) {
                   type="text"
                   value={formData.linkedinHandle}
                   onChange={(e) => handleInputChange('linkedinHandle', e.target.value)}
-                  placeholder="@username"
+                  placeholder="@username or full profile URL"
                   className="mt-1"
                 />
               </div>

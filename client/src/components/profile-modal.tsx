@@ -117,7 +117,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </svg>
               </div>
               <Input
-                placeholder="Twitter handle (without @)"
+                placeholder="Twitter handle or profile URL"
                 value={profileData.twitter_handle}
                 onChange={(e) => setProfileData({ ...profileData, twitter_handle: e.target.value })}
                 className="pl-10"
@@ -131,7 +131,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </svg>
               </div>
               <Input
-                placeholder="Instagram handle (without @)"
+                placeholder="Instagram handle or profile URL"
                 value={profileData.instagram_handle}
                 onChange={(e) => setProfileData({ ...profileData, instagram_handle: e.target.value })}
                 className="pl-10"
