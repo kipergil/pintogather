@@ -207,10 +207,16 @@ export default function ImportPins({ params }: ImportPinsProps) {
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
       return response.json();
     },
-    onSuccess: (created) => {
+    onSuccess: (result: { created: unknown[]; updated: unknown[] }) => {
+      const createdCount = result.created.length;
+      const updatedCount = result.updated.length;
+      const parts = [];
+      if (createdCount > 0) parts.push(`${createdCount} pin${createdCount === 1 ? "" : "s"} added`);
+      if (updatedCount > 0) parts.push(`${updatedCount} existing pin${updatedCount === 1 ? "" : "s"} updated`);
+
       toast({
         title: "Import complete",
-        description: `${created.length} pin${created.length === 1 ? "" : "s"} added to the map.`,
+        description: parts.length > 0 ? `${parts.join(", ")}.` : "No pins to import.",
         variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });

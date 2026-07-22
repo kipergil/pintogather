@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, Copy, ExternalLink, ImageIcon, MessageSquareText, Plus, Save } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, MessageSquareText, Plus, Save, Upload } from "lucide-react";
+
+const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
+const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
 
 interface MapDetailsFormData {
   name: string;
@@ -45,8 +48,41 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
     !!(initialValues?.noteLabel || initialValues?.notePrompt),
   );
   const [showBranding, setShowBranding] = useState(!!initialValues?.brandingLogoUrl);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = initialValues?.shareUrl ? `${window.location.origin}/p/${initialValues.shareUrl}` : null;
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.size > LOGO_MAX_BYTES) {
+      toast({
+        title: "File too large",
+        description: "Please choose an image under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const response = await apiUpload("/api/uploads/logo", file);
+      const { url } = await response.json();
+      setFormData((prev) => ({ ...prev, brandingLogoUrl: url }));
+      toast({ title: "Logo uploaded", variant: "success" });
+    } catch (error: any) {
+      toast({
+        title: "Couldn't upload logo",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
 
   const copyPublicUrl = async () => {
     if (!publicUrl) return;
@@ -230,29 +266,64 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
             just your logo, the description above, and the map.
           </p>
           <div className="space-y-2">
-            <Label htmlFor="brandingLogoUrl">Logo URL</Label>
+            <Label>Logo</Label>
+            <div className="flex items-center gap-3">
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept={LOGO_ACCEPT}
+                className="hidden"
+                onChange={handleLogoFileChange}
+                data-testid="input-logo-file"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => logoFileInputRef.current?.click()}
+                disabled={isUploadingLogo}
+                data-testid="button-upload-logo"
+              >
+                {isUploadingLogo ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3.5 w-3.5 mr-2" />
+                    Upload image
+                  </>
+                )}
+              </Button>
+              {formData.brandingLogoUrl.trim() && (
+                <img
+                  src={formData.brandingLogoUrl.trim()}
+                  alt="Logo preview"
+                  className="h-10 max-w-[160px] object-contain rounded border border-border p-1"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                  onLoad={(e) => {
+                    (e.target as HTMLImageElement).style.display = "block";
+                  }}
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-2 py-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or paste an image URL</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
             <Input
               id="brandingLogoUrl"
-              type="url"
+              type="text"
               placeholder="https://yoursite.com/logo.png"
               value={formData.brandingLogoUrl}
               onChange={(e) => setFormData({ ...formData, brandingLogoUrl: e.target.value })}
               maxLength={500}
               data-testid="input-branding-logo-url"
             />
-            {formData.brandingLogoUrl.trim() && (
-              <img
-                src={formData.brandingLogoUrl.trim()}
-                alt="Logo preview"
-                className="h-10 max-w-[160px] object-contain rounded border border-border p-1"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-                onLoad={(e) => {
-                  (e.target as HTMLImageElement).style.display = "block";
-                }}
-              />
-            )}
           </div>
 
           {publicUrl && (
