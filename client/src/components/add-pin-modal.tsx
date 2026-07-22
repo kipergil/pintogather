@@ -272,8 +272,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-[9999] p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-2 min-w-0">
+      <DialogContent className="max-w-lg max-h-[90vh] z-[9999] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-4 min-w-0 shrink-0 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <MapPin className="h-4 w-4" />
@@ -283,7 +283,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
           <DialogDescription>Search for a place, or use the spot you picked on the map.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-5 min-w-0">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 min-w-0">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-w-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "search" | "custom")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="search" className="flex items-center gap-2" data-testid="tab-search">
@@ -407,27 +408,28 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
           <p className="text-xs text-muted-foreground/80 leading-relaxed">
             Anyone with access to this map can see the details you add here.
           </p>
+        </div>
 
-          <div className="flex gap-3 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={handleClose}
-              data-testid="button-cancel"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={createPinMutation.isPending || isLoadingLocation || !hasValidLocation}
-              data-testid="button-add-pin"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {createPinMutation.isPending ? "Adding..." : "Add pin"}
-            </Button>
-          </div>
+        <div className="flex gap-3 px-6 py-4 shrink-0 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={handleClose}
+            data-testid="button-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1"
+            disabled={createPinMutation.isPending || isLoadingLocation || !hasValidLocation}
+            data-testid="button-add-pin"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {createPinMutation.isPending ? "Adding..." : "Add pin"}
+          </Button>
+        </div>
         </form>
       </DialogContent>
     </Dialog>
