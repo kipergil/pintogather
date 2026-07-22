@@ -33,6 +33,7 @@ const MAP_FIELDS = [
   "default_permission",
   "note_label",
   "note_prompt",
+  "branding_logo_url",
   "date_created",
 ] as const;
 
@@ -99,6 +100,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     defaultPermission: row.default_permission,
     noteLabel: row.note_label,
     notePrompt: row.note_prompt,
+    brandingLogoUrl: row.branding_logo_url,
     createdAt: new Date(row.date_created),
   };
 }
@@ -216,6 +218,7 @@ class DirectusStorage implements IStorage {
           default_permission: data.defaultPermission ?? "readonly",
           note_label: data.noteLabel ?? null,
           note_prompt: data.notePrompt ?? null,
+          branding_logo_url: data.brandingLogoUrl ?? null,
         },
         { fields: MAP_FIELDS },
       ),
@@ -313,6 +316,7 @@ class DirectusStorage implements IStorage {
       if (data.description !== undefined) payload.description = data.description;
       if (data.noteLabel !== undefined) payload.note_label = data.noteLabel || null;
       if (data.notePrompt !== undefined) payload.note_prompt = data.notePrompt || null;
+      if (data.brandingLogoUrl !== undefined) payload.branding_logo_url = data.brandingLogoUrl || null;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);

@@ -18,6 +18,7 @@ import { AuthErrorBoundary } from "@/components/auth-error-boundary";
 import { getInitials } from "@/lib/map-utils";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
+import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
 import Auth from "@/pages/auth";
 import AddPin from "@/pages/add-pin";
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/auth" component={Auth} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/p/:shareUrl" component={PublicMap} />
       <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
       <Route path="/map/:shareUrl" component={MapDetail} />
@@ -124,17 +126,28 @@ function HeaderContent() {
   );
 }
 
+function AppShell() {
+  const [location] = useLocation();
+  // Public branded map pages are meant to be shared standalone, with no
+  // PinTogather chrome at all — not even the header.
+  const isBrandedView = location.startsWith("/p/");
+
+  return (
+    <div className="min-h-screen bg-background">
+      {!isBrandedView && <HeaderContent />}
+      <Router />
+      <Toaster />
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthErrorBoundary>
         <AuthProvider>
           <TooltipProvider>
-            <div className="min-h-screen bg-background">
-              <HeaderContent />
-              <Router />
-              <Toaster />
-            </div>
+            <AppShell />
           </TooltipProvider>
         </AuthProvider>
       </AuthErrorBoundary>

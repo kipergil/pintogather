@@ -27,6 +27,7 @@ interface MapCollection {
   ownerId?: string;
   noteLabel?: string | null;
   notePrompt?: string | null;
+  brandingLogoUrl?: string | null;
   createdAt: string;
   pinCount: number;
   pins: Array<{
@@ -216,7 +217,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               <Settings className="h-5 w-5 text-primary" />
               Edit map
             </DialogTitle>
-            <DialogDescription>Update the name, description, or pin note question.</DialogDescription>
+            <DialogDescription>Update the name, description, pin note question, or public branding.</DialogDescription>
           </DialogHeader>
           <CreateMapForm
             mapId={mapCollection.id}
@@ -225,6 +226,8 @@ export default function MapDetail({ params }: MapDetailProps) {
               description: mapCollection.description ?? "",
               noteLabel: mapCollection.noteLabel ?? "",
               notePrompt: mapCollection.notePrompt ?? "",
+              brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
+              shareUrl: mapCollection.shareUrl,
             }}
             onCreated={() => setIsEditModalOpen(false)}
           />

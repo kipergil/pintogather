@@ -51,6 +51,8 @@ export interface MapCollection {
   noteLabel: string | null;
   /** Custom question/prompt shown under the note label, e.g. "What should people order here?". */
   notePrompt: string | null;
+  /** Custom logo shown instead of PinTogather branding on this map's public /p/:shareUrl page. */
+  brandingLogoUrl: string | null;
   createdAt: Date;
 }
 
@@ -62,6 +64,7 @@ export const insertMapCollectionSchema = z.object({
   defaultPermission: z.enum(PERMISSION).optional(),
   noteLabel: z.string().trim().max(60).nullable().optional(),
   notePrompt: z.string().trim().nullable().optional(),
+  brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 
@@ -70,6 +73,7 @@ export const updateMapDetailsSchema = z.object({
   description: z.string().trim().nullable().optional(),
   noteLabel: z.string().trim().max(60).nullable().optional(),
   notePrompt: z.string().trim().nullable().optional(),
+  brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
 
