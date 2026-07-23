@@ -55,16 +55,16 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in">
       {/* Profile header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-        <Avatar className="h-24 w-24 border border-border shrink-0">
+      <div className="flex flex-row items-start gap-4 sm:gap-5">
+        <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border border-border shrink-0">
           {profile.profileImageUrl && <AvatarImage src={profile.profileImageUrl} alt={displayName} />}
-          <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
+          <AvatarFallback className="bg-primary/10 text-primary text-xl sm:text-2xl font-semibold">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
 
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{displayName}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{displayName}</h1>
           <p className="text-muted-foreground">@{profile.username}</p>
           {profile.bio && <p className="text-foreground/90 mt-2 max-w-lg whitespace-pre-wrap">{profile.bio}</p>}
 
