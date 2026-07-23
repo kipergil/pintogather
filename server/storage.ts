@@ -45,6 +45,7 @@ const MAP_FIELDS = [
   "note_label",
   "note_prompt",
   "branding_logo_url",
+  "show_on_profile",
   "date_created",
 ] as const;
 
@@ -94,6 +95,8 @@ const USER_FIELDS = [
   "role",
   "clerk_user_id",
   "full_name",
+  "username",
+  "bio",
   "twitter_handle",
   "instagram_handle",
   "linkedin_handle",
@@ -113,6 +116,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     noteLabel: row.note_label,
     notePrompt: row.note_prompt,
     brandingLogoUrl: row.branding_logo_url,
+    showOnProfile: row.show_on_profile,
     createdAt: new Date(row.date_created),
   };
 }
@@ -197,6 +201,7 @@ export interface IStorage {
   getAllMapCollections(): Promise<MapCollection[]>;
   getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
+  getPublicMapsByUserId(userId: string): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
   updateMapPermissions(
     mapId: string,
@@ -268,6 +273,7 @@ class DirectusStorage implements IStorage {
           note_label: data.noteLabel ?? null,
           note_prompt: data.notePrompt ?? null,
           branding_logo_url: data.brandingLogoUrl ?? null,
+          show_on_profile: data.showOnProfile ?? false,
         },
         { fields: MAP_FIELDS },
       ),
@@ -366,6 +372,7 @@ class DirectusStorage implements IStorage {
       if (data.noteLabel !== undefined) payload.note_label = data.noteLabel || null;
       if (data.notePrompt !== undefined) payload.note_prompt = data.notePrompt || null;
       if (data.brandingLogoUrl !== undefined) payload.branding_logo_url = data.brandingLogoUrl || null;
+      if (data.showOnProfile !== undefined) payload.show_on_profile = data.showOnProfile;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
@@ -724,6 +731,8 @@ class DirectusStorage implements IStorage {
           userId,
           {
             full_name: data.fullName,
+            ...(data.username !== undefined ? { username: data.username } : {}),
+            ...(data.bio !== undefined ? { bio: data.bio } : {}),
             twitter_handle: data.twitterHandle ?? null,
             instagram_handle: data.instagramHandle ?? null,
             linkedin_handle: data.linkedinHandle ?? null,
@@ -736,6 +745,18 @@ class DirectusStorage implements IStorage {
       console.error("Error updating profile:", error);
       return undefined;
     }
+  }
+
+  async getPublicMapsByUserId(userId: string): Promise<MapCollection[]> {
+    const rows = await this.client.request(
+      readItems("map_collections", {
+        filter: { owner: { _eq: userId }, show_on_profile: { _eq: true } },
+        fields: MAP_FIELDS,
+        sort: ["-date_created"],
+        limit: -1,
+      }),
+    );
+    return (rows as DirectusMapCollection[]).map(toMapCollection);
   }
 }
 

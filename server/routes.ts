@@ -6,12 +6,14 @@ import {
   insertPinSchema,
   updateMapDetailsSchema,
   updateProfileSchema,
+  USERNAME_PATTERN,
 } from "../shared/schema.js";
-import type { Pin, User } from "../shared/schema.js";
+import type { Pin, PublicProfile, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
+import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
@@ -121,6 +123,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!user) return res.status(401).json({ message: "Unauthorized" });
 
       const data = updateProfileSchema.parse(req.body);
+
+      if (data.username && data.username !== user.username) {
+        const existing = await getUserByUsername(data.username);
+        if (existing && existing.id !== user.id) {
+          return res.status(400).json({ message: "That username is already taken" });
+        }
+      }
+
       const updated = await storage.updateProfile(user.id, data);
       if (!updated) return res.status(404).json({ message: "User not found" });
       res.json(updated);
@@ -130,6 +140,69 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // --- Public profiles --------------------------------------------------------------
+
+  // Live availability check while a user is claiming/changing their username.
+  app.get("/api/users/:username/availability", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const username = req.params.username.toLowerCase();
+      if (!USERNAME_PATTERN.test(username)) {
+        return res.json({ available: false, reason: "invalid" });
+      }
+
+      const existing = await getUserByUsername(username);
+      const available = !existing || existing.id === user.id;
+      res.json({ available });
+    } catch (error) {
+      console.error("Error checking username availability:", error);
+      res.status(500).json({ message: "Failed to check username availability" });
+    }
+  });
+
+  // Public, unauthenticated: a user's curated public profile — their info
+  // plus only the maps they've chosen to show (showOnProfile === true).
+  app.get("/api/profile/:username", async (req, res) => {
+    try {
+      const user = await getUserByUsername(req.params.username);
+      if (!user || !user.username) return res.status(404).json({ message: "Profile not found" });
+
+      const maps = await storage.getPublicMapsByUserId(user.id);
+      const mapsWithPinCount = await Promise.all(
+        maps.map(async (map) => {
+          const pins = await storage.getPinsByMapId(map.id);
+          return {
+            id: map.id,
+            name: map.name,
+            description: map.description,
+            shareUrl: map.shareUrl,
+            brandingLogoUrl: map.brandingLogoUrl,
+            pinCount: pins.length,
+            createdAt: map.createdAt,
+          };
+        }),
+      );
+
+      const profile: PublicProfile = {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        bio: user.bio,
+        profileImageUrl: user.profileImageUrl,
+        twitterHandle: user.twitterHandle,
+        instagramHandle: user.instagramHandle,
+        linkedinHandle: user.linkedinHandle,
+        maps: mapsWithPinCount,
+      };
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching public profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
     }
   });
 

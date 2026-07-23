@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,7 @@ interface MapDetailsFormData {
   noteLabel: string;
   notePrompt: string;
   brandingLogoUrl: string;
+  showOnProfile: boolean;
 }
 
 interface CreateMapFormProps {
@@ -43,6 +45,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
     noteLabel: initialValues?.noteLabel ?? "",
     notePrompt: initialValues?.notePrompt ?? "",
     brandingLogoUrl: initialValues?.brandingLogoUrl ?? "",
+    showOnProfile: initialValues?.showOnProfile ?? false,
   });
   const [showNoteCustomization, setShowNoteCustomization] = useState(
     !!(initialValues?.noteLabel || initialValues?.notePrompt),
@@ -134,6 +137,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         noteLabel: data.noteLabel.trim() || null,
         notePrompt: data.notePrompt.trim() || null,
         brandingLogoUrl: data.brandingLogoUrl.trim() || null,
+        showOnProfile: data.showOnProfile,
       };
       const response = await apiRequest("PUT", `/api/maps/${mapId}/details`, mapData);
       return response.json();
@@ -198,6 +202,23 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
           data-testid="input-map-description"
         />
       </div>
+
+      {isEditing && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
+          <div className="space-y-0.5">
+            <Label htmlFor="showOnProfile">Show on public profile</Label>
+            <p className="text-xs text-muted-foreground">
+              List this map on your public profile page. Hidden maps stay private to you.
+            </p>
+          </div>
+          <Switch
+            id="showOnProfile"
+            checked={formData.showOnProfile}
+            onCheckedChange={(checked) => setFormData({ ...formData, showOnProfile: checked })}
+            data-testid="switch-show-on-profile"
+          />
+        </div>
+      )}
 
       <Collapsible open={showNoteCustomization} onOpenChange={setShowNoteCustomization}>
         <CollapsibleTrigger asChild>

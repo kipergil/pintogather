@@ -10,6 +10,8 @@ export interface DirectusUsersCustomFields {
   clerk_user_id: string | null;
   avatar_url: string | null;
   full_name: string | null;
+  username: string | null;
+  bio: string | null;
   twitter_handle: string | null;
   instagram_handle: string | null;
   linkedin_handle: string | null;
@@ -38,6 +40,8 @@ export interface MapCollection {
   note_label: string | null;
   note_prompt: string | null;
   branding_logo_url: string | null;
+  /** Whether this map appears on the owner's public profile page (/u/:username). */
+  show_on_profile: boolean;
   date_created: string;
 }
 

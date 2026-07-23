@@ -1,7 +1,8 @@
 import { Link } from "wouter";
-import { MapPin, Link2, Trash2, Crown, Users } from "lucide-react";
+import { MapPin, Link2, Trash2, Crown, Users, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 export interface MapCollectionSummary {
   id: string;
@@ -10,6 +11,7 @@ export interface MapCollectionSummary {
   shareUrl: string;
   createdAt: string;
   pinCount: number;
+  showOnProfile?: boolean;
 }
 
 function formatRelativeDate(dateString: string) {
@@ -29,9 +31,10 @@ interface MapCardProps {
   role: "owner" | "contributor";
   onCopyLink: (map: MapCollectionSummary) => void;
   onDelete?: (map: MapCollectionSummary) => void;
+  onToggleProfileVisibility?: (map: MapCollectionSummary, showOnProfile: boolean) => void;
 }
 
-export function MapCard({ map, role, onCopyLink, onDelete }: MapCardProps) {
+export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibility }: MapCardProps) {
   return (
     <div
       className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -56,6 +59,20 @@ export function MapCard({ map, role, onCopyLink, onDelete }: MapCardProps) {
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{map.description}</p>
       ) : (
         <p className="text-sm text-muted-foreground/60 mb-3 italic">No description</p>
+      )}
+
+      {role === "owner" && onToggleProfileVisibility && (
+        <div className="flex items-center justify-between gap-2 mb-3 py-2 px-3 rounded-lg bg-muted/40">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            {map.showOnProfile ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {map.showOnProfile ? "Public on profile" : "Hidden from profile"}
+          </span>
+          <Switch
+            checked={!!map.showOnProfile}
+            onCheckedChange={(checked) => onToggleProfileVisibility(map, checked)}
+            data-testid={`switch-profile-visibility-${map.id}`}
+          />
+        </div>
       )}
 
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 mt-auto pt-1">

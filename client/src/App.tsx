@@ -20,13 +20,14 @@ import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
 import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
+import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import AddPin from "@/pages/add-pin";
 import EditPin from "@/pages/edit-pin";
 import ImportPins from "@/pages/import-pins";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
-import { LogIn, MapPinned, Shield, User, LogOut } from "lucide-react";
+import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink } from "lucide-react";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/auth" component={Auth} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/p/:shareUrl" component={PublicMap} />
+      <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
       <Route path="/map/:shareUrl/import" component={ImportPins} />
@@ -102,6 +104,15 @@ function HeaderContent() {
                       <User className="h-4 w-4 mr-2" />
                       Profile settings
                     </DropdownMenuItem>
+                    {user.username && (
+                      <DropdownMenuItem
+                        onClick={() => setLocation(`/u/${user.username}`)}
+                        data-testid="menu-item-public-profile"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View public profile
+                      </DropdownMenuItem>
+                    )}
                     {user.isAdmin && (
                       <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-item-admin">
                         <Shield className="h-4 w-4 mr-2" />
