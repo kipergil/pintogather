@@ -1,18 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload } from "lucide-react";
-import { Link } from "wouter";
+import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload, Menu, Download, Database } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
-import { OpenInDirectusButton } from "@/components/open-in-directus-button";
+import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
+import { useToast } from "@/hooks/use-toast";
 
 interface MapDetailProps {
   params: {
@@ -40,6 +48,7 @@ interface MapCollection {
     longitude: string;
     address?: string;
     city?: string;
+    town?: string;
     state?: string;
     borough?: string;
     postcode?: string;
@@ -59,6 +68,9 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const directusUrl = useDirectusAdminUrl();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
@@ -98,6 +110,47 @@ export default function MapDetail({ params }: MapDetailProps) {
 
   const contributorsCount = new Set(mapCollection.pins.map(pin => pin.userName)).size;
   const isOwner = !!user && user.id === mapCollection.ownerId;
+
+  const exportPins = () => {
+    if (mapCollection.pins.length === 0) {
+      toast({
+        title: "Nothing to export",
+        description: "This map doesn't have any pins yet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const noteLabel = mapCollection.noteLabel || "Note";
+    const csvContent = [
+      ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
+      ...mapCollection.pins.map(pin => [
+        pin.userName,
+        [pin.city, pin.town].filter(Boolean).join(", ") || "",
+        pin.country || "",
+        pin.postcode || "",
+        pin.twitterHandle || "",
+        pin.instagramHandle || "",
+        pin.linkedinHandle || "",
+        pin.note || "",
+        new Date(pin.createdAt).toLocaleDateString(),
+      ].map(field => `"${field}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "map-pins.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "CSV exported",
+      description: `${mapCollection.pins.length} pin${mapCollection.pins.length === 1 ? "" : "s"} exported.`,
+      variant: "success",
+    });
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
@@ -143,35 +196,56 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
-              {isOwner && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditModalOpen(true)}
-                  data-testid="button-edit-map"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-              <Link href={`/map/${mapCollection.shareUrl}/import`}>
-                <Button variant="outline" size="sm" data-testid="button-import-pins-link">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import
-                </Button>
-              </Link>
-              <Button variant="outline" size="sm" onClick={() => setIsShareModalOpen(true)} data-testid="button-share-map">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-              <OpenInDirectusButton collection="map_collections" itemId={mapCollection.id} label="Directus" />
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" data-testid="button-map-menu">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {isOwner && (
+                    <DropdownMenuItem onClick={() => setIsEditModalOpen(true)} data-testid="menu-item-edit-map">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Edit map
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
+                    data-testid="menu-item-import-pins"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import pins
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsShareModalOpen(true)} data-testid="menu-item-share-map">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </DropdownMenuItem>
+                  {isOwner && (
+                    <DropdownMenuItem onClick={exportPins} data-testid="menu-item-export-csv">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </DropdownMenuItem>
+                  )}
+                  {isOwner && directusUrl && (
+                    <DropdownMenuItem asChild data-testid="menu-item-open-directus">
+                      <a
+                        href={buildDirectusAdminUrl(directusUrl, "map_collections", mapCollection.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Open in Directus
+                      </a>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocation("/")} data-testid="menu-item-back-home">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to home
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 

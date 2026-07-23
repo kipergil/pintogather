@@ -8,7 +8,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Search,
-  Download,
   MapPin,
   Trash2,
   Twitter,
@@ -53,7 +52,7 @@ interface PinTableProps {
   shareUrl?: string;
   /** Custom label for the note field configured on this map, e.g. "Favourite dish". Falls back to "Note". */
   noteLabel?: string | null;
-  /** Public/embedded views: no edit/delete actions and no CSV export, regardless of who's viewing. */
+  /** Public/embedded views: no edit/delete actions, regardless of who's viewing. */
   readOnly?: boolean;
   /** Called when a row is clicked, so the map can pan/zoom to that pin. */
   onPinSelect?: (pinId: string) => void;
@@ -250,46 +249,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     });
   };
 
-  const exportPins = () => {
-    if (filteredPins.length === 0) {
-      toast({
-        title: "Nothing to export",
-        description: "There are no pins matching your current search.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const csvContent = [
-      ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", resolvedNoteLabel, "Added Date"].join(","),
-      ...filteredPins.map(pin => [
-        pin.userName,
-        [pin.city, pin.town].filter(Boolean).join(', ') || "",
-        pin.country || "",
-        pin.postcode || "",
-        pin.twitterHandle || "",
-        pin.instagramHandle || "",
-        pin.linkedinHandle || "",
-        pin.note || "",
-        new Date(pin.createdAt).toLocaleDateString()
-      ].map(field => `"${field}"`).join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "map-pins.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "CSV exported",
-      description: `${filteredPins.length} pin${filteredPins.length === 1 ? "" : "s"} exported.`,
-      variant: "success",
-    });
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -328,12 +287,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                   Show all notes
                 </>
               )}
-            </Button>
-          )}
-          {!readOnly && user?.isAdmin && (
-            <Button variant="outline" size="sm" onClick={exportPins} data-testid="button-export-csv">
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
             </Button>
           )}
         </div>
