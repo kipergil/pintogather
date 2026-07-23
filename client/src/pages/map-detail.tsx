@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +15,11 @@ import {
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
-import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { useToast } from "@/hooks/use-toast";
+import { downloadPinsCsv } from "@/lib/csv-export";
 
 interface MapDetailProps {
   params: {
@@ -65,7 +64,6 @@ interface MapCollection {
 export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -121,29 +119,7 @@ export default function MapDetail({ params }: MapDetailProps) {
       return;
     }
 
-    const noteLabel = mapCollection.noteLabel || "Note";
-    const csvContent = [
-      ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
-      ...mapCollection.pins.map(pin => [
-        pin.userName,
-        [pin.city, pin.town].filter(Boolean).join(", ") || "",
-        pin.country || "",
-        pin.postcode || "",
-        pin.twitterHandle || "",
-        pin.instagramHandle || "",
-        pin.linkedinHandle || "",
-        pin.note || "",
-        new Date(pin.createdAt).toLocaleDateString(),
-      ].map(field => `"${field}"`).join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "map-pins.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadPinsCsv(mapCollection.pins, mapCollection.noteLabel || "Note");
 
     toast({
       title: "CSV exported",
@@ -205,7 +181,10 @@ export default function MapDetail({ params }: MapDetailProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   {isOwner && (
-                    <DropdownMenuItem onClick={() => setIsEditModalOpen(true)} data-testid="menu-item-edit-map">
+                    <DropdownMenuItem
+                      onClick={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
+                      data-testid="menu-item-edit-map"
+                    >
                       <Settings className="h-4 w-4 mr-2" />
                       Edit map
                     </DropdownMenuItem>
@@ -294,32 +273,6 @@ export default function MapDetail({ params }: MapDetailProps) {
         onClose={() => setIsAuthModalOpen(false)}
         returnUrl={`/map/${params.shareUrl}`}
       />
-
-      {/* Edit Map Dialog */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" />
-              Edit map
-            </DialogTitle>
-            <DialogDescription>Update the name, description, pin note question, or public branding.</DialogDescription>
-          </DialogHeader>
-          <CreateMapForm
-            mapId={mapCollection.id}
-            initialValues={{
-              name: mapCollection.name,
-              description: mapCollection.description ?? "",
-              noteLabel: mapCollection.noteLabel ?? "",
-              notePrompt: mapCollection.notePrompt ?? "",
-              brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
-              showOnProfile: mapCollection.showOnProfile ?? false,
-              shareUrl: mapCollection.shareUrl,
-            }}
-            onCreated={() => setIsEditModalOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
