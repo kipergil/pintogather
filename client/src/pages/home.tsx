@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapCard, MapCardSkeleton, type MapCollectionSummary } from "@/components/map-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,7 +28,6 @@ import { downloadPinsCsv } from "@/lib/csv-export";
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollectionSummary | null }>({
     isOpen: false,
@@ -53,27 +52,6 @@ export default function Home() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !authLoading && !!user?.id,
-  });
-
-  const toggleProfileVisibilityMutation = useMutation({
-    mutationFn: async ({ map, showOnProfile }: { map: MapCollectionSummary; showOnProfile: boolean }) => {
-      const response = await apiRequest("PUT", `/api/maps/${map.id}/details`, { showOnProfile });
-      return response.json();
-    },
-    onSuccess: (_data, { showOnProfile }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id, "owned"] });
-      toast({
-        title: showOnProfile ? "Now public on your profile" : "Hidden from your profile",
-        variant: "success",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Couldn't update visibility",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
-    },
   });
 
   const handleCopyMapUrl = async (map: MapCollectionSummary) => {
@@ -139,9 +117,6 @@ export default function Home() {
             onCreateClick={() => setLocation("/map/new")}
             onCopyLink={handleCopyMapUrl}
             onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
-            onToggleProfileVisibility={(map, showOnProfile) =>
-              toggleProfileVisibilityMutation.mutate({ map, showOnProfile })
-            }
             onExportCsv={handleExportCsv}
           />
         ) : (
@@ -173,7 +148,6 @@ interface SignedInDashboardProps {
   onCreateClick: () => void;
   onCopyLink: (map: MapCollectionSummary) => void;
   onDeleteMap: (map: MapCollectionSummary) => void;
-  onToggleProfileVisibility: (map: MapCollectionSummary, showOnProfile: boolean) => void;
   onExportCsv: (map: MapCollectionSummary) => void;
 }
 
@@ -187,7 +161,6 @@ function SignedInDashboard({
   onCreateClick,
   onCopyLink,
   onDeleteMap,
-  onToggleProfileVisibility,
   onExportCsv,
 }: SignedInDashboardProps) {
   return (
@@ -255,7 +228,6 @@ function SignedInDashboard({
                   role="owner"
                   onCopyLink={onCopyLink}
                   onDelete={onDeleteMap}
-                  onToggleProfileVisibility={onToggleProfileVisibility}
                   onExportCsv={onExportCsv}
                 />
               ))}

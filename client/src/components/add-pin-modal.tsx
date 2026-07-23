@@ -275,7 +275,9 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] z-[9999] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent
+        className="inset-0 sm:inset-auto sm:left-[50%] sm:top-[50%] translate-x-0 sm:translate-x-[-50%] translate-y-0 sm:translate-y-[-50%] w-full h-full sm:h-auto max-w-full sm:max-w-lg max-h-full sm:max-h-[90vh] rounded-none sm:rounded-lg z-[9999] p-0 gap-0 flex flex-col overflow-hidden"
+      >
         <DialogHeader className="px-6 pt-6 pb-4 min-w-0 shrink-0 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">

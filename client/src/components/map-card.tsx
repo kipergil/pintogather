@@ -1,8 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { MapPin, Link2, Trash2, Crown, Users, Eye, EyeOff, MoreHorizontal, Settings, Upload, Download } from "lucide-react";
+import { MapPin, Link2, Trash2, Crown, Users, MoreHorizontal, Settings, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,11 +37,10 @@ interface MapCardProps {
   role: "owner" | "contributor";
   onCopyLink: (map: MapCollectionSummary) => void;
   onDelete?: (map: MapCollectionSummary) => void;
-  onToggleProfileVisibility?: (map: MapCollectionSummary, showOnProfile: boolean) => void;
   onExportCsv?: (map: MapCollectionSummary) => void;
 }
 
-export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibility, onExportCsv }: MapCardProps) {
+export function MapCard({ map, role, onCopyLink, onDelete, onExportCsv }: MapCardProps) {
   const [, setLocation] = useLocation();
 
   return (
@@ -69,21 +67,6 @@ export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibi
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{map.description}</p>
       ) : (
         <p className="text-sm text-muted-foreground/60 mb-3 italic">No description</p>
-      )}
-
-      {role === "owner" && onToggleProfileVisibility && (
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            {map.showOnProfile ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            {map.showOnProfile ? "Public" : "Hidden"}
-          </span>
-          <Switch
-            size="sm"
-            checked={!!map.showOnProfile}
-            onCheckedChange={(checked) => onToggleProfileVisibility(map, checked)}
-            data-testid={`switch-profile-visibility-${map.id}`}
-          />
-        </div>
       )}
 
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 mt-auto pt-1">
