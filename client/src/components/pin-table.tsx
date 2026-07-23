@@ -3,6 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,10 +25,13 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
+  MoreVertical,
+  Database,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
 import { OpenInDirectusButton } from "@/components/open-in-directus-button";
+import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { buildSocialUrl } from "@/lib/social-links";
 
 interface Pin {
@@ -167,6 +176,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const directusUrl = useDirectusAdminUrl();
 
   const resolvedNoteLabel = noteLabel || "Note";
 
@@ -348,28 +358,50 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                           </a>
                         </Button>
                       )}
-                      {canEditPin(pin) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditPin(pin)}
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                      {(canEditPin(pin) || canDeletePin(pin) || directusUrl) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground"
+                              data-testid={`button-pin-actions-${pin.id}`}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canEditPin(pin) && (
+                              <DropdownMenuItem onClick={() => handleEditPin(pin)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {canDeletePin(pin) && (
+                              <DropdownMenuItem
+                                onClick={() => handleDeletePin(pin.id)}
+                                disabled={deletePinMutation.isPending}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                            {directusUrl && (
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={buildDirectusAdminUrl(directusUrl, "pins", pin.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Database className="h-4 w-4 mr-2" />
+                                  Open in Directus
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
-                      {canDeletePin(pin) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeletePin(pin.id)}
-                          disabled={deletePinMutation.isPending}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <OpenInDirectusButton collection="pins" itemId={pin.id} />
                     </div>
                   </div>
 
