@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CreateMapForm } from "@/components/create-map-form";
 import { MapCard, MapCardSkeleton, type MapCollectionSummary } from "@/components/map-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Share2,
   LogIn,
@@ -20,7 +19,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
@@ -31,7 +29,7 @@ export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollectionSummary | null }>({
     isOpen: false,
     map: null,
@@ -138,7 +136,7 @@ export default function Home() {
             isLoadingOwned={isLoadingOwned}
             isLoadingContributed={isLoadingContributed}
             totalPins={totalPins}
-            onCreateClick={() => setIsCreateOpen(true)}
+            onCreateClick={() => setLocation("/map/new")}
             onCopyLink={handleCopyMapUrl}
             onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
             onToggleProfileVisibility={(map, showOnProfile) =>
@@ -152,22 +150,6 @@ export default function Home() {
 
         <UseCasesSection showCta={!user} />
       </main>
-
-      {/* Create Map Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" />
-              Create a new map
-            </DialogTitle>
-            <DialogDescription>
-              Give it a name and description — you'll get a shareable link right after.
-            </DialogDescription>
-          </DialogHeader>
-          <CreateMapForm onCreated={() => setIsCreateOpen(false)} />
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Map Modal */}
       {deleteMapModal.map && (

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -14,8 +13,6 @@ import { PlacesSearch } from "./places-search";
 import {
   MapPin,
   Plus,
-  Search,
-  MousePointer2,
   AtSign,
   ChevronDown,
   Link2,
@@ -30,6 +27,7 @@ interface AddPinModalProps {
     noteLabel?: string | null;
     notePrompt?: string | null;
   };
+  /** Set when opened by clicking a spot on the map; left null when opened via the "Add a venue" search button. */
   selectedLocation: {
     lat: number;
     lng: number;
@@ -63,6 +61,8 @@ interface PlaceResult {
   lng: number;
 }
 
+type LocationSource = "click" | "search";
+
 const NOTE_MAX_LENGTH = 280;
 
 const emptyForm: PinFormData = {
@@ -80,8 +80,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const noteLabel = mapCollection.noteLabel || "Note";
   const notePrompt = mapCollection.notePrompt || null;
 
-  const [activeTab, setActiveTab] = useState<"search" | "custom">(initialLocation ? "custom" : "search");
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address?: string } | null>(null);
+  const [locationSource, setLocationSource] = useState<LocationSource | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const [showSocialLinks, setShowSocialLinks] = useState(false);
 
@@ -90,14 +90,19 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
+  // Opened by clicking the map: an initial location is provided, so we skip
+  // straight to the pin details. Opened via "Add a venue": no location yet,
+  // so a search box is shown first — see the render logic below.
   useEffect(() => {
     if (isOpen) {
       if (initialLocation) {
         setSelectedLocation(initialLocation);
-        setActiveTab("custom");
+        setLocationSource("click");
       } else {
-        setActiveTab("search");
+        setSelectedLocation(null);
+        setLocationSource(null);
       }
+      setSelectedPlace(null);
     }
   }, [isOpen, initialLocation]);
 
@@ -120,12 +125,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   }, [isOpen, user]);
 
   useEffect(() => {
-    if (!selectedLocation || !isOpen || activeTab === "search") {
-      if (activeTab === "search") {
-        setLocationData(null);
-      }
-      return;
-    }
+    if (!selectedLocation || !isOpen || locationSource !== "click") return;
 
     const fetchLocationData = async () => {
       setIsLoadingLocation(true);
@@ -165,7 +165,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     };
 
     fetchLocationData();
-  }, [selectedLocation, isOpen, activeTab]);
+  }, [selectedLocation, isOpen, locationSource]);
 
   const handlePlaceSelect = (place: PlaceResult) => {
     setSelectedPlace(place);
@@ -174,6 +174,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       lng: place.lng,
       address: place.address
     });
+    setLocationSource("search");
     setLocationData({
       address: place.address,
       city: "",
@@ -185,6 +186,13 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     });
     // Name the pin after the venue so search-built maps read as a list of places.
     setFormData((prev) => ({ ...prev, userName: place.name }));
+  };
+
+  const searchAgain = () => {
+    setSelectedLocation(null);
+    setSelectedPlace(null);
+    setLocationSource(null);
+    setLocationData(null);
   };
 
   const createPinMutation = useMutation({
@@ -222,14 +230,10 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       return;
     }
 
-    const currentLocation = activeTab === "search" ?
-      (selectedPlace ? { lat: selectedPlace.lat, lng: selectedPlace.lng, address: selectedPlace.address } : null) :
-      selectedLocation;
-
-    if (!currentLocation) {
+    if (!selectedLocation) {
       toast({
         title: "Location required",
-        description: activeTab === "search" ? "Please search and select a place" : "No location selected",
+        description: "Please search and select a place, or pick a spot on the map",
         variant: "destructive",
       });
       return;
@@ -238,9 +242,9 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     const pinData = {
       userId: user?.id || null,
       userName: formData.userName.trim(),
-      latitude: currentLocation.lat.toString(),
-      longitude: currentLocation.lng.toString(),
-      address: activeTab === "search" ? selectedPlace?.address : (locationData?.address || null),
+      latitude: selectedLocation.lat.toString(),
+      longitude: selectedLocation.lng.toString(),
+      address: locationSource === "search" ? selectedPlace?.address : (locationData?.address || null),
       city: locationData?.city || null,
       state: locationData?.state || null,
       borough: locationData?.borough || null,
@@ -260,12 +264,11 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     setLocationData(null);
     setSelectedPlace(null);
     setSelectedLocation(null);
-    setActiveTab("search");
+    setLocationSource(null);
     setShowSocialLinks(false);
     onClose();
   };
 
-  const hasValidLocation = activeTab === "search" ? !!selectedPlace : !!selectedLocation;
   const socialLinksFilledCount = [formData.twitterHandle, formData.instagramHandle, formData.linkedinHandle].filter(
     Boolean
   ).length;
@@ -278,136 +281,139 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <MapPin className="h-4 w-4" />
             </div>
-            Add a pin
+            {!selectedLocation ? "Add a venue" : "Add a pin"}
           </DialogTitle>
-          <DialogDescription>Search for a place, or use the spot you picked on the map.</DialogDescription>
+          <DialogDescription>
+            {!selectedLocation
+              ? "Search for the place you want to pin."
+              : "Fill in the details, then add it to the map."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 min-w-0">
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-w-0">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "search" | "custom")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="search" className="flex items-center gap-2" data-testid="tab-search">
-                <Search className="h-4 w-4" />
-                Search
-              </TabsTrigger>
-              <TabsTrigger value="custom" className="flex items-center gap-2" data-testid="tab-custom">
-                <MousePointer2 className="h-4 w-4" />
-                Map location
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="search" className="mt-3 space-y-3">
-              <PlacesSearch
-                onPlaceSelect={handlePlaceSelect}
-                placeholder="Search restaurants, cafes, landmarks..."
-              />
-
-              {selectedPlace && <LocationPreview title={selectedPlace.name} subtitle={selectedPlace.address} />}
-            </TabsContent>
-
-            <TabsContent value="custom" className="mt-3">
+          {!selectedLocation ? (
+            <PlacesSearch
+              onPlaceSelect={handlePlaceSelect}
+              placeholder="Search restaurants, cafes, landmarks..."
+            />
+          ) : (
+            <>
               {isLoadingLocation ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-xl border border-border bg-muted/40 p-4">
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
                   Looking up address...
                 </div>
-              ) : selectedLocation ? (
-                <LocationPreview
-                  title={locationData?.address || `${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`}
-                  subtitle={[locationData?.city, locationData?.state].filter(Boolean).join(", ") || undefined}
-                />
               ) : (
-                <div className="text-sm text-muted-foreground text-center py-6 rounded-xl border border-dashed border-border">
-                  Click anywhere on the map to drop a pin here
-                </div>
+                <LocationPreview
+                  title={
+                    locationSource === "search"
+                      ? selectedPlace?.name ?? ""
+                      : locationData?.address || `${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`
+                  }
+                  subtitle={
+                    locationSource === "search"
+                      ? selectedPlace?.address
+                      : [locationData?.city, locationData?.state].filter(Boolean).join(", ") || undefined
+                  }
+                />
               )}
-            </TabsContent>
-          </Tabs>
+              {locationSource === "search" && (
+                <button
+                  type="button"
+                  onClick={searchAgain}
+                  className="text-xs font-medium text-primary hover:underline"
+                  data-testid="button-search-different-venue"
+                >
+                  Search a different venue
+                </button>
+              )}
 
-          <div className="space-y-2">
-            <Label htmlFor="userName">Your name</Label>
-            <Input
-              id="userName"
-              type="text"
-              placeholder="How should we credit this pin?"
-              value={formData.userName}
-              onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-              required
-              data-testid="input-user-name"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="pinNote">{noteLabel}</Label>
-              <span className="text-xs text-muted-foreground">
-                {formData.note.length}/{NOTE_MAX_LENGTH}
-              </span>
-            </div>
-            {notePrompt && <p className="text-xs text-muted-foreground -mt-1.5">{notePrompt}</p>}
-            <Textarea
-              id="pinNote"
-              placeholder={notePrompt || "What makes this place worth pinning?"}
-              value={formData.note}
-              onChange={(e) => setFormData({ ...formData, note: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
-              rows={2}
-              data-testid="input-note"
-            />
-          </div>
-
-          <Collapsible open={showSocialLinks} onOpenChange={setShowSocialLinks}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
-                data-testid="button-toggle-social-links"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Link2 className="h-3.5 w-3.5" />
-                  Social links {socialLinksFilledCount > 0 && `(${socialLinksFilledCount} added)`}
-                  <span className="text-xs font-normal text-muted-foreground/70">optional</span>
-                </span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${showSocialLinks ? "rotate-180" : ""}`} />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3 space-y-2.5">
-              <div className="relative">
-                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <Label htmlFor="userName">Your name</Label>
                 <Input
-                  placeholder="X (Twitter) handle or URL"
-                  value={formData.twitterHandle}
-                  onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                  className="pl-9"
-                  data-testid="input-twitter"
+                  id="userName"
+                  type="text"
+                  placeholder="How should we credit this pin?"
+                  value={formData.userName}
+                  onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                  required
+                  data-testid="input-user-name"
                 />
               </div>
-              <div className="relative">
-                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Instagram handle or URL"
-                  value={formData.instagramHandle}
-                  onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                  className="pl-9"
-                  data-testid="input-instagram"
-                />
-              </div>
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="LinkedIn handle or URL"
-                  value={formData.linkedinHandle}
-                  onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                  className="pl-9"
-                  data-testid="input-linkedin"
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
 
-          <p className="text-xs text-muted-foreground/80 leading-relaxed">
-            Anyone with access to this map can see the details you add here.
-          </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pinNote">{noteLabel}</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {formData.note.length}/{NOTE_MAX_LENGTH}
+                  </span>
+                </div>
+                {notePrompt && <p className="text-xs text-muted-foreground -mt-1.5">{notePrompt}</p>}
+                <Textarea
+                  id="pinNote"
+                  placeholder={notePrompt || "What makes this place worth pinning?"}
+                  value={formData.note}
+                  onChange={(e) => setFormData({ ...formData, note: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
+                  rows={2}
+                  data-testid="input-note"
+                />
+              </div>
+
+              <Collapsible open={showSocialLinks} onOpenChange={setShowSocialLinks}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+                    data-testid="button-toggle-social-links"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5" />
+                      Social links {socialLinksFilledCount > 0 && `(${socialLinksFilledCount} added)`}
+                      <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showSocialLinks ? "rotate-180" : ""}`} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-2.5">
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="X (Twitter) handle or URL"
+                      value={formData.twitterHandle}
+                      onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
+                      className="pl-9"
+                      data-testid="input-twitter"
+                    />
+                  </div>
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Instagram handle or URL"
+                      value={formData.instagramHandle}
+                      onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
+                      className="pl-9"
+                      data-testid="input-instagram"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="LinkedIn handle or URL"
+                      value={formData.linkedinHandle}
+                      onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
+                      className="pl-9"
+                      data-testid="input-linkedin"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                Anyone with access to this map can see the details you add here.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex gap-3 px-6 py-4 shrink-0 border-t border-border">
@@ -420,15 +426,17 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={createPinMutation.isPending || isLoadingLocation || !hasValidLocation}
-            data-testid="button-add-pin"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {createPinMutation.isPending ? "Adding..." : "Add pin"}
-          </Button>
+          {selectedLocation && (
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={createPinMutation.isPending || isLoadingLocation}
+              data-testid="button-add-pin"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {createPinMutation.isPending ? "Adding..." : "Add pin"}
+            </Button>
+          )}
         </div>
         </form>
       </DialogContent>

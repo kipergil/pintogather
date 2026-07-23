@@ -9,7 +9,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
@@ -173,6 +172,15 @@ export default function MapDetail({ params }: MapDetailProps) {
               )}
             </div>
             <div className="flex items-center gap-2 sm:shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/")}
+                data-testid="button-back-to-home"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" data-testid="button-map-menu">
@@ -218,11 +226,6 @@ export default function MapDetail({ params }: MapDetailProps) {
                       </a>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation("/")} data-testid="menu-item-back-home">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to home
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
