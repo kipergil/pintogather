@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { MapPin, Maximize2 } from 'lucide-react';
+import { MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 import { buildSocialUrl } from '../lib/social-links';
@@ -316,6 +316,28 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
 
   return (
     <div className="space-y-4">
+      {!readOnly && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+          <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MousePointerClick className="h-4 w-4 shrink-0" />
+            Click anywhere on the map to drop a pin there
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setSelectedLocation(null);
+              setIsAddPinModalOpen(true);
+            }}
+            data-testid="button-add-venue"
+          >
+            <Search className="h-4 w-4 mr-1.5" />
+            Add a venue
+          </Button>
+        </div>
+      )}
+
       <Card>
         <div className="relative">
           <div

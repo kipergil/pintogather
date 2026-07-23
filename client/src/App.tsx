@@ -18,12 +18,11 @@ import { AuthErrorBoundary } from "@/components/auth-error-boundary";
 import { getInitials } from "@/lib/map-utils";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
-import EditMap from "@/pages/edit-map";
+import MapForm from "@/pages/map-form";
 import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
-import AddPin from "@/pages/add-pin";
 import EditPin from "@/pages/edit-pin";
 import ImportPins from "@/pages/import-pins";
 import AdminPage from "@/pages/admin";
@@ -39,10 +38,10 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/p/:shareUrl" component={PublicMap} />
       <Route path="/u/:username" component={PublicProfilePage} />
-      <Route path="/map/:shareUrl/add-pin" component={AddPin} />
+      <Route path="/map/new" component={MapForm} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
       <Route path="/map/:shareUrl/import" component={ImportPins} />
-      <Route path="/map/:shareUrl/edit" component={EditMap} />
+      <Route path="/map/:shareUrl/edit" component={MapForm} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route component={NotFound} />
     </Switch>
