@@ -75,6 +75,18 @@ export function formatCoordinates(lat: number, lng: number): string {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 }
 
+/**
+ * Distinct contributor count: grouped by actual user identity (userId) so the
+ * same account never gets double-counted across differently-typed names, and
+ * imported pins (which are always attributed to the importing user's id)
+ * count as one contribution from that user. Pins with no userId (fully
+ * anonymous, no one signed in) fall back to grouping by the typed name.
+ */
+export function countDistinctContributors(pins: Array<{ userId?: string | null; userName: string }>): number {
+  const ids = new Set(pins.map((pin) => pin.userId || `anon:${pin.userName}`));
+  return ids.size;
+}
+
 export function getInitials(name: string): string {
   return name
     .split(' ')
