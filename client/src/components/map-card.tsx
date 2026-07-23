@@ -1,8 +1,15 @@
-import { Link } from "wouter";
-import { MapPin, Link2, Trash2, Crown, Users, Eye, EyeOff } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { MapPin, Link2, Trash2, Crown, Users, Eye, EyeOff, MoreHorizontal, Settings, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface MapCollectionSummary {
   id: string;
@@ -32,9 +39,12 @@ interface MapCardProps {
   onCopyLink: (map: MapCollectionSummary) => void;
   onDelete?: (map: MapCollectionSummary) => void;
   onToggleProfileVisibility?: (map: MapCollectionSummary, showOnProfile: boolean) => void;
+  onExportCsv?: (map: MapCollectionSummary) => void;
 }
 
-export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibility }: MapCardProps) {
+export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibility, onExportCsv }: MapCardProps) {
+  const [, setLocation] = useLocation();
+
   return (
     <div
       className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -62,12 +72,13 @@ export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibi
       )}
 
       {role === "owner" && onToggleProfileVisibility && (
-        <div className="flex items-center justify-between gap-2 mb-3 py-2 px-3 rounded-lg bg-muted/40">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            {map.showOnProfile ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            {map.showOnProfile ? "Public on profile" : "Hidden from profile"}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            {map.showOnProfile ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            {map.showOnProfile ? "Public" : "Hidden"}
           </span>
           <Switch
+            size="sm"
             checked={!!map.showOnProfile}
             onCheckedChange={(checked) => onToggleProfileVisibility(map, checked)}
             data-testid={`switch-profile-visibility-${map.id}`}
@@ -84,32 +95,74 @@ export function MapCard({ map, role, onCopyLink, onDelete, onToggleProfileVisibi
         <span>{formatRelativeDate(map.createdAt)}</span>
       </div>
 
-      <div className="flex gap-2">
-        <Link href={`/map/${map.shareUrl}`} className="flex-1">
-          <Button variant="default" size="sm" className="w-full" data-testid={`button-view-map-${map.id}`}>
+      <div className="flex items-center gap-2">
+        <Link href={`/map/${map.shareUrl}`}>
+          <Button variant="default" size="sm" data-testid={`button-view-map-${map.id}`}>
             Open map
           </Button>
         </Link>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          onClick={() => onCopyLink(map)}
-          title="Copy share link"
-          data-testid={`button-copy-map-${map.id}`}
-        >
-          <Link2 className="h-4 w-4" />
-        </Button>
-        {role === "owner" && onDelete && (
+        {role === "owner" ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 shrink-0 ml-auto"
+                data-testid={`button-map-actions-${map.id}`}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setLocation(`/map/${map.shareUrl}/edit`)}
+                data-testid={`menu-item-edit-map-${map.id}`}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Edit map
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setLocation(`/map/${map.shareUrl}/import`)}
+                data-testid={`menu-item-import-pins-${map.id}`}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import pins
+              </DropdownMenuItem>
+              {onExportCsv && (
+                <DropdownMenuItem onClick={() => onExportCsv(map)} data-testid={`menu-item-export-csv-${map.id}`}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => onCopyLink(map)} data-testid={`menu-item-copy-link-${map.id}`}>
+                <Link2 className="h-4 w-4 mr-2" />
+                Copy link
+              </DropdownMenuItem>
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDelete(map)}
+                    className="text-destructive focus:text-destructive"
+                    data-testid={`menu-item-delete-map-${map.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete map
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
           <Button
             variant="outline"
             size="icon"
-            className="h-9 w-9 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDelete(map)}
-            title="Delete map"
-            data-testid={`button-delete-map-${map.id}`}
+            className="h-8 w-8 shrink-0"
+            onClick={() => onCopyLink(map)}
+            title="Copy share link"
+            data-testid={`button-copy-map-${map.id}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Link2 className="h-4 w-4" />
           </Button>
         )}
       </div>

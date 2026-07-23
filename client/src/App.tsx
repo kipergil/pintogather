@@ -18,6 +18,7 @@ import { AuthErrorBoundary } from "@/components/auth-error-boundary";
 import { getInitials } from "@/lib/map-utils";
 import Home from "@/pages/home";
 import MapDetail from "@/pages/map-detail";
+import EditMap from "@/pages/edit-map";
 import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
 import PublicProfilePage from "@/pages/public-profile";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/map/:shareUrl/add-pin" component={AddPin} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
       <Route path="/map/:shareUrl/import" component={ImportPins} />
+      <Route path="/map/:shareUrl/edit" component={EditMap} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route component={NotFound} />
     </Switch>

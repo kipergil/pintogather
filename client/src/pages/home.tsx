@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
 import { useState } from "react";
+import { downloadPinsCsv } from "@/lib/csv-export";
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
@@ -95,6 +96,34 @@ export default function Home() {
     }
   };
 
+  const handleExportCsv = async (map: MapCollectionSummary) => {
+    try {
+      const response = await apiRequest("GET", `/api/maps/${map.shareUrl}`);
+      const data = await response.json();
+      const pins = data.pins || [];
+      if (pins.length === 0) {
+        toast({
+          title: "Nothing to export",
+          description: "This map doesn't have any pins yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      downloadPinsCsv(pins, data.noteLabel || "Note");
+      toast({
+        title: "CSV exported",
+        description: `${pins.length} pin${pins.length === 1 ? "" : "s"} exported.`,
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Couldn't export",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalPins = ownedMaps.reduce((sum, map) => sum + (map.pinCount || 0), 0);
   const firstName = user?.firstName || user?.fullName?.split(" ")[0];
 
@@ -115,6 +144,7 @@ export default function Home() {
             onToggleProfileVisibility={(map, showOnProfile) =>
               toggleProfileVisibilityMutation.mutate({ map, showOnProfile })
             }
+            onExportCsv={handleExportCsv}
           />
         ) : (
           <AnonymousLanding />
@@ -162,6 +192,7 @@ interface SignedInDashboardProps {
   onCopyLink: (map: MapCollectionSummary) => void;
   onDeleteMap: (map: MapCollectionSummary) => void;
   onToggleProfileVisibility: (map: MapCollectionSummary, showOnProfile: boolean) => void;
+  onExportCsv: (map: MapCollectionSummary) => void;
 }
 
 function SignedInDashboard({
@@ -175,6 +206,7 @@ function SignedInDashboard({
   onCopyLink,
   onDeleteMap,
   onToggleProfileVisibility,
+  onExportCsv,
 }: SignedInDashboardProps) {
   return (
     <div className="animate-fade-in">
@@ -242,6 +274,7 @@ function SignedInDashboard({
                   onCopyLink={onCopyLink}
                   onDelete={onDeleteMap}
                   onToggleProfileVisibility={onToggleProfileVisibility}
+                  onExportCsv={onExportCsv}
                 />
               ))}
             </div>
