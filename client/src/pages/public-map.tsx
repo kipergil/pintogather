@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Users } from "lucide-react";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
+import { countDistinctContributors } from "@/lib/map-utils";
 
 interface PublicMapProps {
   params: {
@@ -51,6 +52,7 @@ export default function PublicMap({ params }: PublicMapProps) {
     queryKey: [`/api/maps/${params.shareUrl}`],
   });
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     if (mapCollection?.name) {
@@ -77,35 +79,40 @@ export default function PublicMap({ params }: PublicMapProps) {
     );
   }
 
-  const contributorsCount = new Set(mapCollection.pins.map((pin) => pin.userName)).size;
+  const contributorsCount = countDistinctContributors(mapCollection.pins);
 
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-5">
-        <div>
-          {mapCollection.brandingLogoUrl && (
-            <img
-              src={mapCollection.brandingLogoUrl}
-              alt=""
-              className="h-10 max-w-[200px] object-contain mb-4"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          )}
-          <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
-          {mapCollection.description && (
-            <p className="text-muted-foreground mt-1.5">{mapCollection.description}</p>
-          )}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-4 w-4" />
-              {mapCollection.pinCount} {mapCollection.pinCount === 1 ? "pin" : "pins"}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="h-4 w-4" />
-              {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
-            </span>
+        <div className="flex flex-row items-start gap-4">
+          <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full border border-border shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center">
+            {mapCollection.brandingLogoUrl && !logoError ? (
+              <img
+                src={mapCollection.brandingLogoUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <MapPin className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
+            {mapCollection.description && (
+              <p className="text-muted-foreground mt-1.5">{mapCollection.description}</p>
+            )}
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-4 w-4" />
+                {mapCollection.pinCount} {mapCollection.pinCount === 1 ? "pin" : "pins"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-4 w-4" />
+                {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
+              </span>
+            </div>
           </div>
         </div>
 

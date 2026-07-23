@@ -319,17 +319,35 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                 data-testid={`row-pin-${pin.id}`}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center ${avatarClasses(pin.userName)}`}>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
                         <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-foreground text-sm">{pin.userName}</h4>
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-foreground text-sm truncate">{pin.userName}</h4>
                         <p className="text-xs text-muted-foreground">{formatDate(pin.createdAt)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {pin.googleMapsUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs"
+                          asChild
+                        >
+                          <a
+                            href={pin.googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="link-google-maps"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                            View
+                          </a>
+                        </Button>
+                      )}
                       {canEditPin(pin) && (
                         <Button
                           variant="ghost"
@@ -364,12 +382,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                     </div>
                   )}
 
-                  {pin.googleMapsUrl && (
-                    <div className="mb-2">
-                      <GoogleMapsLink url={pin.googleMapsUrl} />
-                    </div>
-                  )}
-
                   {pin.note && (
                     <div className="mb-3">
                       <NoteToggle expanded={expandedNoteIds.has(pin.id)} onClick={() => toggleNote(pin.id)} />
@@ -377,7 +389,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                     </div>
                   )}
 
-                  <SocialLinks pin={pin} />
+                  {(pin.twitterHandle || pin.instagramHandle || pin.linkedinHandle) && <SocialLinks pin={pin} />}
                 </CardContent>
               </Card>
             ))}

@@ -19,6 +19,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { downloadPinsCsv } from "@/lib/csv-export";
+import { countDistinctContributors } from "@/lib/map-utils";
 
 interface MapDetailProps {
   params: {
@@ -105,7 +106,7 @@ export default function MapDetail({ params }: MapDetailProps) {
     );
   }
 
-  const contributorsCount = new Set(mapCollection.pins.map(pin => pin.userName)).size;
+  const contributorsCount = countDistinctContributors(mapCollection.pins);
   const isOwner = !!user && user.id === mapCollection.ownerId;
 
   const exportPins = () => {
