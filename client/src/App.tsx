@@ -28,6 +28,7 @@ import ImportPins from "@/pages/import-pins";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 function Router() {
   return (
@@ -162,6 +163,7 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <AppShell />
+            <Analytics />
           </TooltipProvider>
         </AuthProvider>
       </AuthErrorBoundary>
