@@ -3,19 +3,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { User, Save, ArrowLeft } from "lucide-react";
+import { User, Save, ArrowLeft, ExternalLink, Check, X, Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { USERNAME_PATTERN } from "@shared/schema";
 
 interface ProfileData {
   full_name: string;
+  username: string;
+  bio: string;
   twitter_handle: string;
   instagram_handle: string;
   linkedin_handle: string;
 }
+
+type UsernameStatus = "idle" | "checking" | "available" | "taken" | "invalid";
+
+const BIO_MAX_LENGTH = 160;
 
 export default function Profile() {
   const { toast } = useToast();
@@ -23,26 +31,59 @@ export default function Profile() {
   const queryClient = useQueryClient();
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: "",
+    username: "",
+    bio: "",
     twitter_handle: "",
     instagram_handle: "",
     linkedin_handle: "",
   });
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
 
   useEffect(() => {
     if (!user) return;
     const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
     setProfileData({
       full_name: fullName,
+      username: user.username || "",
+      bio: user.bio || "",
       twitter_handle: user.twitterHandle || "",
       instagram_handle: user.instagramHandle || "",
       linkedin_handle: user.linkedinHandle || "",
     });
   }, [user]);
 
+  // Live-check username availability as the user types, debounced.
+  useEffect(() => {
+    const candidate = profileData.username.trim().toLowerCase();
+    if (!candidate || candidate === (user?.username || "")) {
+      setUsernameStatus("idle");
+      return;
+    }
+    if (!USERNAME_PATTERN.test(candidate)) {
+      setUsernameStatus("invalid");
+      return;
+    }
+
+    setUsernameStatus("checking");
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(candidate)}/availability`);
+        const data = await response.json();
+        setUsernameStatus(data.available ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [profileData.username, user?.username]);
+
   const saveProfileMutation = useMutation({
     mutationFn: async (data: ProfileData) => {
+      const username = data.username.trim().toLowerCase();
       const response = await apiRequest("PUT", "/api/profile", {
         fullName: data.full_name,
+        username: username || null,
+        bio: data.bio.trim() || null,
         twitterHandle: data.twitter_handle || null,
         instagramHandle: data.instagram_handle || null,
         linkedinHandle: data.linkedin_handle || null,
@@ -67,10 +108,12 @@ export default function Profile() {
   });
 
   const loading = saveProfileMutation.isPending;
+  const canSubmitUsername = usernameStatus !== "taken" && usernameStatus !== "invalid" && usernameStatus !== "checking";
 
   const saveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!canSubmitUsername) return;
     saveProfileMutation.mutate(profileData);
   };
 
@@ -101,6 +144,8 @@ export default function Profile() {
     );
   }
 
+  const previewUrl = `${window.location.origin}/u/${profileData.username.trim().toLowerCase() || "your-username"}`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 py-8">
@@ -109,7 +154,7 @@ export default function Profile() {
             <User className="h-6 w-6 mr-3 text-gray-600" />
             <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
           </div>
-          
+
           {user.email && (
             <p className="text-sm text-gray-600">
               Logged in as: <span className="font-medium">{user.email}</span>
@@ -137,9 +182,70 @@ export default function Profile() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">@</span>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="your-username"
+                    value={profileData.username}
+                    onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
+                    className="pl-8 pr-10 h-12 text-base"
+                    maxLength={30}
+                    data-testid="input-username"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+                    {usernameStatus === "available" && <Check className="h-4 w-4 text-emerald-600" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+                {usernameStatus === "taken" && (
+                  <p className="text-xs text-destructive">That username is already taken.</p>
+                )}
+                {usernameStatus === "invalid" && (
+                  <p className="text-xs text-destructive">
+                    3-30 characters: lowercase letters, numbers, or underscores, starting with a letter.
+                  </p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Claim a username to get a public profile page listing your public maps:{" "}
+                  <span className="font-medium text-gray-700">{previewUrl}</span>
+                </p>
+                {user.username && (
+                  <Link href={`/u/${user.username}`}>
+                    <Button type="button" variant="outline" size="sm" data-testid="link-view-public-profile">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                      View public profile
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="bio">Bio</Label>
+                  <span className="text-xs text-gray-500">
+                    {profileData.bio.length}/{BIO_MAX_LENGTH}
+                  </span>
+                </div>
+                <Textarea
+                  id="bio"
+                  placeholder="A short bio shown on your public profile"
+                  value={profileData.bio}
+                  onChange={(e) => setProfileData({ ...profileData, bio: e.target.value.slice(0, BIO_MAX_LENGTH) })}
+                  rows={3}
+                  data-testid="input-bio"
+                />
+              </div>
+
               <div className="space-y-4">
                 <Label className="text-base font-medium">Social Media Handles (Optional)</Label>
-                
+
                 <div className="space-y-4">
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500">
@@ -189,16 +295,16 @@ export default function Profile() {
               </div>
 
               <div className="pt-4 space-y-3">
-                <Button 
+                <Button
                   type="submit"
                   className="w-full h-12 text-base"
-                  disabled={loading}
+                  disabled={loading || !canSubmitUsername}
                   data-testid="button-save-profile"
                 >
                   <Save className="h-5 w-5 mr-2" />
                   {loading ? "Saving..." : "Save Profile"}
                 </Button>
-                
+
                 <Link href="/">
                   <Button type="button" variant="outline" className="w-full h-12 text-base">
                     <ArrowLeft className="h-4 w-4 mr-2" />

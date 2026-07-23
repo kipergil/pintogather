@@ -16,6 +16,10 @@ export interface User {
   lastName: string | null;
   profileImageUrl: string | null;
   fullName: string | null;
+  /** Public profile handle, e.g. /u/<username>. Null until claimed. */
+  username: string | null;
+  /** Short bio shown on the public profile page. */
+  bio: string | null;
   twitterHandle: string | null;
   instagramHandle: string | null;
   linkedinHandle: string | null;
@@ -31,13 +35,45 @@ export interface UpsertUser {
   profileImageUrl: string | null;
 }
 
+/** 3-30 chars, lowercase letters/numbers/underscores, must start with a letter. */
+export const USERNAME_PATTERN = /^[a-z][a-z0-9_]{2,29}$/;
+
 export const updateProfileSchema = z.object({
   fullName: z.string().min(1),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(USERNAME_PATTERN, "Use 3-30 lowercase letters, numbers, or underscores, starting with a letter.")
+    .nullable()
+    .optional(),
+  bio: z.string().trim().max(160).nullable().optional(),
   twitterHandle: z.string().trim().nullable().optional(),
   instagramHandle: z.string().trim().nullable().optional(),
   linkedinHandle: z.string().trim().nullable().optional(),
 });
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+
+/** Public-facing view of a user's profile, exposed at GET /api/profile/:username. */
+export interface PublicProfile {
+  id: string;
+  username: string;
+  fullName: string | null;
+  bio: string | null;
+  profileImageUrl: string | null;
+  twitterHandle: string | null;
+  instagramHandle: string | null;
+  linkedinHandle: string | null;
+  maps: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    shareUrl: string;
+    brandingLogoUrl: string | null;
+    pinCount: number;
+    createdAt: Date;
+  }>;
+}
 
 export interface MapCollection {
   id: string;
@@ -53,6 +89,8 @@ export interface MapCollection {
   notePrompt: string | null;
   /** Custom logo shown instead of PinTogather branding on this map's public /p/:shareUrl page. */
   brandingLogoUrl: string | null;
+  /** Whether this map appears on the owner's public profile page (/u/:username). Independent of isPublic/defaultPermission, which govern anonymous edit access via the share link. */
+  showOnProfile: boolean;
   createdAt: Date;
 }
 
@@ -65,6 +103,7 @@ export const insertMapCollectionSchema = z.object({
   noteLabel: z.string().trim().max(60).nullable().optional(),
   notePrompt: z.string().trim().nullable().optional(),
   brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
+  showOnProfile: z.boolean().optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 
@@ -74,6 +113,7 @@ export const updateMapDetailsSchema = z.object({
   noteLabel: z.string().trim().max(60).nullable().optional(),
   notePrompt: z.string().trim().nullable().optional(),
   brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
+  showOnProfile: z.boolean().optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
 

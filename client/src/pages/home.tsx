@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreateMapForm } from "@/components/create-map-form";
 import { MapCard, MapCardSkeleton, type MapCollectionSummary } from "@/components/map-card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +29,7 @@ import { useState } from "react";
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollectionSummary | null }>({
     isOpen: false,
@@ -53,6 +54,27 @@ export default function Home() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !authLoading && !!user?.id,
+  });
+
+  const toggleProfileVisibilityMutation = useMutation({
+    mutationFn: async ({ map, showOnProfile }: { map: MapCollectionSummary; showOnProfile: boolean }) => {
+      const response = await apiRequest("PUT", `/api/maps/${map.id}/details`, { showOnProfile });
+      return response.json();
+    },
+    onSuccess: (_data, { showOnProfile }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id, "owned"] });
+      toast({
+        title: showOnProfile ? "Now public on your profile" : "Hidden from your profile",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't update visibility",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleCopyMapUrl = async (map: MapCollectionSummary) => {
@@ -90,6 +112,9 @@ export default function Home() {
             onCreateClick={() => setIsCreateOpen(true)}
             onCopyLink={handleCopyMapUrl}
             onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
+            onToggleProfileVisibility={(map, showOnProfile) =>
+              toggleProfileVisibilityMutation.mutate({ map, showOnProfile })
+            }
           />
         ) : (
           <AnonymousLanding />
@@ -136,6 +161,7 @@ interface SignedInDashboardProps {
   onCreateClick: () => void;
   onCopyLink: (map: MapCollectionSummary) => void;
   onDeleteMap: (map: MapCollectionSummary) => void;
+  onToggleProfileVisibility: (map: MapCollectionSummary, showOnProfile: boolean) => void;
 }
 
 function SignedInDashboard({
@@ -148,6 +174,7 @@ function SignedInDashboard({
   onCreateClick,
   onCopyLink,
   onDeleteMap,
+  onToggleProfileVisibility,
 }: SignedInDashboardProps) {
   return (
     <div className="animate-fade-in">
@@ -208,7 +235,14 @@ function SignedInDashboard({
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {ownedMaps.map((map) => (
-                <MapCard key={map.id} map={map} role="owner" onCopyLink={onCopyLink} onDelete={onDeleteMap} />
+                <MapCard
+                  key={map.id}
+                  map={map}
+                  role="owner"
+                  onCopyLink={onCopyLink}
+                  onDelete={onDeleteMap}
+                  onToggleProfileVisibility={onToggleProfileVisibility}
+                />
               ))}
             </div>
           )}

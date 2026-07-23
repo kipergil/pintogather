@@ -29,6 +29,7 @@ interface MapCollection {
   noteLabel?: string | null;
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
+  showOnProfile?: boolean;
   createdAt: string;
   pinCount: number;
   pins: Array<{
@@ -238,6 +239,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               noteLabel: mapCollection.noteLabel ?? "",
               notePrompt: mapCollection.notePrompt ?? "",
               brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
+              showOnProfile: mapCollection.showOnProfile ?? false,
               shareUrl: mapCollection.shareUrl,
             }}
             onCreated={() => setIsEditModalOpen(false)}

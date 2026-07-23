@@ -14,6 +14,8 @@ const USER_FIELDS = [
   "clerk_user_id",
   "avatar_url",
   "full_name",
+  "username",
+  "bio",
   "twitter_handle",
   "instagram_handle",
   "linkedin_handle",
@@ -30,6 +32,8 @@ export function toDomainUser(row: DirectusUser): User {
     lastName: row.last_name,
     profileImageUrl: row.avatar_url,
     fullName: row.full_name,
+    username: row.username,
+    bio: row.bio,
     twitterHandle: row.twitter_handle,
     instagramHandle: row.instagram_handle,
     linkedinHandle: row.linkedin_handle,
@@ -56,6 +60,20 @@ export async function getUserById(id: string): Promise<User | undefined> {
   const rows = await client.request(
     readUsers({
       filter: { id: { _eq: id } },
+      fields: USER_FIELDS,
+      limit: 1,
+    }),
+  );
+  const row = rows[0] as DirectusUser | undefined;
+  return row ? toDomainUser(row) : undefined;
+}
+
+/** Case-insensitive lookup — usernames are always normalized to lowercase before saving. */
+export async function getUserByUsername(username: string): Promise<User | undefined> {
+  const client = getServiceDirectusClient();
+  const rows = await client.request(
+    readUsers({
+      filter: { username: { _eq: username.toLowerCase() } },
       fields: USER_FIELDS,
       limit: 1,
     }),
