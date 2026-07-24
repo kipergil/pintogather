@@ -74,6 +74,17 @@ function HeaderContent() {
           </button>
 
           <div className="flex items-center gap-2">
+            {!loading && user && user.userGroup !== "premium" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 hidden sm:inline-flex"
+                onClick={() => setLocation("/pricing")}
+                data-testid="button-header-upgrade"
+              >
+                Upgrade
+              </Button>
+            )}
             {!loading &&
               (user ? (
                 <DropdownMenu>
@@ -100,6 +111,9 @@ function HeaderContent() {
                         {user.email && (
                           <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                         )}
+                        <span className="text-xs font-medium text-primary capitalize mt-0.5">
+                          {user.userGroup === "freemium" ? "Free" : user.userGroup} plan
+                        </span>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />

@@ -20,6 +20,7 @@ import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin"
 import { useToast } from "@/hooks/use-toast";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
+import { cn } from "@/lib/utils";
 
 interface MapDetailProps {
   params: {
@@ -39,6 +40,8 @@ interface MapCollection {
   showOnProfile?: boolean;
   createdAt: string;
   pinCount: number;
+  /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
+  maxPins: number;
   pins: Array<{
     id: string;
     userName: string;
@@ -110,6 +113,9 @@ export default function MapDetail({ params }: MapDetailProps) {
   const contributorsCount = countDistinctContributors(mapCollection.pins);
   const isOwner = !!user && user.id === mapCollection.ownerId;
   const pendingCount = mapCollection.pins.filter((pin) => pin.approved === false).length;
+  const pinCapReached = Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount >= mapCollection.maxPins;
+  const pinCapNear =
+    !pinCapReached && Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount / mapCollection.maxPins >= 0.8;
 
   const exportPins = () => {
     if (mapCollection.pins.length === 0) {
@@ -227,15 +233,28 @@ export default function MapDetail({ params }: MapDetailProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5",
+                isOwner && pinCapReached && "text-destructive font-medium",
+                isOwner && pinCapNear && "text-amber-600 font-medium",
+              )}
+            >
               <MapPin className="h-4 w-4" />
-              {mapCollection.pinCount} {mapCollection.pinCount === 1 ? "pin" : "pins"}
+              {mapCollection.pinCount}
+              {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
+              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" />
               {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
             </span>
+            {isOwner && (pinCapReached || pinCapNear) && (
+              <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
+                {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>

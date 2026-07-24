@@ -18,7 +18,7 @@ import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
-import { checkAndIncrementAiUsage } from "./services/aiUsage.js";
+import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -170,6 +170,32 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Lightweight usage summary for proactive "X of Y used" nudges (dashboard,
+  // header plan badge, AI-suggestions counter) — kept separate from the
+  // heavier per-map cap checks (pins, seats), which depend on a specific
+  // map's owner rather than the signed-in user.
+  app.get("/api/usage", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const limits = TIER_LIMITS[user.userGroup];
+      const [ownedMapCount, aiUsage] = await Promise.all([
+        storage.getMapCollectionsByUserId(user.id).then((maps) => maps.length),
+        getAiUsageToday(user.id, user.userGroup),
+      ]);
+
+      res.json({
+        userGroup: user.userGroup,
+        maps: { used: ownedMapCount, limit: limits.maxMaps },
+        aiSuggestions: { used: aiUsage.used, limit: aiUsage.limit },
+      });
+    } catch (error) {
+      console.error("Error fetching usage summary:", error);
+      res.status(500).json({ message: "Failed to fetch usage summary" });
+    }
+  });
+
   app.put("/api/profile", isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);
@@ -208,6 +234,20 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      // A user with an active/trialing subscription already has a live Stripe
+      // subscription; starting a fresh Checkout session in that state creates
+      // a SECOND concurrent subscription (double billing) rather than
+      // switching plans. Send them to the billing portal instead, which
+      // handles plan changes and proration against their existing subscription.
+      const hasActiveSubscription =
+        !!user.stripeSubscriptionId &&
+        (user.stripeSubscriptionStatus === "active" || user.stripeSubscriptionStatus === "trialing");
+      if (hasActiveSubscription) {
+        return res.status(400).json({
+          message: "You already have an active plan — use \"Manage billing\" to switch or cancel it.",
+        });
+      }
 
       const { tier } = z.object({ tier: z.enum(["basic", "premium"]) }).parse(req.body);
       const priceId = STRIPE_PRICE_IDS[tier];
@@ -680,10 +720,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      const hasCustomBranding = await getMapOwnerHasCustomBranding(mapCollection);
+      const [hasCustomBranding, maxPins] = await Promise.all([
+        getMapOwnerHasCustomBranding(mapCollection),
+        getMapOwnerMaxPins(mapCollection),
+      ]);
       const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
 
-      res.json({ ...mapCollection, brandingLogoUrl, pins, pinCount: pins.length });
+      res.json({ ...mapCollection, brandingLogoUrl, pins, pinCount: pins.length, maxPins });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });
     }
@@ -818,7 +861,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(502).json({ message: "Couldn't generate suggestions — try rephrasing your prompt." });
       }
 
-      res.json({ suggestions: suggestions.slice(0, 15) });
+      res.json({ suggestions: suggestions.slice(0, 15), usage: { used: usage.used, limit: usage.limit } });
     } catch (error) {
       console.error("Venue suggestion error:", error);
       res.status(500).json({ message: "Failed to generate suggestions" });

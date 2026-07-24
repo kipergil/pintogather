@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlacesSearch } from "./places-search";
 import {
@@ -225,6 +226,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
         title: "Couldn't add pin",
         description: error.message || "Please try again",
         variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
     },
   });
