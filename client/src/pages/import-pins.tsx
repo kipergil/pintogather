@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
@@ -95,23 +96,25 @@ export default function ImportPins({ params }: ImportPinsProps) {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  const searchItem = useCallback(async (id: string, query: string) => {
+  const searchItem = useCallback(async (id: string, query: string): Promise<ImportItem["status"]> => {
     updateItem(id, { status: "searching" });
     try {
       const matches = await searchVenues(query);
       if (matches.length === 0) {
         updateItem(id, { status: "not_found", matches: [] });
-        return;
+        return "not_found";
       }
       updateItem(id, {
         status: "found",
-        matches: matches.slice(0, 5),
+        matches: matches.slice(0, 8),
         selectedIndex: 0,
         name: matches[0].name || query,
       });
+      return "found";
     } catch (error: any) {
       const isZeroResults = typeof error?.message === "string" && error.message.includes("ZERO_RESULTS");
       updateItem(id, { status: isZeroResults ? "not_found" : "error", matches: [] });
+      return isZeroResults ? "not_found" : "error";
     }
   }, [updateItem]);
 
@@ -180,12 +183,22 @@ export default function ImportPins({ params }: ImportPinsProps) {
     setIsSearchingAll(true);
     setSearchProgress(0);
     let done = 0;
+    const notFoundIds = new Set<string>();
     await runWithConcurrency(list, 3, async (item) => {
-      await searchItem(item.id, item.name);
+      const status = await searchItem(item.id, item.name);
+      if (status === "not_found") notFoundIds.add(item.id);
       done += 1;
       setSearchProgress(done);
     });
     setIsSearchingAll(false);
+
+    if (notFoundIds.size > 0) {
+      setItems((prev) => prev.filter((item) => !notFoundIds.has(item.id)));
+      toast({
+        title: notFoundIds.size === 1 ? "1 venue skipped" : `${notFoundIds.size} venues skipped`,
+        description: "No matching location was found on Google Maps, so it was left out.",
+      });
+    }
   };
 
   const retryFailed = () => {
@@ -308,99 +321,124 @@ export default function ImportPins({ params }: ImportPinsProps) {
 
       {items.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
-          <CardContent className="p-10 text-center">
-            <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-              <FileUp className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-semibold text-foreground mb-1.5">Upload a list of venue names</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-              A .txt or .csv file with one venue name per line, or an .xlsx spreadsheet with names in the first
-              column.
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.csv,.xlsx"
-              className="hidden"
-              onChange={handleFileInputChange}
-              data-testid="input-import-file"
-            />
-            <Button onClick={() => fileInputRef.current?.click()} disabled={isParsing} data-testid="button-choose-file">
-              {isParsing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Reading file...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Choose file
-                </>
-              )}
-            </Button>
+          <CardContent className="p-6 sm:p-10">
+            <Tabs defaultValue="file" className="w-full">
+              <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-8">
+                <TabsTrigger value="file" data-testid="tab-file">
+                  <FileUp className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                  Upload file
+                </TabsTrigger>
+                <TabsTrigger value="paste" data-testid="tab-paste">
+                  <ClipboardPaste className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                  Paste list
+                </TabsTrigger>
+                <TabsTrigger value="ai" data-testid="tab-ai">
+                  <Wand2 className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                  Generate with AI
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="flex items-center gap-3 max-w-sm mx-auto my-6">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">or paste a list</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+              <TabsContent value="file" className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <FileUp className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Upload a list of venue names</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  A .txt or .csv file with one venue name per line, or an .xlsx spreadsheet with names in the first
+                  column.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.csv,.xlsx"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                  data-testid="input-import-file"
+                />
+                <Button onClick={() => fileInputRef.current?.click()} disabled={isParsing} data-testid="button-choose-file">
+                  {isParsing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Reading file...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Choose file
+                    </>
+                  )}
+                </Button>
+              </TabsContent>
 
-            <div className="max-w-sm mx-auto text-left space-y-2">
-              <Textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder={"Paste venue names, one per line —\nEiffel Tower\nBritish Museum\nColosseum"}
-                rows={5}
-                className="text-sm"
-                data-testid="input-paste-venues"
-              />
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handlePasteImport}
-                disabled={!pasteText.trim()}
-                data-testid="button-import-pasted"
-              >
-                <ClipboardPaste className="h-4 w-4 mr-2" />
-                Import pasted list
-              </Button>
-            </div>
+              <TabsContent value="paste" className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <ClipboardPaste className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Paste a list of venue names</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  One venue per line. We'll look each one up on Google Maps.
+                </p>
+                <div className="max-w-sm mx-auto text-left space-y-2">
+                  <Textarea
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    placeholder={"Paste venue names, one per line —\nEiffel Tower\nBritish Museum\nColosseum"}
+                    rows={5}
+                    className="text-sm"
+                    data-testid="input-paste-venues"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handlePasteImport}
+                    disabled={!pasteText.trim()}
+                    data-testid="button-import-pasted"
+                  >
+                    <ClipboardPaste className="h-4 w-4 mr-2" />
+                    Import pasted list
+                  </Button>
+                </div>
+              </TabsContent>
 
-            <div className="flex items-center gap-3 max-w-sm mx-auto my-6">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">or generate with AI</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            <div className="max-w-sm mx-auto text-left space-y-2">
-              <Textarea
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
-                rows={3}
-                className="text-sm"
-                data-testid="input-ai-prompt"
-              />
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleGenerateSuggestions}
-                disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
-                data-testid="button-generate-suggestions"
-              >
-                {generateSuggestionsMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Generate with AI
-                  </>
-                )}
-              </Button>
-            </div>
+              <TabsContent value="ai" className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <Wand2 className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Generate suggestions with AI</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  Describe a theme and we'll suggest up to 15 real venues for you to review before importing.
+                </p>
+                <div className="max-w-sm mx-auto text-left space-y-2">
+                  <Textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
+                    rows={3}
+                    className="text-sm"
+                    data-testid="input-ai-prompt"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGenerateSuggestions}
+                    disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
+                    data-testid="button-generate-suggestions"
+                  >
+                    {generateSuggestionsMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        Generate with AI
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       ) : (
@@ -501,30 +539,49 @@ export default function ImportPins({ params }: ImportPinsProps) {
                       </div>
 
                       {item.status === "found" && (
-                        <div className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-                          {item.matches.length > 1 ? (
-                            <Select
-                              value={String(item.selectedIndex)}
-                              onValueChange={(value) => {
-                                const idx = Number(value);
-                                updateItem(item.id, { selectedIndex: idx, name: item.matches[idx].name });
-                              }}
-                            >
-                              <SelectTrigger className="h-8 text-xs flex-1" data-testid={`select-match-${item.id}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {item.matches.map((match, idx) => (
-                                  <SelectItem key={match.id || idx} value={String(idx)}>
-                                    {match.name} — {match.address}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">{item.matches[0]?.address}</span>
+                        <div className="space-y-1.5">
+                          {item.matches.length > 1 && (
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              {item.matches.length} places match this name — confirm which one you mean
+                            </div>
                           )}
+                          <div className="flex items-start gap-2">
+                            {item.matches.length === 1 && (
+                              <Check className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                            )}
+                            {item.matches.length > 1 ? (
+                              <Select
+                                value={String(item.selectedIndex)}
+                                onValueChange={(value) => {
+                                  const idx = Number(value);
+                                  updateItem(item.id, { selectedIndex: idx, name: item.matches[idx].name });
+                                }}
+                              >
+                                <SelectTrigger
+                                  className="h-9 text-sm flex-1 border-amber-300 focus:ring-amber-400"
+                                  data-testid={`select-match-${item.id}`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {item.matches.map((match, idx) => (
+                                    <SelectItem key={match.id || idx} value={String(idx)} className="whitespace-normal">
+                                      <span className="font-medium">{match.name}</span>
+                                      <span className="text-muted-foreground"> — {match.address}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="min-w-0">
+                                <span className="text-xs text-muted-foreground">{item.matches[0]?.address}</span>
+                                <div className="text-xs text-muted-foreground/70">
+                                  Wrong place? Add a city or address to the name above and search again.
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
