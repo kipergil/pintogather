@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload, Menu, Download, Database } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload, Menu, Download, Database, Clock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ interface MapCollection {
     linkedinHandle?: string;
     note?: string;
     googleMapsUrl?: string | null;
+    approved?: boolean;
     createdAt: string;
   }>;
 }
@@ -108,6 +109,7 @@ export default function MapDetail({ params }: MapDetailProps) {
 
   const contributorsCount = countDistinctContributors(mapCollection.pins);
   const isOwner = !!user && user.id === mapCollection.ownerId;
+  const pendingCount = mapCollection.pins.filter((pin) => pin.approved === false).length;
 
   const exportPins = () => {
     if (mapCollection.pins.length === 0) {
@@ -132,26 +134,19 @@ export default function MapDetail({ params }: MapDetailProps) {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
       {/* Anonymous User Notice */}
       {!user && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-              <div className="flex-1">
-                <h3 className="font-medium text-amber-900">Viewing as a guest</h3>
-                <p className="text-sm text-amber-800 mt-1">
-                  You can still drop pins, but they'll be saved anonymously.{" "}
-                  <button
-                    onClick={() => setIsAuthModalOpen(true)}
-                    className="font-medium underline hover:no-underline"
-                  >
-                    Sign in
-                  </button>{" "}
-                  to pin with your profile.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <span>
+            Viewing as a guest — pins save anonymously.{" "}
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="font-medium underline hover:no-underline"
+            >
+              Sign in
+            </button>{" "}
+            to pin with your profile.
+          </span>
+        </div>
       )}
 
       {/* Map Header */}
@@ -251,8 +246,14 @@ export default function MapDetail({ params }: MapDetailProps) {
       {/* Pins management */}
       <Card className="border-border">
         <CardContent className="p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2 flex-wrap">
             Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+            {isOwner && pendingCount > 0 && (
+              <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
+                <Clock className="h-3 w-3" />
+                {pendingCount} pending review
+              </Badge>
+            )}
           </h2>
           <PinTable
             pins={mapCollection.pins}

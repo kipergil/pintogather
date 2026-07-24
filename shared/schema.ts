@@ -136,6 +136,7 @@ export interface Pin {
   linkedinHandle: string | null;
   note: string | null;
   googleMapsUrl: string | null;
+  approved: boolean;
   createdAt: Date;
 }
 
@@ -157,6 +158,7 @@ export const insertPinSchema = z.object({
   linkedinHandle: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
+  approved: z.boolean().optional(),
 });
 export type InsertPin = z.infer<typeof insertPinSchema>;
 

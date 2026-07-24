@@ -38,6 +38,7 @@ interface MapCollection {
     linkedinHandle?: string;
     note?: string;
     googleMapsUrl?: string | null;
+    approved?: boolean;
     createdAt: string;
   }>;
 }

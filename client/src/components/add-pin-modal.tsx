@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,6 +85,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const [locationSource, setLocationSource] = useState<LocationSource | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const [showSocialLinks, setShowSocialLinks] = useState(false);
+  const [fillMySocials, setFillMySocials] = useState(false);
 
   const [formData, setFormData] = useState<PinFormData>(emptyForm);
 
@@ -109,20 +111,29 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   useEffect(() => {
     if (isOpen && user) {
       const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
-      setFormData((prev) => ({
-        ...prev,
-        userName: fullName || prev.userName,
-        twitterHandle: user.twitterHandle || prev.twitterHandle,
-        instagramHandle: user.instagramHandle || prev.instagramHandle,
-        linkedinHandle: user.linkedinHandle || prev.linkedinHandle,
-      }));
-      if (user.twitterHandle || user.instagramHandle || user.linkedinHandle) {
-        setShowSocialLinks(true);
-      }
+      setFormData((prev) => ({ ...prev, userName: fullName || prev.userName }));
     } else if (isOpen && !user) {
       setFormData(emptyForm);
     }
+    if (isOpen) setFillMySocials(false);
   }, [isOpen, user]);
+
+  const hasProfileSocials = !!(user?.twitterHandle || user?.instagramHandle || user?.linkedinHandle);
+
+  const handleFillMySocialsChange = (checked: boolean) => {
+    setFillMySocials(checked);
+    if (checked && user) {
+      setFormData((prev) => ({
+        ...prev,
+        twitterHandle: user.twitterHandle || "",
+        instagramHandle: user.instagramHandle || "",
+        linkedinHandle: user.linkedinHandle || "",
+      }));
+      setShowSocialLinks(true);
+    } else {
+      setFormData((prev) => ({ ...prev, twitterHandle: "", instagramHandle: "", linkedinHandle: "" }));
+    }
+  };
 
   useEffect(() => {
     if (!selectedLocation || !isOpen || locationSource !== "click") return;
@@ -266,6 +277,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     setSelectedLocation(null);
     setLocationSource(null);
     setShowSocialLinks(false);
+    setFillMySocials(false);
     onClose();
   };
 
@@ -378,6 +390,16 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-3 space-y-2.5">
+                  {hasProfileSocials && (
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                      <Checkbox
+                        checked={fillMySocials}
+                        onCheckedChange={(checked) => handleFillMySocialsChange(checked === true)}
+                        data-testid="checkbox-fill-my-socials"
+                      />
+                      Fill in my social links
+                    </label>
+                  )}
                   <div className="relative">
                     <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input

@@ -3,12 +3,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +29,8 @@ import {
   ExternalLink,
   MoreVertical,
   Database,
+  Check,
+  Clock,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
@@ -52,8 +56,11 @@ interface Pin {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  approved?: boolean;
   createdAt: string;
 }
+
+type ContributorFilter = "all" | "mine" | "others";
 
 interface PinTableProps {
   pins: Pin[];
@@ -171,6 +178,7 @@ function NoteContent({ label, note }: { label: string; note: string }) {
 
 export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [contributorFilter, setContributorFilter] = useState<ContributorFilter>("all");
   const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -179,6 +187,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
   const directusUrl = useDirectusAdminUrl();
 
   const resolvedNoteLabel = noteLabel || "Note";
+  const isOwner = !readOnly && !!user && user.id === mapOwnerId;
 
   const canDeletePin = (pin: Pin) => {
     if (readOnly || !user) return false;
@@ -189,6 +198,8 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     if (readOnly || !user) return false;
     return user.id === pin.userId;
   };
+
+  const canApprovePin = (pin: Pin) => isOwner && pin.approved === false;
 
   const handleEditPin = (pin: Pin) => {
     if (shareUrl) {
@@ -229,13 +240,46 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     },
   });
 
-  const handleDeletePin = (pinId: string) => {
-    if (window.confirm("Are you sure you want to delete this pin?")) {
-      deletePinMutation.mutate(pinId);
+  const handleDeletePin = (pin: Pin) => {
+    const message = pin.approved === false
+      ? "Discard this pending pin? It will be permanently removed."
+      : "Are you sure you want to delete this pin?";
+    if (window.confirm(message)) {
+      deletePinMutation.mutate(pin.id);
     }
   };
 
-  const filteredPins = pins.filter(pin =>
+  const approvePinMutation = useMutation({
+    mutationFn: async (pinId: string) => {
+      await apiRequest("PUT", `/api/pins/${pinId}/approve`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Pin approved",
+        description: "It's now visible to everyone on this map.",
+        variant: "success",
+      });
+      if (shareUrl) {
+        queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve pin",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const contributorFilteredPins = pins.filter((pin) => {
+    if (contributorFilter === "mine") return !!user && pin.userId === user.id;
+    if (contributorFilter === "others") return !user || pin.userId !== user.id;
+    return true;
+  });
+
+  const filteredPins = contributorFilteredPins.filter(pin =>
     pin.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pin.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pin.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -284,6 +328,18 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
           />
         </div>
         <div className="flex items-center gap-2">
+          {!readOnly && user && (
+            <Select value={contributorFilter} onValueChange={(v) => setContributorFilter(v as ContributorFilter)}>
+              <SelectTrigger className="h-9 w-40" data-testid="select-contributor-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All pins</SelectItem>
+                <SelectItem value="mine">My pins only</SelectItem>
+                <SelectItem value="others">Added by others</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {pinIdsWithNotes.length > 0 && (
             <Button variant="outline" size="sm" onClick={toggleAllNotes} data-testid="button-toggle-all-notes">
               {allNotesExpanded ? (
@@ -335,11 +391,32 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                         <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-medium text-foreground text-sm truncate">{pin.userName}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-medium text-foreground text-sm truncate">{pin.userName}</h4>
+                          {pin.approved === false && (
+                            <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
+                              <Clock className="h-3 w-3" />
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">{formatDate(pin.createdAt)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {canApprovePin(pin) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                          onClick={() => approvePinMutation.mutate(pin.id)}
+                          disabled={approvePinMutation.isPending}
+                          data-testid={`button-approve-pin-${pin.id}`}
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                          Approve
+                        </Button>
+                      )}
                       {pin.googleMapsUrl && (
                         <Button
                           variant="outline"
@@ -379,12 +456,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                             )}
                             {canDeletePin(pin) && (
                               <DropdownMenuItem
-                                onClick={() => handleDeletePin(pin.id)}
+                                onClick={() => handleDeletePin(pin)}
                                 disabled={deletePinMutation.isPending}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
+                                {pin.approved === false ? "Discard" : "Delete"}
                               </DropdownMenuItem>
                             )}
                             {directusUrl && (
@@ -459,7 +536,15 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                               <span className="text-xs font-semibold">{getInitials(pin.userName)}</span>
                             </div>
                             <div className="min-w-0">
-                              <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
+                                {pin.approved === false && (
+                                  <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
+                                    <Clock className="h-3 w-3" />
+                                    Pending
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -485,6 +570,19 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                         {!readOnly && (
                           <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
+                              {canApprovePin(pin) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => approvePinMutation.mutate(pin.id)}
+                                  disabled={approvePinMutation.isPending}
+                                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  title="Approve"
+                                  data-testid={`button-approve-pin-${pin.id}`}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              )}
                               {canEditPin(pin) && (
                                 <Button
                                   variant="ghost"
@@ -499,9 +597,10 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleDeletePin(pin.id)}
+                                  onClick={() => handleDeletePin(pin)}
                                   disabled={deletePinMutation.isPending}
                                   className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  title={pin.approved === false ? "Discard" : "Delete"}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>

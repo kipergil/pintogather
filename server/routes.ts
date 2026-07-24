@@ -176,13 +176,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);
+          const approvedCount = pins.filter((pin) => pin.approved).length;
           return {
             id: map.id,
             name: map.name,
             description: map.description,
             shareUrl: map.shareUrl,
             brandingLogoUrl: map.brandingLogoUrl,
-            pinCount: pins.length,
+            pinCount: approvedCount,
             createdAt: map.createdAt,
           };
         }),
@@ -273,7 +274,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);
-          return { ...map, pinCount: pins.length };
+          const visibleCount = map.ownerId === user.id ? pins.length : pins.filter((pin) => pin.approved).length;
+          return { ...map, pinCount: visibleCount };
         }),
       );
       res.json(mapsWithPinCount);
@@ -507,7 +509,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
-      const pins = await storage.getPinsByMapId(mapCollection.id);
+      const user = await getCurrentUser(req);
+      const isOwner = !!user && user.id === mapCollection.ownerId;
+
+      const allPins = await storage.getPinsByMapId(mapCollection.id);
+      const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
+
       res.json({ ...mapCollection, pins, pinCount: pins.length });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });
@@ -521,10 +528,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
       const user = await getCurrentUser(req);
+      const isOwner = !!user && user.id === mapCollection.ownerId;
       const data = insertPinSchema.parse({
         ...req.body,
         mapId: mapCollection.id,
         userId: user?.id ?? null, // never trust a client-supplied userId
+        approved: isOwner, // pins from anyone but the owner need the owner's approval first
       });
 
       const pin = await storage.createPin(data);
@@ -551,9 +560,10 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
+      const isOwner = user.id === mapCollection.ownerId;
 
       const { pins } = bulkInsertPinsSchema.parse(req.body);
-      const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id }));
+      const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id, approved: isOwner }));
 
       const result = await storage.upsertPins(mapCollection.id, data);
       res.status(201).json(result);
@@ -590,7 +600,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allowed = await isPinModifiable(pin, user);
       if (!allowed) return res.status(403).json({ message: "You don't have permission to edit this pin" });
 
-      const validatedData = insertPinSchema.partial().parse(req.body);
+      // "approved" is only ever set via the dedicated approve endpoint below,
+      // gated to the map owner — never accepted through this general-purpose
+      // edit route, which a pin's own creator can also use.
+      const validatedData = insertPinSchema.partial().omit({ approved: true }).parse(req.body);
       const updatedPin = await storage.updatePin(id, validatedData);
       if (!updatedPin) return res.status(404).json({ message: "Pin not found" });
 
@@ -601,6 +614,28 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to update pin", error: error.message });
+    }
+  });
+
+  app.put("/api/pins/:id/approve", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const pin = await storage.getPinById(id);
+      if (!pin) return res.status(404).json({ message: "Pin not found" });
+
+      const user = await getCurrentUser(req);
+      const map = await storage.getMapCollectionById(pin.mapId);
+      if (!user || map?.ownerId !== user.id) {
+        return res.status(403).json({ message: "Only the map owner can approve pins" });
+      }
+
+      const updatedPin = await storage.updatePin(id, { approved: true });
+      if (!updatedPin) return res.status(404).json({ message: "Pin not found" });
+
+      res.json(updatedPin);
+    } catch (error) {
+      console.error("Error approving pin:", error);
+      res.status(500).json({ message: "Failed to approve pin" });
     }
   });
 

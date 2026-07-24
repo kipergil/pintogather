@@ -64,6 +64,7 @@ export interface Pin {
   linkedin_handle: string | null;
   note: string | null;
   google_maps_url: string | null;
+  approved: boolean;
   date_created: string;
 }
 
