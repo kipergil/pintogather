@@ -103,6 +103,9 @@ const USER_FIELDS = [
   "linkedin_handle",
   "user_group",
   "is_admin",
+  "stripe_customer_id",
+  "stripe_subscription_id",
+  "stripe_subscription_status",
 ] as const;
 
 function toMapCollection(row: DirectusMapCollection): MapCollection {
@@ -242,6 +245,10 @@ export interface IStorage {
   getUserProfile(userId: string): Promise<User | undefined>;
   updateUserGroup(userId: string, userGroup: UserGroup): Promise<User | undefined>;
   updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined>;
+  updateStripeSubscription(
+    userId: string,
+    data: { stripeCustomerId?: string; stripeSubscriptionId?: string | null; stripeSubscriptionStatus?: string | null; userGroup?: UserGroup },
+  ): Promise<User | undefined>;
 
   // Uploads
   uploadUserLogo(userId: string, file: UploadableFile): Promise<string>;
@@ -675,6 +682,37 @@ class DirectusStorage implements IStorage {
       return toDomainUser(updated as any);
     } catch (error) {
       console.error("Error updating user group:", error);
+      return undefined;
+    }
+  }
+
+  async updateStripeSubscription(
+    userId: string,
+    data: {
+      stripeCustomerId?: string;
+      stripeSubscriptionId?: string | null;
+      stripeSubscriptionStatus?: string | null;
+      userGroup?: UserGroup;
+    },
+  ): Promise<User | undefined> {
+    try {
+      const updated = await this.client.request(
+        updateUser(
+          userId,
+          {
+            ...(data.stripeCustomerId !== undefined ? { stripe_customer_id: data.stripeCustomerId } : {}),
+            ...(data.stripeSubscriptionId !== undefined ? { stripe_subscription_id: data.stripeSubscriptionId } : {}),
+            ...(data.stripeSubscriptionStatus !== undefined
+              ? { stripe_subscription_status: data.stripeSubscriptionStatus }
+              : {}),
+            ...(data.userGroup !== undefined ? { user_group: data.userGroup } : {}),
+          },
+          { fields: USER_FIELDS },
+        ),
+      );
+      return toDomainUser(updated as any);
+    } catch (error) {
+      console.error("Error updating Stripe subscription info:", error);
       return undefined;
     }
   }

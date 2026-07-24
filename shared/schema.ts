@@ -25,6 +25,12 @@ export interface User {
   linkedinHandle: string | null;
   userGroup: (typeof USER_GROUP)[number];
   isAdmin: boolean;
+  /** Stripe Customer id, set on first checkout. Null until the user has ever started a subscription. */
+  stripeCustomerId: string | null;
+  /** Stripe Subscription id for the user's current/most recent subscription, if any. */
+  stripeSubscriptionId: string | null;
+  /** Stripe subscription status (e.g. "active", "past_due", "canceled") — kept alongside userGroup, which is the actual tier gate. */
+  stripeSubscriptionStatus: string | null;
 }
 
 export interface UpsertUser {

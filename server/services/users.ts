@@ -21,6 +21,9 @@ const USER_FIELDS = [
   "linkedin_handle",
   "user_group",
   "is_admin",
+  "stripe_customer_id",
+  "stripe_subscription_id",
+  "stripe_subscription_status",
 ] as const;
 
 export function toDomainUser(row: DirectusUser): User {
@@ -39,6 +42,9 @@ export function toDomainUser(row: DirectusUser): User {
     linkedinHandle: row.linkedin_handle,
     userGroup: row.user_group,
     isAdmin: row.is_admin,
+    stripeCustomerId: row.stripe_customer_id,
+    stripeSubscriptionId: row.stripe_subscription_id,
+    stripeSubscriptionStatus: row.stripe_subscription_status,
   };
 }
 
@@ -74,6 +80,19 @@ export async function getUserByUsername(username: string): Promise<User | undefi
   const rows = await client.request(
     readUsers({
       filter: { username: { _eq: username.toLowerCase() } },
+      fields: USER_FIELDS,
+      limit: 1,
+    }),
+  );
+  const row = rows[0] as DirectusUser | undefined;
+  return row ? toDomainUser(row) : undefined;
+}
+
+export async function getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+  const client = getServiceDirectusClient();
+  const rows = await client.request(
+    readUsers({
+      filter: { stripe_customer_id: { _eq: stripeCustomerId } },
       fields: USER_FIELDS,
       limit: 1,
     }),

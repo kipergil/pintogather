@@ -17,6 +17,9 @@ export interface DirectusUsersCustomFields {
   linkedin_handle: string | null;
   user_group: UserGroup;
   is_admin: boolean;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
 }
 
 export interface DirectusUser extends DirectusUsersCustomFields {

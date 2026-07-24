@@ -1,6 +1,7 @@
 import express, { type Express, type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { handleClerkWebhook } from "./webhooks/clerk.js";
+import { handleStripeWebhook } from "./webhooks/stripe.js";
 import { log } from "./log.js";
 
 /**
@@ -18,6 +19,10 @@ export async function createApp(): Promise<Express> {
   // over the exact request bytes, so this route needs the raw body rather
   // than the app-wide JSON-parsed one.
   app.post("/api/webhooks/clerk", express.raw({ type: "application/json" }), handleClerkWebhook);
+
+  // Same reasoning as the Clerk webhook above — Stripe's signature covers
+  // the raw request bytes.
+  app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), handleStripeWebhook);
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));

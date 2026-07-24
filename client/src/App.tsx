@@ -21,19 +21,21 @@ import MapDetail from "@/pages/map-detail";
 import MapForm from "@/pages/map-form";
 import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
+import Pricing from "@/pages/pricing";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
 import ImportPins from "@/pages/import-pins";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
-import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink } from "lucide-react";
+import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/profile" component={Profile} />
+      <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={Auth} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/p/:shareUrl" component={PublicMap} />
@@ -104,6 +106,10 @@ function HeaderContent() {
                     <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-item-profile">
                       <User className="h-4 w-4 mr-2" />
                       Profile settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/pricing")} data-testid="menu-item-pricing">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Plans &amp; billing
                     </DropdownMenuItem>
                     {user.username && (
                       <DropdownMenuItem

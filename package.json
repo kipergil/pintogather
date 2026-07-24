@@ -72,6 +72,7 @@
     "read-excel-file": "^9.3.4",
     "recharts": "^2.15.2",
     "serve": "^14.2.4",
+    "stripe": "^22.3.2",
     "svix": "^1.98.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",

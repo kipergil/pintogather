@@ -33,6 +33,16 @@ export const directusUsersCustomFields: FieldDefinition[] = [
   textField("linkedin_handle", { nullable: true }),
   selectField("user_group", USER_GROUP, { defaultValue: "freemium", nullable: false }),
   booleanField("is_admin", false, "Grants access to the admin panel."),
+  textField("stripe_customer_id", {
+    unique: true,
+    nullable: true,
+    note: "Stripe Customer id, set on first checkout.",
+  }),
+  textField("stripe_subscription_id", { nullable: true, note: "Stripe Subscription id for the current/most recent subscription." }),
+  textField("stripe_subscription_status", {
+    nullable: true,
+    note: "Stripe subscription status (active/past_due/canceled/...) — user_group is the actual tier gate.",
+  }),
 ];
 
 const mapOwner = m2o("map_collections", "owner", "directus_users", {
