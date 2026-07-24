@@ -16,6 +16,8 @@ import {
   HeartHandshake,
   PartyPopper,
   Landmark,
+  Check,
+  UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -308,8 +310,8 @@ function AnonymousLanding() {
           Pin your world, together
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          Create a shared map in seconds. Send the link, and let your community drop pins, add notes, and gather
-          around the places that matter.
+          Create a shared map in seconds. Send the link and let people drop pins by clicking the map or searching
+          for a venue, approve what you want to keep, and showcase your favourite maps on your own public profile.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link href="/auth">
@@ -321,7 +323,7 @@ function AnonymousLanding() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-5 max-w-4xl mx-auto mb-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto mb-4">
         <HowItWorksStep
           step={1}
           icon={<Plus className="h-5 w-5" />}
@@ -332,13 +334,19 @@ function AnonymousLanding() {
           step={2}
           icon={<Share2 className="h-5 w-5" />}
           title="Share the link"
-          description="Anyone with the URL can view it and drop pins right away."
+          description="Anyone can add a pin by clicking the map or searching for a venue."
         />
         <HowItWorksStep
           step={3}
-          icon={<MapPin className="h-5 w-5" />}
-          title="Pin together"
-          description="Watch your community's favourite places show up in real time."
+          icon={<Check className="h-5 w-5" />}
+          title="Approve what's public"
+          description="Review pins from your community and approve the ones you want to keep."
+        />
+        <HowItWorksStep
+          step={4}
+          icon={<UserCircle className="h-5 w-5" />}
+          title="Curate your profile"
+          description="Pick which maps show up on your own public profile page."
         />
       </div>
     </div>

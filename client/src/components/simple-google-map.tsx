@@ -81,6 +81,7 @@ interface Pin {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  approved?: boolean;
   createdAt: string;
 }
 
@@ -115,6 +116,14 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
     lng: number;
     address?: string;
   } | null>(null);
+  // Whether "Add pin" mode is toggled on, i.e. clicking the map opens the
+  // add-pin dialog. Read from a ref inside the map's click listener (set up
+  // once on mount) so it always sees the latest value instead of a stale one.
+  const [isArmedForClick, setIsArmedForClick] = useState(false);
+  const isArmedForClickRef = useRef(isArmedForClick);
+  useEffect(() => {
+    isArmedForClickRef.current = isArmedForClick;
+  }, [isArmedForClick]);
 
   useEffect(() => {
     console.log('SimpleGoogleMap useEffect triggered');
@@ -150,9 +159,11 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
         mapInstanceRef.current = map;
         console.log('Google Maps instance created successfully');
 
-        // Add click listener for new pins (view-only maps skip this entirely)
+        // Add click listener for new pins (view-only maps skip this entirely).
+        // Only opens the dialog while "Add pin" mode is armed.
         if (!readOnly) {
           map.addListener('click', (e: google.maps.MapMouseEvent) => {
+            if (!isArmedForClickRef.current) return;
             console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
             if (e.latLng) {
               setSelectedLocation({
@@ -218,14 +229,23 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
         },
         map: mapInstanceRef.current,
         title: pin.userName,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#3B82F6',
-          fillOpacity: 1,
-          strokeColor: '#1E40AF',
-          strokeWeight: 2,
-        }
+        icon: pin.approved === false
+          ? {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: '#F59E0B',
+              fillOpacity: 1,
+              strokeColor: '#B45309',
+              strokeWeight: 2,
+            }
+          : {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: '#3B82F6',
+              fillOpacity: 1,
+              strokeColor: '#1E40AF',
+              strokeWeight: 2,
+            }
       });
 
       // Create concise location info - using only available fields
@@ -246,6 +266,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
           <div style="position: relative; padding: 4px 22px 4px 4px; min-width: 130px; max-width: 220px; font-family: inherit;">
             <button type="button" id="${closeButtonId}" aria-label="Close" style="position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; border: 0; background: none; color: #6b7280; cursor: pointer; display: flex; align-items: center; justify-content: center;">${ICONS.x}</button>
             <div style="font-weight: 600; font-size: 13px; line-height: 1.3; color: #111827;">${escapeHtml(pin.userName)}</div>
+            ${pin.approved === false ? `<div style="margin-top: 2px; color: #B45309; font-size: 11px; font-weight: 600;">Pending approval</div>` : ''}
             ${locationText ? `<div style="margin-top: 2px; color: #666; font-size: 11px;">${escapeHtml(locationText)}</div>` : ''}
             ${pin.note ? `<div style="margin-top: 4px; font-size: 12px; color: #374151;"><strong>${escapeHtml(noteLabel)}:</strong> ${escapeHtml(pin.note)}</div>` : ''}
             ${buildLinksRow(pin)}
@@ -317,24 +338,38 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
   return (
     <div className="space-y-4">
       {!readOnly && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
-          <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MousePointerClick className="h-4 w-4 shrink-0" />
-            Click anywhere on the map to drop a pin there
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSelectedLocation(null);
-              setIsAddPinModalOpen(true);
-            }}
-            data-testid="button-add-venue"
-          >
-            <Search className="h-4 w-4 mr-1.5" />
-            Add a venue
-          </Button>
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={isArmedForClick ? "default" : "outline"}
+              onClick={() => setIsArmedForClick((prev) => !prev)}
+              data-testid="button-add-pin-mode"
+            >
+              <MousePointerClick className="h-4 w-4 mr-1.5" />
+              Add pin
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSelectedLocation(null);
+                setIsAddPinModalOpen(true);
+              }}
+              data-testid="button-add-venue"
+            >
+              <Search className="h-4 w-4 mr-1.5" />
+              Add venue
+            </Button>
+          </div>
+          {isArmedForClick && (
+            <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mt-2.5">
+              <MousePointerClick className="h-4 w-4 shrink-0" />
+              Click anywhere on the map to drop a pin there
+            </p>
+          )}
         </div>
       )}
 

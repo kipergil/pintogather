@@ -114,6 +114,7 @@ export const pinsCollection: CollectionDefinition = {
     textField("linkedin_handle", { nullable: true }),
     richTextField("note", { nullable: true }),
     textField("google_maps_url", { nullable: true, note: "Link to this venue on Google Maps, captured at import/creation time." }),
+    booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
     dateCreatedField(),
   ],
   relationFields: [pinMap, pinUser],

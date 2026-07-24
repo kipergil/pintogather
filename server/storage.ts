@@ -68,6 +68,7 @@ const PIN_FIELDS = [
   "linkedin_handle",
   "note",
   "google_maps_url",
+  "approved",
   "date_created",
 ] as const;
 
@@ -141,6 +142,7 @@ function toPin(row: DirectusPin): Pin {
     linkedinHandle: row.linkedin_handle,
     note: row.note,
     googleMapsUrl: row.google_maps_url,
+    approved: row.approved,
     createdAt: new Date(row.date_created),
   };
 }
@@ -164,6 +166,7 @@ function toDirectusPinInput(data: InsertPin) {
     linkedin_handle: data.linkedinHandle ?? null,
     note: data.note ?? null,
     google_maps_url: data.googleMapsUrl ?? null,
+    approved: data.approved ?? true,
   };
 }
 
@@ -602,6 +605,7 @@ class DirectusStorage implements IStorage {
       if (data.linkedinHandle !== undefined) payload.linkedin_handle = data.linkedinHandle;
       if (data.note !== undefined) payload.note = data.note;
       if (data.googleMapsUrl !== undefined) payload.google_maps_url = data.googleMapsUrl;
+      if (data.approved !== undefined) payload.approved = data.approved;
 
       const updated = await this.client.request(updateItem("pins", id, payload, { fields: PIN_FIELDS }));
       return toPin(updated as unknown as DirectusPin);
