@@ -56,6 +56,17 @@ async function getMapOwnerMaxPins(mapCollection: MapCollection): Promise<number>
 }
 
 /**
+ * Whether a map's owner is currently on a tier that includes custom public
+ * branding — checked at *display* time (not just when the logo was set) so
+ * a downgrade takes the perk away immediately even though brandingLogoUrl
+ * is still sitting in the row.
+ */
+async function getMapOwnerHasCustomBranding(mapCollection: MapCollection): Promise<boolean> {
+  const owner = mapCollection.ownerId ? await storage.getUserProfile(mapCollection.ownerId) : undefined;
+  return TIER_LIMITS[owner?.userGroup ?? "freemium"].customBranding;
+}
+
+/**
  * A pin may be modified by the owner of its map, by the user who created
  * it, or — for a pin that was created anonymously on a map whose default
  * permission is "editable" — by anyone, preserving the "share the link,
@@ -276,6 +287,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await getUserByUsername(req.params.username);
       if (!user || !user.username) return res.status(404).json({ message: "Profile not found" });
 
+      const hasCustomBranding = TIER_LIMITS[user.userGroup].customBranding;
       const maps = await storage.getPublicMapsByUserId(user.id);
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
@@ -286,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<void> {
             name: map.name,
             description: map.description,
             shareUrl: map.shareUrl,
-            brandingLogoUrl: map.brandingLogoUrl,
+            brandingLogoUrl: hasCustomBranding ? map.brandingLogoUrl : null,
             pinCount: approvedCount,
             createdAt: map.createdAt,
           };
@@ -404,6 +416,12 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const data = insertMapCollectionSchema.parse({ ...req.body, ownerId: user.id });
 
+      if (data.brandingLogoUrl && !TIER_LIMITS[user.userGroup].customBranding) {
+        return res.status(403).json({
+          message: `Custom branding isn't available on the ${user.userGroup} plan. Upgrade at /pricing to add your own logo.`,
+        });
+      }
+
       const existingMap = await storage.getMapCollectionByName(data.name);
       if (existingMap) {
         return res.status(400).json({ message: "A map collection with this name already exists" });
@@ -462,6 +480,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const data = updateMapDetailsSchema.parse(req.body);
+
+      if (data.brandingLogoUrl && !TIER_LIMITS[user.userGroup].customBranding) {
+        return res.status(403).json({
+          message: `Custom branding isn't available on the ${user.userGroup} plan. Upgrade at /pricing to add your own logo.`,
+        });
+      }
 
       if (data.name && data.name !== map.name) {
         const existingMap = await storage.getMapCollectionByName(data.name);
@@ -627,7 +651,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      res.json({ ...mapCollection, pins, pinCount: pins.length });
+      const hasCustomBranding = await getMapOwnerHasCustomBranding(mapCollection);
+      const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
+
+      res.json({ ...mapCollection, brandingLogoUrl, pins, pinCount: pins.length });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });
     }
