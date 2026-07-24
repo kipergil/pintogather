@@ -12,11 +12,22 @@ import type { Pin, PublicProfile, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import multer from "multer";
+import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
+const VENUE_SUGGESTIONS_MODEL = "claude-haiku-4-5-20251001";
+const VENUE_SUGGESTIONS_SYSTEM_PROMPT =
+  "You suggest real, specific, well-known venues or places for a collaborative map-pinning app. " +
+  "Given the user's theme, respond with ONLY a JSON array of up to 15 strings — no explanation, no markdown fences. " +
+  "Each string must be a real place specific enough to find on Google Maps; include the city or neighborhood in " +
+  "the name if it helps disambiguate (e.g. \"Ichiran Ramen Shibuya\" rather than just \"Ichiran\").";
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
@@ -575,6 +586,57 @@ export async function registerRoutes(app: Express): Promise<void> {
         console.error("Bulk pin creation error:", error);
         res.status(500).json({ message: "Failed to import pins" });
       }
+    }
+  });
+
+  // AI-assisted import: turns a free-text theme ("best ramen spots in
+  // Tokyo") into up to 15 candidate venue names, which the client then runs
+  // through the exact same search/review/import pipeline as a pasted list.
+  app.post("/api/maps/:shareUrl/venue-suggestions", isAuthenticated, async (req, res) => {
+    try {
+      if (!anthropic) {
+        return res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
+      }
+
+      const { shareUrl } = req.params;
+      const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+      const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+      if (!prompt) return res.status(400).json({ message: "Describe what kind of places you're looking for" });
+      if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
+
+      const message = await anthropic.messages.create({
+        model: VENUE_SUGGESTIONS_MODEL,
+        max_tokens: 1024,
+        system: VENUE_SUGGESTIONS_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const textBlock = message.content.find((block) => block.type === "text");
+      const raw = textBlock?.type === "text" ? textBlock.text : "";
+
+      let suggestions: string[] = [];
+      try {
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+        if (Array.isArray(parsed)) {
+          suggestions = parsed
+            .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+            .map((item) => item.trim());
+        }
+      } catch {
+        // suggestions stays empty; handled below
+      }
+
+      if (suggestions.length === 0) {
+        return res.status(502).json({ message: "Couldn't generate suggestions — try rephrasing your prompt." });
+      }
+
+      res.json({ suggestions: suggestions.slice(0, 15) });
+    } catch (error) {
+      console.error("Venue suggestion error:", error);
+      res.status(500).json({ message: "Failed to generate suggestions" });
     }
   });
 
