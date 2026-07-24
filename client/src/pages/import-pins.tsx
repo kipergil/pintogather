@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Trash2,
   Upload,
+  Wand2,
   X,
 } from "lucide-react";
 
@@ -88,6 +89,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const [isSearchingAll, setIsSearchingAll] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
   const [pasteText, setPasteText] = useState("");
+  const [aiPrompt, setAiPrompt] = useState("");
 
   const updateItem = useCallback((id: string, patch: Partial<ImportItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -150,6 +152,28 @@ export default function ImportPins({ params }: ImportPinsProps) {
 
   const handlePasteImport = () => {
     startImportFromNames(parseTextLines(pasteText));
+  };
+
+  const generateSuggestionsMutation = useMutation({
+    mutationFn: async (prompt: string) => {
+      const response = await apiRequest("POST", `/api/maps/${shareUrl}/venue-suggestions`, { prompt });
+      return response.json() as Promise<{ suggestions: string[] }>;
+    },
+    onSuccess: (data) => {
+      startImportFromNames(data.suggestions);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't generate suggestions",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateSuggestions = () => {
+    if (!aiPrompt.trim()) return;
+    generateSuggestionsMutation.mutate(aiPrompt.trim());
   };
 
   const searchAll = async (list: ImportItem[]) => {
@@ -339,6 +363,42 @@ export default function ImportPins({ params }: ImportPinsProps) {
               >
                 <ClipboardPaste className="h-4 w-4 mr-2" />
                 Import pasted list
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3 max-w-sm mx-auto my-6">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or generate with AI</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="max-w-sm mx-auto text-left space-y-2">
+              <Textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
+                rows={3}
+                className="text-sm"
+                data-testid="input-ai-prompt"
+              />
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleGenerateSuggestions}
+                disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
+                data-testid="button-generate-suggestions"
+              >
+                {generateSuggestionsMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Generate with AI
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
