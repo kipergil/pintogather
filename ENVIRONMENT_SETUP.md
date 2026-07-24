@@ -23,6 +23,11 @@ A variable prefixed `VITE_` is bundled into the **client-side** JavaScript and i
 | `STRIPE_WEBHOOK_SECRET` | Server only | Yes (for billing) | Per-endpoint — production and local dev need different values |
 | `STRIPE_PRICE_BASIC` | Server only | Yes (for billing) | Stripe Price ID, not a secret |
 | `STRIPE_PRICE_PREMIUM` | Server only | Yes (for billing) | Stripe Price ID, not a secret |
+| `SMTP_HOST` | Server only | Yes (for invitation emails) | App runs fine without it; invitations are still created, the email just doesn't send |
+| `SMTP_PORT` | Server only | Yes (for invitation emails) | Defaults to `587` |
+| `SMTP_USER` | Server only | Yes (for invitation emails) | |
+| `SMTP_PASSWORD` | Server only | Yes (for invitation emails) | |
+| `SMTP_FROM` | Server only | Yes (for invitation emails) | Sender shown to recipients, e.g. `PinTogather <no-reply@yourdomain.com>` |
 | `ADMIN_EMAILS` | Server only | Yes | Comma-separated list; grants admin panel + quick-edit access |
 | `PORT` | Server only | No | Defaults to `5000`; Vercel ignores this and manages its own port |
 | `NODE_ENV` | Server + build tooling | No | `development` locally; Vercel sets this itself, don't override it there |
@@ -76,6 +81,16 @@ Directus is a separately hosted service (see `docker-compose.yml` for local dev,
    - Copy the endpoint's **Signing secret** (`whsec_...`) → `STRIPE_WEBHOOK_SECRET`.
    - Test mode and live mode each need their own webhook endpoint and therefore their own signing secret — a webhook secret from one mode will not verify events from the other.
    - For local development, use the [Stripe CLI](https://docs.stripe.com/stripe-cli) (`stripe listen --forward-to localhost:5000/api/webhooks/stripe`) instead of a dashboard endpoint — it prints a signing secret scoped to your local session.
+
+### Email — `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+
+Map invitations are emailed via plain SMTP (`nodemailer`) — **not** a third-party email API. Use the same mail relay your Directus instance already sends transactional email through (e.g. the SMTP credentials provisioned alongside a managed Directus instance on Elestio):
+
+1. Find the SMTP host/port/username/password for your mail relay — on Elestio, these are shown in the service's **Connection details** (or wherever your Directus instance's own `EMAIL_SMTP_*` variables are configured, since it's the same relay).
+2. Map them directly: host → `SMTP_HOST`, port → `SMTP_PORT` (587 for STARTTLS, 465 for implicit TLS), username → `SMTP_USER`, password → `SMTP_PASSWORD`.
+3. `SMTP_FROM` — a sender address the relay is authorized to send as, formatted `Display Name <email@domain>`.
+
+Without these set, `POST /api/maps/:mapId/invitations` still succeeds (the invitation and its accept link are created normally) — it just logs a warning and skips the send. The Share dialog also shows a "copy invite link" button on every pending invitation, so invites can be shared manually regardless of email configuration.
 
 ### App-level — `ADMIN_EMAILS`, `PORT`, `NODE_ENV`
 

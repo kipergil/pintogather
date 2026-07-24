@@ -26,6 +26,7 @@ import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
 import ImportPins from "@/pages/import-pins";
+import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/map/:shareUrl/import" component={ImportPins} />
       <Route path="/map/:shareUrl/edit" component={MapForm} />
       <Route path="/map/:shareUrl" component={MapDetail} />
+      <Route path="/invitations/:token" component={AcceptInvitation} />
       <Route component={NotFound} />
     </Switch>
   );

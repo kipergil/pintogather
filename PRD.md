@@ -144,11 +144,11 @@ All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonym
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Create invitation | Implemented | Requires map ownership |
+| Create invitation | Implemented | Requires map ownership; sends an email (best-effort) |
 | List invitations | Implemented | Requires map ownership |
 | Delete invitation | Implemented | |
-| Accept invitation | Implemented | Requires sign-in; creates the corresponding `map_viewers` row, granting real access |
-| Email notifications | Not implemented | SendGrid dependency present but not wired |
+| Accept invitation | Implemented | `/invitations/:token` page; prompts sign-in if needed, then creates the corresponding `map_viewers` row, granting real access |
+| Email notifications | Implemented | Plain SMTP via `nodemailer` against the Elestio-hosted mail relay (`server/lib/email.ts`) — not SendGrid, despite the app's dependency history. Null-safe: without `SMTP_HOST` set, invitation creation still succeeds, the email just isn't sent (logged), and the Share dialog's "copy invite link" button is always available as a fallback. |
 
 ---
 
@@ -340,7 +340,6 @@ Unchanged from the prior implementation: Tailwind + Radix UI, Lucide icons, ligh
 ### 8.2 Remaining / accepted gaps
 - `isPublic` is not yet enforced on read — a map's share URL is treated as the access-control boundary by design (matches the original "share the link" product model)
 - Rate limiting is not implemented
-- Email delivery for invitations (SendGrid) is not wired up
 
 ---
 

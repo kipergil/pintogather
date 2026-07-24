@@ -19,6 +19,7 @@ import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
+import { sendMapInvitationEmail } from "./services/mapInvitationEmail.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -625,8 +626,15 @@ export async function registerRoutes(app: Express): Promise<void> {
         expiresAt,
       });
 
-      // TODO: send email notification (SendGrid) once configured.
-      res.status(201).json(invitation);
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const emailSent = await sendMapInvitationEmail({
+        invitation,
+        mapName: mapCollection.name,
+        inviterName: user.fullName || user.email || "A PinTogather user",
+        baseUrl,
+      });
+
+      res.status(201).json({ ...invitation, emailSent });
     } catch (error) {
       console.error("Error creating invitation:", error);
       res.status(500).json({ message: "Failed to create invitation" });
@@ -653,6 +661,35 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error fetching invitations:", error);
       res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Public preview — lets the accept-invitation page show what the invite is
+  // for (map name, inviter, role) before the recipient signs in, without
+  // requiring auth just to look.
+  app.get("/api/invitations/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found or expired" });
+
+      const [mapCollection, inviter] = await Promise.all([
+        storage.getMapCollectionById(invitation.mapId),
+        storage.getUserProfile(invitation.invitedBy),
+      ]);
+
+      res.json({
+        status: invitation.status,
+        permission: invitation.permission,
+        expiresAt: invitation.expiresAt,
+        expired: new Date() > invitation.expiresAt,
+        mapName: mapCollection?.name ?? "a map",
+        mapShareUrl: mapCollection?.shareUrl,
+        inviterName: inviter?.fullName || inviter?.email || "Someone",
+      });
+    } catch (error) {
+      console.error("Error fetching invitation preview:", error);
+      res.status(500).json({ message: "Failed to fetch invitation" });
     }
   });
 
@@ -683,7 +720,8 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
-      res.json({ message: "Invitation accepted successfully" });
+      const mapCollection = await storage.getMapCollectionById(invitation.mapId);
+      res.json({ message: "Invitation accepted successfully", mapShareUrl: mapCollection?.shareUrl });
     } catch (error) {
       console.error("Error accepting invitation:", error);
       res.status(500).json({ message: "Failed to accept invitation" });
