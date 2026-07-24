@@ -271,6 +271,8 @@ export default function MapDetail({ params }: MapDetailProps) {
         onClose={() => setIsShareModalOpen(false)}
         shareUrl={`${window.location.origin}/map/${mapCollection.shareUrl}`}
         mapName={mapCollection.name}
+        mapId={mapCollection.id}
+        isOwner={isOwner}
       />
 
       <AuthModal
