@@ -49,16 +49,17 @@ Communities and teams often need to share location-based information but lack ac
 
 | Tier | Price | Features | Status |
 |------|-------|----------|--------|
-| **Freemium** | Free | Basic map creation, standard features | Implemented (default tier) |
-| **Basic** | £2/month | Expanded collaboration, priority support | Schema ready, UI placeholder |
-| **Premium** | £7/month | Unlimited maps, advanced sharing, premium features | Schema ready, UI placeholder |
+| **Freemium** | Free | 3 maps, 50 pins/map, 3 AI suggestions/day | Implemented (default tier) |
+| **Basic** | £4.99/month | 10 maps, 200 pins/map, 15 AI suggestions/day | Billing implemented; usage limits not yet enforced |
+| **Premium** | £9.99/month | Unlimited maps/pins, 200 AI suggestions/day, custom branding | Billing implemented; usage limits not yet enforced |
 
-**Note:** Tier-based feature restrictions are not yet enforced. The `userGroup` field exists on the user record but doesn't gate features currently.
+Stripe Checkout (`/pricing`) and the Stripe Customer Portal handle subscribing, upgrading/downgrading, and cancelling; a webhook (`/api/webhooks/stripe`) keeps `user_group` in sync with the actual subscription status. **Note:** the tier is now real and billable, but the feature limits listed above aren't enforced in the app yet — that's tracked as separate follow-up work per feature (AI suggestions, map/pin caps, custom branding).
 
 ### 2.3 Tier Management
 - Users default to "freemium" tier upon registration
-- Admins can upgrade/downgrade user tiers via the admin panel
-- Tier stored on the user's `user_group` field (Directus `directus_users` collection)
+- Users can self-serve upgrade/downgrade/cancel via `/pricing` (Stripe Checkout + Customer Portal)
+- Admins can also directly set a user's tier via the admin panel (bypasses billing — useful for comps/support)
+- Tier stored on the user's `user_group` field (Directus `directus_users` collection); `stripe_customer_id`/`stripe_subscription_id`/`stripe_subscription_status` track the underlying Stripe state
 
 ---
 
@@ -81,7 +82,7 @@ Communities and teams often need to share location-based information but lack ac
 
 #### Current Limitations
 - No Google/other OAuth is pre-configured — enabling additional sign-in methods is a Clerk Dashboard configuration step, not a code change
-- Tier-based feature gating (Basic/Premium) is not enforced
+- Billing (Stripe Checkout/Portal/webhook) is implemented, but tier-based feature gating (the actual map/pin/AI-suggestion limits) is not enforced yet
 
 ---
 

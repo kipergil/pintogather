@@ -16,6 +16,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
+import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -151,6 +152,85 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // --- Billing (Stripe) --------------------------------------------------------------
+
+  app.post("/api/billing/checkout", isAuthenticated, async (req, res) => {
+    try {
+      if (!stripe) {
+        return res
+          .status(503)
+          .json({ message: "Billing isn't configured yet — ask an admin to set STRIPE_SECRET_KEY." });
+      }
+
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { tier } = z.object({ tier: z.enum(["basic", "premium"]) }).parse(req.body);
+      const priceId = STRIPE_PRICE_IDS[tier];
+      if (!priceId) {
+        return res.status(503).json({ message: `Pricing for the ${tier} plan isn't configured yet.` });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email ?? undefined,
+          name: user.fullName ?? undefined,
+          metadata: { userId: user.id },
+        });
+        customerId = customer.id;
+        await storage.updateStripeSubscription(user.id, { stripeCustomerId: customerId });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${baseUrl}/pricing?checkout=success`,
+        cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
+        metadata: { userId: user.id, tier },
+        subscription_data: { metadata: { userId: user.id, tier } },
+      });
+
+      if (!session.url) return res.status(500).json({ message: "Failed to create checkout session" });
+      res.json({ url: session.url });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      }
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Failed to start checkout" });
+    }
+  });
+
+  app.post("/api/billing/portal", isAuthenticated, async (req, res) => {
+    try {
+      if (!stripe) {
+        return res
+          .status(503)
+          .json({ message: "Billing isn't configured yet — ask an admin to set STRIPE_SECRET_KEY." });
+      }
+
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ message: "You don't have a billing account yet — subscribe to a plan first." });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${baseUrl}/pricing`,
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating billing portal session:", error);
+      res.status(500).json({ message: "Failed to open billing portal" });
     }
   });
 
