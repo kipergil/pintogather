@@ -19,7 +19,6 @@ import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
-import { sendMapInvitationEmail } from "./services/mapInvitationEmail.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -617,6 +616,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
+      // Email delivery is handled by a Directus Flow (see
+      // directus/src/flows/), triggered on this row's creation — not sent
+      // from here, since the app server can't reach the SMTP relay this
+      // Directus instance sends through (see the flow's own doc comment).
       const invitation = await storage.createInvitation({
         mapId,
         email,
@@ -626,15 +629,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         expiresAt,
       });
 
-      const baseUrl = `${req.protocol}://${req.get("host")}`;
-      const emailSent = await sendMapInvitationEmail({
-        invitation,
-        mapName: mapCollection.name,
-        inviterName: user.fullName || user.email || "A PinTogather user",
-        baseUrl,
-      });
-
-      res.status(201).json({ ...invitation, emailSent });
+      res.status(201).json(invitation);
     } catch (error) {
       console.error("Error creating invitation:", error);
       res.status(500).json({ message: "Failed to create invitation" });

@@ -144,11 +144,11 @@ All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonym
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Create invitation | Implemented | Requires map ownership; sends an email (best-effort) |
+| Create invitation | Implemented | Requires map ownership; a Directus Flow emails the recipient asynchronously (see below) |
 | List invitations | Implemented | Requires map ownership |
 | Delete invitation | Implemented | |
 | Accept invitation | Implemented | `/invitations/:token` page; prompts sign-in if needed, then creates the corresponding `map_viewers` row, granting real access |
-| Email notifications | Implemented | Plain SMTP via `nodemailer` against the Elestio-hosted mail relay (`server/lib/email.ts`) — not SendGrid, despite the app's dependency history. Null-safe: without `SMTP_HOST` set, invitation creation still succeeds, the email just isn't sent (logged), and the Share dialog's "copy invite link" button is always available as a fallback. |
+| Email notifications | Implemented | Sent by a Directus Flow (`directus/src/flows/`), not the app server — the SMTP relay Directus sends through is only reachable from Directus's own host, not the app server's deployment. The Flow triggers on `map_invitations` row creation, reads the map + inviter, and sends via Directus's own core mail transport. The Share dialog's "copy invite link" button is always available as a fallback regardless of email delivery. |
 
 ---
 
