@@ -67,6 +67,23 @@ async function getMapOwnerHasCustomBranding(mapCollection: MapCollection): Promi
 }
 
 /**
+ * A "seat" on a map is an accepted collaborator (map_viewers row) or an
+ * invitation still pending — pending invites count too so the cap can't be
+ * dodged by sending a pile of invites that never get revoked. Gated on the
+ * MAP OWNER's tier, same pattern as pins/branding above.
+ */
+async function getMapSeatUsage(mapCollection: MapCollection): Promise<{ used: number; limit: number }> {
+  const owner = mapCollection.ownerId ? await storage.getUserProfile(mapCollection.ownerId) : undefined;
+  const limit = TIER_LIMITS[owner?.userGroup ?? "freemium"].maxCollaboratorsPerMap;
+  const [viewers, invitations] = await Promise.all([
+    storage.getMapViewers(mapCollection.id),
+    storage.getMapInvitations(mapCollection.id),
+  ]);
+  const pendingInvites = invitations.filter((invitation) => invitation.status === "pending").length;
+  return { used: viewers.length + pendingInvites, limit };
+}
+
+/**
  * A pin may be modified by the owner of its map, by the user who created
  * it, or — for a pin that was created anonymously on a map whose default
  * permission is "editable" — by anyone, preserving the "share the link,
@@ -535,7 +552,8 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const { mapId } = req.params;
       const ownedMaps = await storage.getMapCollectionsByUserId(user.id);
-      if (!ownedMaps.some((m) => m.id === mapId)) {
+      const mapCollection = ownedMaps.find((m) => m.id === mapId);
+      if (!mapCollection) {
         return res.status(403).json({ message: "Only the map owner can invite people" });
       }
 
@@ -545,6 +563,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       if (!["readonly", "editable"].includes(permission)) {
         return res.status(400).json({ message: "Invalid permission type" });
+      }
+
+      const { used, limit } = await getMapSeatUsage(mapCollection);
+      if (used >= limit) {
+        return res.status(403).json({
+          message: `You've reached the ${limit}-collaborator limit for this map on the ${user.userGroup} plan. Upgrade at /pricing for more seats.`,
+        });
       }
 
       const token = nanoid(32);
@@ -575,12 +600,16 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const { mapId } = req.params;
       const ownedMaps = await storage.getMapCollectionsByUserId(user.id);
-      if (!ownedMaps.some((m) => m.id === mapId)) {
+      const mapCollection = ownedMaps.find((m) => m.id === mapId);
+      if (!mapCollection) {
         return res.status(403).json({ message: "Only the map owner can view invitations" });
       }
 
-      const invitations = await storage.getMapInvitations(mapId);
-      res.json(invitations);
+      const [invitations, seats] = await Promise.all([
+        storage.getMapInvitations(mapId),
+        getMapSeatUsage(mapCollection),
+      ]);
+      res.json({ invitations, seatsUsed: seats.used, seatLimit: seats.limit });
     } catch (error) {
       console.error("Error fetching invitations:", error);
       res.status(500).json({ message: "Failed to fetch invitations" });
