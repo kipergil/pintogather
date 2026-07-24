@@ -17,6 +17,7 @@ import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
+import { checkAndIncrementAiUsage } from "./services/aiUsage.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -678,6 +679,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
       }
 
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
       const { shareUrl } = req.params;
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
@@ -685,6 +689,15 @@ export async function registerRoutes(app: Express): Promise<void> {
       const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
       if (!prompt) return res.status(400).json({ message: "Describe what kind of places you're looking for" });
       if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
+
+      const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
+      if (!usage.allowed) {
+        return res.status(429).json({
+          message: `You've used all ${usage.limit} AI suggestion generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
+          limit: usage.limit,
+          used: usage.used,
+        });
+      }
 
       const message = await anthropic.messages.create({
         model: VENUE_SUGGESTIONS_MODEL,
