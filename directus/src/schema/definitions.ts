@@ -5,6 +5,7 @@ import {
   dateField,
   decimalField,
   idField,
+  integerField,
   m2o,
   richTextField,
   selectField,
@@ -42,6 +43,16 @@ export const directusUsersCustomFields: FieldDefinition[] = [
   textField("stripe_subscription_status", {
     nullable: true,
     note: "Stripe subscription status (active/past_due/canceled/...) — user_group is the actual tier gate.",
+  }),
+  integerField("ai_suggestions_used_today", {
+    defaultValue: 0,
+    nullable: false,
+    note: "AI venue-suggestion calls used on ai_suggestions_reset_at's date; rolls over to 0 on a new UTC day.",
+  }),
+  textField("ai_suggestions_reset_at", {
+    nullable: true,
+    maxLength: 10,
+    note: "UTC date (YYYY-MM-DD) ai_suggestions_used_today was last reset for.",
   }),
 ];
 

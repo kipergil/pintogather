@@ -20,6 +20,8 @@ export interface DirectusUsersCustomFields {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_subscription_status: string | null;
+  ai_suggestions_used_today: number;
+  ai_suggestions_reset_at: string | null;
 }
 
 export interface DirectusUser extends DirectusUsersCustomFields {

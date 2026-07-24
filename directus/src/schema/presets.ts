@@ -145,6 +145,21 @@ export function dateField(
   };
 }
 
+export function integerField(
+  field: string,
+  opts: { defaultValue?: number; nullable?: boolean; note?: string } = {},
+): FieldDefinition {
+  return {
+    field,
+    type: "integer",
+    meta: { interface: "input", note: opts.note, width: "half" },
+    schema: {
+      default_value: opts.defaultValue ?? 0,
+      is_nullable: opts.nullable ?? true,
+    },
+  };
+}
+
 export function selectField(
   field: string,
   choices: readonly string[],

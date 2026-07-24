@@ -49,11 +49,11 @@ Communities and teams often need to share location-based information but lack ac
 
 | Tier | Price | Features | Status |
 |------|-------|----------|--------|
-| **Freemium** | Free | 3 maps, 50 pins/map, 3 AI suggestions/day | Implemented (default tier) |
-| **Basic** | £4.99/month | 10 maps, 200 pins/map, 15 AI suggestions/day | Billing implemented; usage limits not yet enforced |
-| **Premium** | £9.99/month | Unlimited maps/pins, 200 AI suggestions/day, custom branding | Billing implemented; usage limits not yet enforced |
+| **Freemium** | Free | 3 maps, 50 pins/map, 3 AI suggestions/day | AI suggestion + map/pin limits enforced |
+| **Basic** | £4.99/month | 10 maps, 200 pins/map, 15 AI suggestions/day | AI suggestion + map/pin limits enforced |
+| **Premium** | £9.99/month | Unlimited maps/pins, 200 AI suggestions/day, custom branding | AI suggestion + map/pin limits enforced; custom branding gate not yet |
 
-Stripe Checkout (`/pricing`) and the Stripe Customer Portal handle subscribing, upgrading/downgrading, and cancelling; a webhook (`/api/webhooks/stripe`) keeps `user_group` in sync with the actual subscription status. **Note:** the tier is now real and billable, but the feature limits listed above aren't enforced in the app yet — that's tracked as separate follow-up work per feature (AI suggestions, map/pin caps, custom branding).
+Stripe Checkout (`/pricing`) and the Stripe Customer Portal handle subscribing, upgrading/downgrading, and cancelling; a webhook (`/api/webhooks/stripe`) keeps `user_group` in sync with the actual subscription status. Per-tier limits live in `shared/limits.ts` (`TIER_LIMITS`). The AI-suggestions daily cap (`POST /api/maps/:shareUrl/venue-suggestions`) is enforced server-side, tracked per-user via `ai_suggestions_used_today`/`ai_suggestions_reset_at` (resets on a new UTC day) and returns a 429 with the limit once exhausted. `maxMaps` is enforced on map creation against the creating user's own tier; `maxPinsPerMap` is enforced on both the single-pin-add and bulk-import routes against the *map owner's* tier (not whoever's adding the pin) — bulk imports that would exceed the remaining room create as many new pins as fit and report the rest as skipped, while updates to already-existing pins are never capped. The custom-branding gate is still tracked as separate follow-up work.
 
 ### 2.3 Tier Management
 - Users default to "freemium" tier upon registration

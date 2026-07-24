@@ -233,7 +233,11 @@ export interface IStorage {
   // Pins
   createPin(data: InsertPin): Promise<Pin>;
   createPins(data: InsertPin[]): Promise<Pin[]>;
-  upsertPins(mapId: string, data: InsertPin[]): Promise<{ created: Pin[]; updated: Pin[] }>;
+  upsertPins(
+    mapId: string,
+    data: InsertPin[],
+    opts?: { maxNewPins?: number },
+  ): Promise<{ created: Pin[]; updated: Pin[]; skippedDueToLimit: number }>;
   getPinsByMapId(mapId: string): Promise<Pin[]>;
   getPinById(id: string): Promise<Pin | undefined>;
   updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
@@ -544,7 +548,11 @@ class DirectusStorage implements IStorage {
    * the imported fields (note, social handles, original contributor) is
    * left untouched.
    */
-  async upsertPins(mapId: string, data: InsertPin[]): Promise<{ created: Pin[]; updated: Pin[] }> {
+  async upsertPins(
+    mapId: string,
+    data: InsertPin[],
+    opts: { maxNewPins?: number } = {},
+  ): Promise<{ created: Pin[]; updated: Pin[]; skippedDueToLimit: number }> {
     const existing = await this.getPinsByMapId(mapId);
     const existingByName = new Map(existing.map((pin) => [pin.userName.trim().toLowerCase(), pin]));
 
@@ -557,7 +565,7 @@ class DirectusStorage implements IStorage {
       dedupedByName.set(pin.userName.trim().toLowerCase(), pin);
     }
 
-    const toCreate: InsertPin[] = [];
+    let toCreate: InsertPin[] = [];
     const toUpdate: { id: string; data: InsertPin }[] = [];
 
     dedupedByName.forEach((pin, name) => {
@@ -569,6 +577,21 @@ class DirectusStorage implements IStorage {
       }
     });
 
+    // Updates never count against the pins-per-map cap — only net-new pins
+    // do. If the batch would create more than the remaining room, only the
+    // first N (by input order) go through; the rest are silently dropped
+    // and reported back as skippedDueToLimit. Clamped to >= 0 since a map
+    // already at or over its cap yields a negative remaining count, which
+    // would otherwise slice from the end instead of producing an empty array.
+    let skippedDueToLimit = 0;
+    if (opts.maxNewPins !== undefined) {
+      const maxNewPins = Math.max(0, opts.maxNewPins);
+      if (toCreate.length > maxNewPins) {
+        skippedDueToLimit = toCreate.length - maxNewPins;
+        toCreate = toCreate.slice(0, maxNewPins);
+      }
+    }
+
     const created = await this.createPins(toCreate);
     const updated: Pin[] = [];
     for (const { id, data: updateData } of toUpdate) {
@@ -576,7 +599,7 @@ class DirectusStorage implements IStorage {
       if (result) updated.push(result);
     }
 
-    return { created, updated };
+    return { created, updated, skippedDueToLimit };
   }
 
   async getPinsByMapId(mapId: string): Promise<Pin[]> {

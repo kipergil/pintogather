@@ -8,7 +8,7 @@ import {
   updateProfileSchema,
   USERNAME_PATTERN,
 } from "../shared/schema.js";
-import type { Pin, PublicProfile, User } from "../shared/schema.js";
+import type { MapCollection, Pin, PublicProfile, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import multer from "multer";
@@ -16,7 +16,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { getUserByUsername } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
+import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
+import { checkAndIncrementAiUsage } from "./services/aiUsage.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
 
@@ -41,6 +43,17 @@ const logoUpload = multer({
     cb(null, true);
   },
 });
+
+/**
+ * The pins-per-map cap is the *map owner's* limit, not whoever happens to be
+ * adding a pin (an anonymous visitor or a different contributor) — it's the
+ * owner's plan that determines how much their map can hold. Defaults to the
+ * freemium limit for the rare case of an orphaned map with no owner.
+ */
+async function getMapOwnerMaxPins(mapCollection: MapCollection): Promise<number> {
+  const owner = mapCollection.ownerId ? await storage.getUserProfile(mapCollection.ownerId) : undefined;
+  return TIER_LIMITS[owner?.userGroup ?? "freemium"].maxPinsPerMap;
+}
 
 /**
  * A pin may be modified by the owner of its map, by the user who created
@@ -381,6 +394,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
 
+      const maxMaps = TIER_LIMITS[user.userGroup].maxMaps;
+      const ownedMapCount = (await storage.getMapCollectionsByUserId(user.id)).length;
+      if (ownedMapCount >= maxMaps) {
+        return res.status(403).json({
+          message: `You've reached the ${maxMaps}-map limit for the ${user.userGroup} plan. Upgrade at /pricing for more.`,
+        });
+      }
+
       const data = insertMapCollectionSchema.parse({ ...req.body, ownerId: user.id });
 
       const existingMap = await storage.getMapCollectionByName(data.name);
@@ -618,6 +639,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
+      const maxPins = await getMapOwnerMaxPins(mapCollection);
+      const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
+      if (currentPinCount >= maxPins) {
+        return res.status(403).json({
+          message: `This map has reached its ${maxPins}-pin limit. Ask the owner to upgrade at /pricing for more room.`,
+        });
+      }
+
       const user = await getCurrentUser(req);
       const isOwner = !!user && user.id === mapCollection.ownerId;
       const data = insertPinSchema.parse({
@@ -653,10 +682,18 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!user) return res.status(401).json({ message: "Unauthorized" });
       const isOwner = user.id === mapCollection.ownerId;
 
+      // Unlike the single-pin route below, a bulk request can be entirely
+      // updates to already-existing pins (matched by name), which never
+      // count against the cap — so there's no blanket "already full" reject
+      // here. maxNewPins alone (clamped to >= 0 in upsertPins) correctly
+      // limits how many *new* pins the batch can create.
+      const maxPins = await getMapOwnerMaxPins(mapCollection);
+      const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
+
       const { pins } = bulkInsertPinsSchema.parse(req.body);
       const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id, approved: isOwner }));
 
-      const result = await storage.upsertPins(mapCollection.id, data);
+      const result = await storage.upsertPins(mapCollection.id, data, { maxNewPins: maxPins - currentPinCount });
       res.status(201).json(result);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -678,6 +715,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
       }
 
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
       const { shareUrl } = req.params;
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
@@ -685,6 +725,15 @@ export async function registerRoutes(app: Express): Promise<void> {
       const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
       if (!prompt) return res.status(400).json({ message: "Describe what kind of places you're looking for" });
       if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
+
+      const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
+      if (!usage.allowed) {
+        return res.status(429).json({
+          message: `You've used all ${usage.limit} AI suggestion generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
+          limit: usage.limit,
+          used: usage.used,
+        });
+      }
 
       const message = await anthropic.messages.create({
         model: VENUE_SUGGESTIONS_MODEL,
