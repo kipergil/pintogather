@@ -10,7 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, MessageSquareText, Plus, Save, Upload } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MessageSquareText, Plus, Save, Upload } from "lucide-react";
+import { Link } from "wouter";
+import { TIER_LIMITS } from "@shared/limits";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
 const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
@@ -55,6 +57,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = initialValues?.shareUrl ? `${window.location.origin}/p/${initialValues.shareUrl}` : null;
+  const hasCustomBranding = TIER_LIMITS[user?.userGroup ?? "freemium"].customBranding;
 
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -286,66 +289,79 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
             Add your own logo and this map gets a clean, read-only public page with no PinTogather branding —
             just your logo, the description above, and the map.
           </p>
-          <div className="space-y-2">
-            <Label>Logo</Label>
-            <div className="flex items-center gap-3">
-              <input
-                ref={logoFileInputRef}
-                type="file"
-                accept={LOGO_ACCEPT}
-                className="hidden"
-                onChange={handleLogoFileChange}
-                data-testid="input-logo-file"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => logoFileInputRef.current?.click()}
-                disabled={isUploadingLogo}
-                data-testid="button-upload-logo"
-              >
-                {isUploadingLogo ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-3.5 w-3.5 mr-2" />
-                    Upload image
-                  </>
-                )}
-              </Button>
-              {formData.brandingLogoUrl.trim() && (
-                <img
-                  src={formData.brandingLogoUrl.trim()}
-                  alt="Logo preview"
-                  className="h-10 max-w-[160px] object-contain rounded border border-border p-1"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                  onLoad={(e) => {
-                    (e.target as HTMLImageElement).style.display = "block";
-                  }}
+          {hasCustomBranding ? (
+            <div className="space-y-2">
+              <Label>Logo</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  ref={logoFileInputRef}
+                  type="file"
+                  accept={LOGO_ACCEPT}
+                  className="hidden"
+                  onChange={handleLogoFileChange}
+                  data-testid="input-logo-file"
                 />
-              )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoFileInputRef.current?.click()}
+                  disabled={isUploadingLogo}
+                  data-testid="button-upload-logo"
+                >
+                  {isUploadingLogo ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5 mr-2" />
+                      Upload image
+                    </>
+                  )}
+                </Button>
+                {formData.brandingLogoUrl.trim() && (
+                  <img
+                    src={formData.brandingLogoUrl.trim()}
+                    alt="Logo preview"
+                    className="h-10 max-w-[160px] object-contain rounded border border-border p-1"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                    onLoad={(e) => {
+                      (e.target as HTMLImageElement).style.display = "block";
+                    }}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2 py-1">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground">or paste an image URL</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <Input
+                id="brandingLogoUrl"
+                type="text"
+                placeholder="https://yoursite.com/logo.png"
+                value={formData.brandingLogoUrl}
+                onChange={(e) => setFormData({ ...formData, brandingLogoUrl: e.target.value })}
+                maxLength={500}
+                data-testid="input-branding-logo-url"
+              />
             </div>
-            <div className="flex items-center gap-2 py-1">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">or paste an image URL</span>
-              <div className="h-px flex-1 bg-border" />
+          ) : (
+            <div
+              className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+              data-testid="branding-locked-notice"
+            >
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">Custom branding is a Premium feature.</span>
+              <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                Upgrade
+              </Link>
             </div>
-            <Input
-              id="brandingLogoUrl"
-              type="text"
-              placeholder="https://yoursite.com/logo.png"
-              value={formData.brandingLogoUrl}
-              onChange={(e) => setFormData({ ...formData, brandingLogoUrl: e.target.value })}
-              maxLength={500}
-              data-testid="input-branding-logo-url"
-            />
-          </div>
+          )}
 
           {publicUrl && (
             <div className="space-y-1.5">
