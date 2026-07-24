@@ -95,13 +95,13 @@ export default function ImportPins({ params }: ImportPinsProps) {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  const searchItem = useCallback(async (id: string, query: string) => {
+  const searchItem = useCallback(async (id: string, query: string): Promise<ImportItem["status"]> => {
     updateItem(id, { status: "searching" });
     try {
       const matches = await searchVenues(query);
       if (matches.length === 0) {
         updateItem(id, { status: "not_found", matches: [] });
-        return;
+        return "not_found";
       }
       updateItem(id, {
         status: "found",
@@ -109,9 +109,10 @@ export default function ImportPins({ params }: ImportPinsProps) {
         selectedIndex: 0,
         name: matches[0].name || query,
       });
+      return "found";
     } catch (error: any) {
-      const isZeroResults = typeof error?.message === "string" && error.message.includes("ZERO_RESULTS");
-      updateItem(id, { status: isZeroResults ? "not_found" : "error", matches: [] });
+      updateItem(id, { status: "error", matches: [] });
+      return "error";
     }
   }, [updateItem]);
 
@@ -180,12 +181,22 @@ export default function ImportPins({ params }: ImportPinsProps) {
     setIsSearchingAll(true);
     setSearchProgress(0);
     let done = 0;
+    const notFoundIds = new Set<string>();
     await runWithConcurrency(list, 3, async (item) => {
-      await searchItem(item.id, item.name);
+      const status = await searchItem(item.id, item.name);
+      if (status === "not_found") notFoundIds.add(item.id);
       done += 1;
       setSearchProgress(done);
     });
     setIsSearchingAll(false);
+
+    if (notFoundIds.size > 0) {
+      setItems((prev) => prev.filter((item) => !notFoundIds.has(item.id)));
+      toast({
+        title: notFoundIds.size === 1 ? "1 venue skipped" : `${notFoundIds.size} venues skipped`,
+        description: "No matching location was found on Google Maps, so it was left out.",
+      });
+    }
   };
 
   const retryFailed = () => {
