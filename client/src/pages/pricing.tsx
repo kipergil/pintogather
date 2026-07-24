@@ -91,6 +91,12 @@ export default function Pricing() {
       <div className="grid sm:grid-cols-3 gap-4">
         {PRICING_TIERS.map((tier) => {
           const isCurrent = user?.userGroup === tier.id;
+          // A user already on a paid plan switching tiers must go through the
+          // billing portal (which updates/prorates their existing
+          // subscription) rather than a fresh Checkout session — Checkout
+          // always creates a brand-new subscription, which would double-bill
+          // someone who already has one active.
+          const hasActiveSubscription = !!user && user.userGroup !== "freemium";
           return (
             <Card key={tier.id} className={isCurrent ? "border-primary" : "border-border"}>
               <CardContent className="p-6 flex flex-col h-full">
@@ -107,7 +113,25 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                {tier.checkoutTier && !isCurrent && (
+                {tier.checkoutTier && !isCurrent && hasActiveSubscription && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => portalMutation.mutate()}
+                    disabled={portalMutation.isPending}
+                    data-testid={`button-switch-${tier.id}`}
+                  >
+                    {portalMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Redirecting...
+                      </>
+                    ) : (
+                      "Switch via billing portal"
+                    )}
+                  </Button>
+                )}
+                {tier.checkoutTier && !isCurrent && !hasActiveSubscription && (
                   <Button
                     className="w-full"
                     onClick={() => checkoutMutation.mutate(tier.checkoutTier!)}

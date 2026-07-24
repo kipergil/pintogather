@@ -5,12 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { User, Save, ArrowLeft, ExternalLink, Check, X, Loader2 } from "lucide-react";
+import { useUsage } from "@/hooks/useUsage";
+import { UsageMeter } from "@/components/usage-meter";
+import { User, Save, ArrowLeft, ExternalLink, Check, X, Loader2, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 import { USERNAME_PATTERN } from "@shared/schema";
+
+const TIER_LABELS: Record<string, string> = { freemium: "Free", basic: "Basic", premium: "Premium" };
 
 interface ProfileData {
   full_name: string;
@@ -38,6 +43,24 @@ export default function Profile() {
     linkedin_handle: "",
   });
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
+  const { usage } = useUsage();
+
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/billing/portal", {});
+      return response.json() as Promise<{ url: string }>;
+    },
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't open billing portal",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -161,6 +184,47 @@ export default function Profile() {
             </p>
           )}
         </div>
+
+        <Card className="mb-6" data-testid="card-plan-billing">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              Plan &amp; billing
+            </CardTitle>
+            <Badge variant="secondary" data-testid="badge-profile-tier">
+              {TIER_LABELS[user.userGroup] ?? user.userGroup} plan
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {usage && (
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+                <UsageMeter label="Maps" used={usage.maps.used} limit={usage.maps.limit} />
+                <UsageMeter label="AI suggestions today" used={usage.aiSuggestions.used} limit={usage.aiSuggestions.limit} />
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {user.userGroup !== "freemium" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => portalMutation.mutate()}
+                  disabled={portalMutation.isPending}
+                  data-testid="button-profile-manage-billing"
+                >
+                  {portalMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Manage billing
+                </Button>
+              ) : null}
+              {user.userGroup !== "premium" && (
+                <Link href="/pricing">
+                  <Button type="button" data-testid="button-profile-upgrade">
+                    {user.userGroup === "freemium" ? "Upgrade plan" : "View plans"}
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

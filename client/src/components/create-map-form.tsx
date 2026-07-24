@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MessageSquareText, Plus, Save, Upload } from "lucide-react";
 import { Link } from "wouter";
@@ -128,6 +129,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         title: "Couldn't create map",
         description: error.message || "Failed to create map collection",
         variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
     },
   });
@@ -160,6 +162,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         title: "Couldn't save changes",
         description: error.message || "Failed to update map",
         variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
     },
   });

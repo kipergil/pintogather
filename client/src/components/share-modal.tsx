@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, Share2, Mail, Trash2, Shield, Lock } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { Link as WouterLink } from "wouter";
 
 interface ShareModalProps {
@@ -69,6 +70,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
         title: "Couldn't send invitation",
         description: error.message || "Failed to send invitation.",
         variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
     },
   });

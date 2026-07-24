@@ -21,11 +21,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
 import { useState } from "react";
 import { downloadPinsCsv } from "@/lib/csv-export";
+import { useUsage } from "@/hooks/useUsage";
+import type { UsageSummary } from "@/hooks/useUsage";
+import { UsageMeter } from "@/components/usage-meter";
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
@@ -104,6 +108,7 @@ export default function Home() {
 
   const totalPins = ownedMaps.reduce((sum, map) => sum + (map.pinCount || 0), 0);
   const firstName = user?.firstName || user?.fullName?.split(" ")[0];
+  const { usage } = useUsage();
 
   return (
     <>
@@ -111,6 +116,8 @@ export default function Home() {
         {user ? (
           <SignedInDashboard
             firstName={firstName}
+            userGroup={user.userGroup}
+            usage={usage}
             ownedMaps={ownedMaps}
             contributedMaps={contributedMaps}
             isLoadingOwned={isLoadingOwned}
@@ -142,6 +149,8 @@ export default function Home() {
 
 interface SignedInDashboardProps {
   firstName?: string;
+  userGroup: string;
+  usage?: UsageSummary;
   ownedMaps: MapCollectionSummary[];
   contributedMaps: MapCollectionSummary[];
   isLoadingOwned: boolean;
@@ -155,6 +164,8 @@ interface SignedInDashboardProps {
 
 function SignedInDashboard({
   firstName,
+  userGroup,
+  usage,
   ownedMaps,
   contributedMaps,
   isLoadingOwned,
@@ -179,6 +190,8 @@ function SignedInDashboard({
           Create new map
         </Button>
       </div>
+
+      <PlanSummaryCard userGroup={userGroup} usage={usage} />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
@@ -260,6 +273,34 @@ function SignedInDashboard({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+const TIER_LABELS: Record<string, string> = { freemium: "Free", basic: "Basic", premium: "Premium" };
+
+/** Ambient plan/usage nudge — the dashboard is the highest-traffic page for a signed-in user, and the only place today that had zero awareness of the account's tier or how close it is to a limit. Renders nothing for premium (unlimited on both fronts, nothing to nudge). */
+function PlanSummaryCard({ userGroup, usage }: { userGroup: string; usage?: UsageSummary }) {
+  if (userGroup === "premium") return null;
+
+  return (
+    <Card className="mb-8" data-testid="card-plan-summary">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <Badge variant="secondary" data-testid="badge-current-tier">
+            {TIER_LABELS[userGroup] ?? userGroup} plan
+          </Badge>
+          <Link href="/pricing" className="text-sm font-medium text-primary hover:underline" data-testid="link-dashboard-upgrade">
+            Upgrade →
+          </Link>
+        </div>
+        {usage && (
+          <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+            <UsageMeter label="Maps" used={usage.maps.used} limit={usage.maps.limit} />
+            <UsageMeter label="AI suggestions today" used={usage.aiSuggestions.used} limit={usage.aiSuggestions.limit} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

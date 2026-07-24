@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
+import { useUsage } from "@/hooks/useUsage";
+import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
 import {
   ArrowLeft,
@@ -84,6 +87,8 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { usage } = useUsage();
+  const aiLimitReached = usage ? usage.aiSuggestions.used >= usage.aiSuggestions.limit : false;
 
   const [items, setItems] = useState<ImportItem[]>([]);
   const [isParsing, setIsParsing] = useState(false);
@@ -160,16 +165,19 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const generateSuggestionsMutation = useMutation({
     mutationFn: async (prompt: string) => {
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/venue-suggestions`, { prompt });
-      return response.json() as Promise<{ suggestions: string[] }>;
+      return response.json() as Promise<{ suggestions: string[]; usage: { used: number; limit: number } }>;
     },
     onSuccess: (data) => {
+      queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
       startImportFromNames(data.suggestions);
     },
     onError: (error: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
       toast({
         title: "Couldn't generate suggestions",
         description: error.message || "Please try again",
         variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
     },
   });
@@ -410,34 +418,56 @@ export default function ImportPins({ params }: ImportPinsProps) {
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
                   Describe a theme and we'll suggest up to 15 real venues for you to review before importing.
                 </p>
-                <div className="max-w-sm mx-auto text-left space-y-2">
-                  <Textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
-                    rows={3}
-                    className="text-sm"
-                    data-testid="input-ai-prompt"
-                  />
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleGenerateSuggestions}
-                    disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
-                    data-testid="button-generate-suggestions"
-                  >
-                    {generateSuggestionsMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        Generate with AI
-                      </>
-                    )}
-                  </Button>
+                <div className="max-w-sm mx-auto text-left space-y-3">
+                  {usage && (
+                    <UsageMeter
+                      label="AI suggestions today"
+                      used={usage.aiSuggestions.used}
+                      limit={usage.aiSuggestions.limit}
+                    />
+                  )}
+                  {aiLimitReached ? (
+                    <div
+                      className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+                      data-testid="ai-limit-locked-notice"
+                    >
+                      <Wand2 className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">You've used today's AI suggestions on the {usage?.userGroup ?? "current"} plan.</span>
+                      <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                        Upgrade
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      <Textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
+                        rows={3}
+                        className="text-sm"
+                        data-testid="input-ai-prompt"
+                      />
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleGenerateSuggestions}
+                        disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
+                        data-testid="button-generate-suggestions"
+                      >
+                        {generateSuggestionsMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4 mr-2" />
+                            Generate with AI
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
