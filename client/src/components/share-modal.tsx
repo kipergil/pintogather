@@ -16,6 +16,7 @@ import { Link as WouterLink } from "wouter";
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The map's short share id (e.g. "abc123"), NOT a full URL — this component builds the full /map/:shareUrl link itself. */
   shareUrl: string;
   mapName: string;
   /** Real DB id of the map, needed for the owner-only invitation endpoints. */
@@ -45,6 +46,12 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
   const [copied, setCopied] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePermission, setInvitePermission] = useState("readonly");
+
+  // `shareUrl` is just the map's short id (e.g. "abc123") — the actual
+  // shareable link is this id under /map/. Building it here rather than
+  // expecting callers to pass a full URL keeps MapCollectionSummary/props
+  // simple (just the id) while still showing/copying a real, working link.
+  const fullShareUrl = `${window.location.origin}/map/${shareUrl}`;
 
   const invitationsUrl = `/api/maps/${mapId}/invitations`;
   const { data: invitationsData } = useQuery<InvitationsResponse>({
@@ -94,7 +101,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(fullShareUrl);
       setCopied(true);
       toast({ title: "Success", description: "URL copied to clipboard!", variant: "success" });
       setTimeout(() => setCopied(false), 2000);
@@ -114,7 +121,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
 
   const shareToSocial = (platform: string) => {
     const text = `Check out this collaborative map: ${mapName}`;
-    const url = encodeURIComponent(shareUrl);
+    const url = encodeURIComponent(fullShareUrl);
     const textEncoded = encodeURIComponent(text);
 
     let shareUrl_platform = "";
@@ -151,7 +158,10 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-md max-h-[85vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Share2 className="h-5 w-5 mr-2" />
@@ -173,8 +183,15 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
           <div className="space-y-2">
             <Label htmlFor="shareUrl">Share URL</Label>
             <div className="flex">
-              <Input id="shareUrl" value={shareUrl} readOnly className="flex-1 bg-neutral-50" />
-              <Button onClick={copyToClipboard} className="ml-2" variant={copied ? "default" : "outline"}>
+              <Input
+                id="shareUrl"
+                value={fullShareUrl}
+                readOnly
+                onFocus={(e) => e.currentTarget.blur()}
+                className="flex-1 bg-neutral-50"
+                data-testid="input-share-url"
+              />
+              <Button onClick={copyToClipboard} className="ml-2" variant={copied ? "default" : "outline"} data-testid="button-copy-share-url">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
