@@ -8,9 +8,37 @@ import type { UserGroup } from "./enums.js";
  */
 export const TIER_LIMITS: Record<
   UserGroup,
-  { maxMaps: number; maxPinsPerMap: number; aiSuggestionsPerDay: number; customBranding: boolean; maxCollaboratorsPerMap: number }
+  {
+    maxMaps: number;
+    maxPinsPerMap: number;
+    aiSuggestionsPerDay: number;
+    customBranding: boolean;
+    maxCollaboratorsPerMap: number;
+    screenshotImport: boolean;
+  }
 > = {
-  freemium: { maxMaps: 3, maxPinsPerMap: 50, aiSuggestionsPerDay: 3, customBranding: false, maxCollaboratorsPerMap: 2 },
-  basic: { maxMaps: 10, maxPinsPerMap: 200, aiSuggestionsPerDay: 15, customBranding: false, maxCollaboratorsPerMap: 8 },
-  premium: { maxMaps: Infinity, maxPinsPerMap: Infinity, aiSuggestionsPerDay: 200, customBranding: true, maxCollaboratorsPerMap: Infinity },
+  freemium: {
+    maxMaps: 3,
+    maxPinsPerMap: 50,
+    aiSuggestionsPerDay: 3,
+    customBranding: false,
+    maxCollaboratorsPerMap: 2,
+    screenshotImport: false,
+  },
+  basic: {
+    maxMaps: 10,
+    maxPinsPerMap: 200,
+    aiSuggestionsPerDay: 15,
+    customBranding: false,
+    maxCollaboratorsPerMap: 8,
+    screenshotImport: true,
+  },
+  premium: {
+    maxMaps: Infinity,
+    maxPinsPerMap: Infinity,
+    aiSuggestionsPerDay: 200,
+    customBranding: true,
+    maxCollaboratorsPerMap: Infinity,
+    screenshotImport: true,
+  },
 };

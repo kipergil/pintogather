@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useUsage } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
+import { TIER_LIMITS } from "@shared/limits";
 import {
   ArrowLeft,
   ArrowUp,
@@ -22,7 +23,9 @@ import {
   Check,
   ClipboardPaste,
   FileUp,
+  ImageIcon,
   Loader2,
+  Lock,
   MapPin,
   RefreshCw,
   Trash2,
@@ -30,6 +33,8 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+
+const ALLOWED_SCREENSHOT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 interface ImportPinsProps {
   params: {
@@ -87,8 +92,10 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const { usage } = useUsage();
   const aiLimitReached = usage ? usage.aiSuggestions.used >= usage.aiSuggestions.limit : false;
+  const hasScreenshotImport = TIER_LIMITS[user?.userGroup ?? "freemium"].screenshotImport;
 
   const [items, setItems] = useState<ImportItem[]>([]);
   const [isParsing, setIsParsing] = useState(false);
@@ -96,6 +103,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
   const [searchProgress, setSearchProgress] = useState(0);
   const [pasteText, setPasteText] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [screenshot, setScreenshot] = useState<File | null>(null);
 
   const updateItem = useCallback((id: string, patch: Partial<ImportItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -182,10 +190,64 @@ export default function ImportPins({ params }: ImportPinsProps) {
     },
   });
 
+  const generateFromScreenshotMutation = useMutation({
+    mutationFn: async ({ file, prompt }: { file: File; prompt: string }) => {
+      const response = await apiUpload(
+        `/api/maps/${shareUrl}/venue-suggestions/from-screenshot`,
+        file,
+        prompt ? { prompt } : undefined,
+      );
+      return response.json() as Promise<{ suggestions: string[]; usage: { used: number; limit: number } }>;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
+      setScreenshot(null);
+      startImportFromNames(data.suggestions);
+    },
+    onError: (error: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
+      toast({
+        title: "Couldn't generate suggestions",
+        description: error.message || "Please try again",
+        variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
+      });
+    },
+  });
+
   const handleGenerateSuggestions = () => {
+    if (screenshot) {
+      generateFromScreenshotMutation.mutate({ file: screenshot, prompt: aiPrompt.trim() });
+      return;
+    }
     if (!aiPrompt.trim()) return;
     generateSuggestionsMutation.mutate(aiPrompt.trim());
   };
+
+  const handleScreenshotInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!ALLOWED_SCREENSHOT_TYPES.has(file.type)) {
+      toast({
+        title: "Unsupported file type",
+        description: "Please upload a PNG, JPEG, WebP, or GIF image.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast({
+        title: "Screenshot too large",
+        description: "Please upload an image under 4MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setScreenshot(file);
+  };
+
+  const isGenerating = generateSuggestionsMutation.isPending || generateFromScreenshotMutation.isPending;
 
   const searchAll = async (list: ImportItem[]) => {
     setIsSearchingAll(true);
@@ -442,19 +504,76 @@ export default function ImportPins({ params }: ImportPinsProps) {
                       <Textarea
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={"Describe what you're looking for —\nBest ramen spots in Tokyo"}
+                        placeholder={
+                          screenshot
+                            ? "Optional — add context for the screenshot"
+                            : "Describe what you're looking for —\nBest ramen spots in Tokyo"
+                        }
                         rows={3}
                         className="text-sm"
                         data-testid="input-ai-prompt"
                       />
+
+                      {hasScreenshotImport ? (
+                        <>
+                          <input
+                            ref={screenshotInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handleScreenshotInputChange}
+                            data-testid="input-ai-screenshot"
+                          />
+                          {screenshot ? (
+                            <div
+                              className="flex items-center gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs"
+                              data-testid="ai-screenshot-chip"
+                            >
+                              <ImageIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                              <span className="flex-1 truncate text-foreground">{screenshot.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setScreenshot(null)}
+                                className="text-muted-foreground hover:text-destructive shrink-0"
+                                data-testid="button-remove-screenshot"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="w-full text-muted-foreground"
+                              onClick={() => screenshotInputRef.current?.click()}
+                              data-testid="button-attach-screenshot"
+                            >
+                              <ImageIcon className="h-4 w-4 mr-2" />
+                              Attach a screenshot instead
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <div
+                          className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+                          data-testid="screenshot-import-locked-notice"
+                        >
+                          <Lock className="h-3.5 w-3.5 shrink-0" />
+                          <span className="flex-1">Importing from a screenshot is a Basic/Premium feature.</span>
+                          <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                            Upgrade
+                          </Link>
+                        </div>
+                      )}
+
                       <Button
                         variant="outline"
                         className="w-full"
                         onClick={handleGenerateSuggestions}
-                        disabled={!aiPrompt.trim() || generateSuggestionsMutation.isPending}
+                        disabled={(!aiPrompt.trim() && !screenshot) || isGenerating}
                         data-testid="button-generate-suggestions"
                       >
-                        {generateSuggestionsMutation.isPending ? (
+                        {isGenerating ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             Generating...

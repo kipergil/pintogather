@@ -40,6 +40,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "15 AI venue suggestions per day",
       "Up to 8 collaborators per map",
       "PinTogather branding on public maps",
+      "Screenshot-based AI venue import",
     ],
   },
   {
@@ -53,6 +54,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "200 AI venue suggestions per day",
       "Unlimited collaborators per map",
       "Your own branding on public maps",
+      "Screenshot-based AI venue import",
     ],
   },
 ];

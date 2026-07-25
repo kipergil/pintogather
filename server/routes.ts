@@ -21,6 +21,8 @@ import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+// Anthropic's vision API only accepts these four raster formats (no SVG).
+const ALLOWED_SCREENSHOT_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -31,6 +33,13 @@ const VENUE_SUGGESTIONS_SYSTEM_PROMPT =
   "Given the user's theme, respond with ONLY a JSON array of up to 15 strings — no explanation, no markdown fences. " +
   "Each string must be a real place specific enough to find on Google Maps; include the city or neighborhood in " +
   "the name if it helps disambiguate (e.g. \"Ichiran Ramen Shibuya\" rather than just \"Ichiran\").";
+const VENUE_SCREENSHOT_SYSTEM_PROMPT =
+  "You extract real, specific, well-known venues or places mentioned or shown in an image for a collaborative " +
+  "map-pinning app. The image may be a screenshot of a text conversation, a social media post, a list, or a photo " +
+  "with visible signage — find every distinct venue or place name in it. Respond with ONLY a JSON array of up to 15 " +
+  "strings — no explanation, no markdown fences. Each string must be a real place specific enough to find on Google " +
+  "Maps; include the city or neighborhood in the name if it helps disambiguate (e.g. \"Ichiran Ramen Shibuya\" rather " +
+  "than just \"Ichiran\"). If the image contains no identifiable venues or places, respond with an empty JSON array.";
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
@@ -38,6 +47,18 @@ const logoUpload = multer({
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_LOGO_MIME_TYPES.has(file.mimetype)) {
       cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, GIF, or SVG image."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const screenshotUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4MB — leaves headroom under Anthropic's ~5MB base64 image limit
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_SCREENSHOT_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, or GIF image."));
       return;
     }
     cb(null, true);
@@ -900,6 +921,103 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.status(500).json({ message: "Failed to generate suggestions" });
     }
   });
+
+  app.post(
+    "/api/maps/:shareUrl/venue-suggestions/from-screenshot",
+    isAuthenticated,
+    (req, res, next) => {
+      screenshotUpload.single("file")(req, res, (error: unknown) => {
+        if (error) return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid upload" });
+        next();
+      });
+    },
+    async (req, res) => {
+      try {
+        if (!anthropic) {
+          return res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
+        }
+
+        const user = await getCurrentUser(req);
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+        if (!TIER_LIMITS[user.userGroup].screenshotImport) {
+          return res.status(403).json({
+            message: `Screenshot-based AI import isn't available on the ${user.userGroup} plan. Upgrade at /pricing to use it.`,
+          });
+        }
+
+        const { shareUrl } = req.params;
+        const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
+        if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+        if (!req.file) return res.status(400).json({ message: "No screenshot uploaded" });
+
+        const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+        if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
+
+        const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
+        if (!usage.allowed) {
+          return res.status(429).json({
+            message: `You've used all ${usage.limit} AI suggestion generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
+            limit: usage.limit,
+            used: usage.used,
+          });
+        }
+
+        await storage.uploadVenueScreenshot(user.id, req.file);
+
+        const message = await anthropic.messages.create({
+          model: VENUE_SUGGESTIONS_MODEL,
+          max_tokens: 1024,
+          system: VENUE_SCREENSHOT_SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: req.file.mimetype as "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+                    data: req.file.buffer.toString("base64"),
+                  },
+                },
+                {
+                  type: "text",
+                  text: prompt || "Find every venue or place mentioned or shown in this image.",
+                },
+              ],
+            },
+          ],
+        });
+
+        const textBlock = message.content.find((block) => block.type === "text");
+        const raw = textBlock?.type === "text" ? textBlock.text : "";
+
+        let suggestions: string[] = [];
+        try {
+          const jsonMatch = raw.match(/\[[\s\S]*\]/);
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          if (Array.isArray(parsed)) {
+            suggestions = parsed
+              .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+              .map((item) => item.trim());
+          }
+        } catch {
+          // suggestions stays empty; handled below
+        }
+
+        if (suggestions.length === 0) {
+          return res.status(502).json({ message: "Couldn't find any venues in that screenshot — try a clearer image." });
+        }
+
+        res.json({ suggestions: suggestions.slice(0, 15), usage: { used: usage.used, limit: usage.limit } });
+      } catch (error) {
+        console.error("Screenshot venue suggestion error:", error);
+        res.status(500).json({ message: "Failed to generate suggestions from screenshot" });
+      }
+    },
+  );
 
   app.get("/api/pins/:id", async (req, res) => {
     try {

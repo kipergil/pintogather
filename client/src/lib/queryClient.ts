@@ -41,10 +41,15 @@ export async function apiRequest(
 }
 
 /** Multipart file upload — no Content-Type header, the browser sets the multipart boundary itself. */
-export async function apiUpload(url: string, file: File): Promise<Response> {
+export async function apiUpload(url: string, file: File, fields?: Record<string, string>): Promise<Response> {
   const token = await getClerkToken();
   const formData = new FormData();
   formData.append("file", file);
+  if (fields) {
+    for (const [key, value] of Object.entries(fields)) {
+      formData.append(key, value);
+    }
+  }
 
   const res = await fetch(url, {
     method: "POST",
