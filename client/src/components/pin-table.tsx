@@ -432,23 +432,25 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
             <Button
               variant="ghost"
               size="sm"
+              className="h-8 min-h-0 px-2.5 text-xs"
               onClick={() => setSelectedPinIds(new Set())}
               data-testid="button-clear-pin-selection"
             >
-              <X className="h-3.5 w-3.5 mr-1.5" />
+              <X className="h-3.5 w-3.5 mr-1" />
               Clear
             </Button>
             <Button
               variant="destructive"
               size="sm"
+              className="h-8 min-h-0 px-2.5 text-xs"
               onClick={handleBulkDelete}
               disabled={bulkDeletePinsMutation.isPending}
               data-testid="button-bulk-delete-pins"
             >
               {bulkDeletePinsMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
               ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
               )}
               Delete selected
             </Button>
