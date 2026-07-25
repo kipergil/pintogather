@@ -11,9 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MessageSquareText, Plus, Save, Upload } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MapPinned, MessageSquareText, Plus, Save, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { TIER_LIMITS } from "@shared/limits";
+import type { PinColor, PinIcon } from "@shared/enums";
+import { PinStylePicker } from "@/components/pin-style-picker";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
 const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
@@ -25,6 +27,8 @@ interface MapDetailsFormData {
   notePrompt: string;
   brandingLogoUrl: string;
   showOnProfile: boolean;
+  defaultPinColor: PinColor | null;
+  defaultPinIcon: PinIcon | null;
 }
 
 interface CreateMapFormProps {
@@ -49,16 +53,22 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
     notePrompt: initialValues?.notePrompt ?? "",
     brandingLogoUrl: initialValues?.brandingLogoUrl ?? "",
     showOnProfile: initialValues?.showOnProfile ?? false,
+    defaultPinColor: initialValues?.defaultPinColor ?? null,
+    defaultPinIcon: initialValues?.defaultPinIcon ?? null,
   });
   const [showNoteCustomization, setShowNoteCustomization] = useState(
     !!(initialValues?.noteLabel || initialValues?.notePrompt),
   );
   const [showBranding, setShowBranding] = useState(!!initialValues?.brandingLogoUrl);
+  const [showPinStyle, setShowPinStyle] = useState(
+    !!(initialValues?.defaultPinColor || initialValues?.defaultPinIcon),
+  );
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = initialValues?.shareUrl ? `${window.location.origin}/p/${initialValues.shareUrl}` : null;
   const hasCustomBranding = TIER_LIMITS[user?.userGroup ?? "freemium"].customBranding;
+  const hasPinCustomization = TIER_LIMITS[user?.userGroup ?? "freemium"].pinCustomization;
 
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,6 +119,8 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         noteLabel: data.noteLabel.trim() || null,
         notePrompt: data.notePrompt.trim() || null,
         brandingLogoUrl: data.brandingLogoUrl.trim() || null,
+        defaultPinColor: data.defaultPinColor,
+        defaultPinIcon: data.defaultPinIcon,
         ownerId: user?.id || null,
       };
       const response = await apiRequest("POST", "/api/maps", mapData);
@@ -143,6 +155,8 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         notePrompt: data.notePrompt.trim() || null,
         brandingLogoUrl: data.brandingLogoUrl.trim() || null,
         showOnProfile: data.showOnProfile,
+        defaultPinColor: data.defaultPinColor,
+        defaultPinIcon: data.defaultPinIcon,
       };
       const response = await apiRequest("PUT", `/api/maps/${mapId}/details`, mapData);
       return response.json();
@@ -393,6 +407,47 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
               <p className="text-xs text-muted-foreground">
                 Share this link instead of the regular one to hide PinTogather branding entirely.
               </p>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+            data-testid="button-toggle-pin-style"
+          >
+            <span className="flex items-center gap-1.5">
+              <MapPinned className="h-3.5 w-3.5" />
+              Default pin color & icon
+              <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3 space-y-3">
+          <p className="text-xs text-muted-foreground -mt-1">
+            Set the default look for pins on this map. Contributors can still override it per pin.
+          </p>
+          {hasPinCustomization ? (
+            <PinStylePicker
+              color={formData.defaultPinColor}
+              icon={formData.defaultPinIcon}
+              onChange={({ color, icon }) => setFormData({ ...formData, defaultPinColor: color, defaultPinIcon: icon })}
+              noneLabel="Plain (app default)"
+            />
+          ) : (
+            <div
+              className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+              data-testid="pin-style-locked-notice"
+            >
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">Custom pin colors & icons are a Basic/Premium feature.</span>
+              <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                Upgrade
+              </Link>
             </div>
           )}
         </CollapsibleContent>

@@ -6,10 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, AtSign, ExternalLink, Link2, MapPin, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, AtSign, ExternalLink, Link2, MapPin, MapPinned, Save, Loader2, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PinStylePicker } from "@/components/pin-style-picker";
+import type { PinColor, PinIcon } from "@shared/enums";
 
 interface EditPinProps {
   params: {
@@ -24,6 +27,8 @@ interface PinFormData {
   instagramHandle: string;
   linkedinHandle: string;
   note: string;
+  pinColor: PinColor | null;
+  pinIcon: PinIcon | null;
 }
 
 interface PinRecord {
@@ -36,11 +41,14 @@ interface PinRecord {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  pinColor?: PinColor | null;
+  pinIcon?: PinIcon | null;
 }
 
 interface MapCollectionSettings {
   noteLabel?: string | null;
   notePrompt?: string | null;
+  hasPinCustomization?: boolean;
 }
 
 export default function EditPin({ params }: EditPinProps) {
@@ -51,12 +59,15 @@ export default function EditPin({ params }: EditPinProps) {
   const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
+  const [showPinStyle, setShowPinStyle] = useState(false);
   const [formData, setFormData] = useState<PinFormData>({
     userName: "",
     twitterHandle: "",
     instagramHandle: "",
     linkedinHandle: "",
     note: "",
+    pinColor: null,
+    pinIcon: null,
   });
 
   // Fetch pin data
@@ -70,6 +81,7 @@ export default function EditPin({ params }: EditPinProps) {
   });
   const noteLabel = mapCollection?.noteLabel || "Note";
   const notePrompt = mapCollection?.notePrompt || null;
+  const hasPinCustomization = mapCollection?.hasPinCustomization ?? false;
 
   // Populate form when pin data loads, falling back to the signed-in user's
   // own profile for empty fields
@@ -93,7 +105,10 @@ export default function EditPin({ params }: EditPinProps) {
         instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
         linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
         note: pin.note || "",
+        pinColor: pin.pinColor ?? null,
+        pinIcon: pin.pinIcon ?? null,
       });
+      if (pin.pinColor || pin.pinIcon) setShowPinStyle(true);
     }
   }, [pin, user, shareUrl, setLocation, toast]);
 
@@ -133,6 +148,8 @@ export default function EditPin({ params }: EditPinProps) {
         instagramHandle: formData.instagramHandle || "",
         linkedinHandle: formData.linkedinHandle || "",
         note: formData.note || "",
+        pinColor: formData.pinColor,
+        pinIcon: formData.pinIcon,
       });
     } catch (error: any) {
       toast({
@@ -270,6 +287,36 @@ export default function EditPin({ params }: EditPinProps) {
                   data-testid="input-note"
                 />
               </div>
+
+              {hasPinCustomization && (
+                <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+                      data-testid="button-toggle-pin-style"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <MapPinned className="h-3.5 w-3.5" />
+                        Pin color & icon
+                        <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+                      </span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3 space-y-3">
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Leave this as the default to use the map's usual pin style.
+                    </p>
+                    <PinStylePicker
+                      color={formData.pinColor}
+                      icon={formData.pinIcon}
+                      onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
+                      noneLabel="Map default"
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
 
               <div className="flex gap-3 pt-1">
                 <Link href={`/map/${shareUrl}`} className="flex-1">

@@ -16,6 +16,7 @@ export const TIER_LIMITS: Record<
     maxCollaboratorsPerMap: number;
     screenshotImport: boolean;
     mapArchiving: boolean;
+    pinCustomization: boolean;
   }
 > = {
   freemium: {
@@ -26,6 +27,7 @@ export const TIER_LIMITS: Record<
     maxCollaboratorsPerMap: 2,
     screenshotImport: false,
     mapArchiving: false,
+    pinCustomization: false,
   },
   basic: {
     maxMaps: 10,
@@ -35,6 +37,7 @@ export const TIER_LIMITS: Record<
     maxCollaboratorsPerMap: 8,
     screenshotImport: true,
     mapArchiving: true,
+    pinCustomization: true,
   },
   premium: {
     maxMaps: Infinity,
@@ -44,5 +47,6 @@ export const TIER_LIMITS: Record<
     maxCollaboratorsPerMap: Infinity,
     screenshotImport: true,
     mapArchiving: true,
+    pinCustomization: true,
   },
 };

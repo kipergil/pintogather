@@ -4,6 +4,7 @@ import { MapPin, Users } from "lucide-react";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { countDistinctContributors } from "@/lib/map-utils";
+import type { PinColor, PinIcon } from "@shared/enums";
 
 interface PublicMapProps {
   params: {
@@ -21,6 +22,8 @@ interface MapCollection {
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
   pinCount: number;
+  defaultPinColor?: PinColor | null;
+  defaultPinIcon?: PinIcon | null;
   pins: Array<{
     id: string;
     userName: string;
@@ -39,6 +42,8 @@ interface MapCollection {
     note?: string;
     googleMapsUrl?: string | null;
     approved?: boolean;
+    pinColor?: PinColor | null;
+    pinIcon?: PinIcon | null;
     createdAt: string;
   }>;
 }

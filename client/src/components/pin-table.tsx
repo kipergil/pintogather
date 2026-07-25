@@ -40,6 +40,8 @@ import { getInitials } from "@/lib/map-utils";
 import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { buildSocialUrl } from "@/lib/social-links";
+import { PinStyleSwatch } from "@/components/pin-style-picker";
+import type { PinColor, PinIcon } from "@shared/enums";
 
 interface Pin {
   id: string;
@@ -60,6 +62,8 @@ interface Pin {
   note?: string;
   googleMapsUrl?: string | null;
   approved?: boolean;
+  pinColor?: PinColor | null;
+  pinIcon?: PinIcon | null;
   createdAt: string;
 }
 
@@ -503,6 +507,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="font-medium text-foreground text-sm truncate">{pin.userName}</h4>
+                          <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
                           {pin.approved === false && (
                             <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
                               <Clock className="h-3 w-3" />
@@ -672,6 +677,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
+                                <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
                                 {pin.approved === false && (
                                   <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
                                     <Clock className="h-3 w-3" />

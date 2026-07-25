@@ -88,6 +88,16 @@ async function getMapOwnerHasCustomBranding(mapCollection: MapCollection): Promi
 }
 
 /**
+ * Whether a map's owner is currently on a tier that includes custom pin
+ * colors/icons — checked at *display* time, same reasoning as custom
+ * branding above, so a downgrade takes the perk away immediately.
+ */
+async function getMapOwnerHasPinCustomization(mapCollection: MapCollection): Promise<boolean> {
+  const owner = mapCollection.ownerId ? await storage.getUserProfile(mapCollection.ownerId) : undefined;
+  return TIER_LIMITS[owner?.userGroup ?? "freemium"].pinCustomization;
+}
+
+/**
  * A "seat" on a map is an accepted collaborator (map_viewers row) or an
  * invitation still pending — pending invites count too so the cap can't be
  * dodged by sending a pile of invites that never get revoked. Gated on the
@@ -505,6 +515,12 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
+      if ((data.defaultPinColor || data.defaultPinIcon) && !TIER_LIMITS[user.userGroup].pinCustomization) {
+        return res.status(403).json({
+          message: `Custom pin colors and icons aren't available on the ${user.userGroup} plan. Upgrade at /pricing to use them.`,
+        });
+      }
+
       const existingMap = await storage.getMapCollectionByName(data.name);
       if (existingMap) {
         return res.status(400).json({ message: "A map collection with this name already exists" });
@@ -567,6 +583,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (data.brandingLogoUrl && !TIER_LIMITS[user.userGroup].customBranding) {
         return res.status(403).json({
           message: `Custom branding isn't available on the ${user.userGroup} plan. Upgrade at /pricing to add your own logo.`,
+        });
+      }
+
+      if ((data.defaultPinColor || data.defaultPinIcon) && !TIER_LIMITS[user.userGroup].pinCustomization) {
+        return res.status(403).json({
+          message: `Custom pin colors and icons aren't available on the ${user.userGroup} plan. Upgrade at /pricing to use them.`,
         });
       }
 
@@ -843,13 +865,29 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      const [hasCustomBranding, maxPins] = await Promise.all([
+      const [hasCustomBranding, hasPinCustomization, maxPins] = await Promise.all([
         getMapOwnerHasCustomBranding(mapCollection),
+        getMapOwnerHasPinCustomization(mapCollection),
         getMapOwnerMaxPins(mapCollection),
       ]);
       const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
+      // Same reasoning as brandingLogoUrl above: a downgraded owner's
+      // previously-set colors/icons stop rendering immediately, not just
+      // block new writes.
+      const defaultPinColor = hasPinCustomization ? mapCollection.defaultPinColor : null;
+      const defaultPinIcon = hasPinCustomization ? mapCollection.defaultPinIcon : null;
+      const styledPins = hasPinCustomization ? pins : pins.map((pin) => ({ ...pin, pinColor: null, pinIcon: null }));
 
-      res.json({ ...mapCollection, brandingLogoUrl, pins, pinCount: pins.length, maxPins });
+      res.json({
+        ...mapCollection,
+        brandingLogoUrl,
+        defaultPinColor,
+        defaultPinIcon,
+        hasPinCustomization,
+        pins: styledPins,
+        pinCount: pins.length,
+        maxPins,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });
     }
@@ -877,6 +915,12 @@ export async function registerRoutes(app: Express): Promise<void> {
         userId: user?.id ?? null, // never trust a client-supplied userId
         approved: isOwner, // pins from anyone but the owner need the owner's approval first
       });
+
+      if ((data.pinColor || data.pinIcon) && !(await getMapOwnerHasPinCustomization(mapCollection))) {
+        return res.status(403).json({
+          message: "Custom pin colors and icons aren't available on this map's plan. Ask the owner to upgrade at /pricing to use them.",
+        });
+      }
 
       const pin = await storage.createPin(data);
       res.status(201).json(pin);
@@ -1114,6 +1158,16 @@ export async function registerRoutes(app: Express): Promise<void> {
       // gated to the map owner — never accepted through this general-purpose
       // edit route, which a pin's own creator can also use.
       const validatedData = insertPinSchema.partial().omit({ approved: true }).parse(req.body);
+
+      if (validatedData.pinColor || validatedData.pinIcon) {
+        const map = await storage.getMapCollectionById(pin.mapId);
+        if (!map || !(await getMapOwnerHasPinCustomization(map))) {
+          return res.status(403).json({
+            message: "Custom pin colors and icons aren't available on this map's plan. Ask the owner to upgrade at /pricing to use them.",
+          });
+        }
+      }
+
       const updatedPin = await storage.updatePin(id, validatedData);
       if (!updatedPin) return res.status(404).json({ message: "Pin not found" });
 
