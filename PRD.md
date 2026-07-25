@@ -150,6 +150,17 @@ All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonym
 | Accept invitation | Implemented | `/invitations/:token` page; prompts sign-in if needed, then creates the corresponding `map_viewers` row, granting real access |
 | Email notifications | Implemented | Sent by a Directus Flow (`directus/src/flows/`), not the app server — the SMTP relay Directus sends through is only reachable from Directus's own host, not the app server's deployment. The Flow triggers on `map_invitations` row creation, reads the map + inviter, and sends via Directus's own core mail transport. The Share dialog's "copy invite link" button is always available as a fallback regardless of email delivery. |
 
+**Notification emails (Directus Flows, `directus/src/flows/`):**
+
+| Flow | Trigger | Recipient | Notes |
+|------|---------|-----------|-------|
+| Map invitation | `map_invitations` created | Invitee | See above |
+| New signup | `directus_users` created | All `is_admin=true` users | Fires once per real signup (`createUser`, not the update path returning users hit on every login) |
+| Paid subscription | `directus_users` updated, `user_group` in `[basic, premium]` | All `is_admin=true` users | Can repeat on Stripe renewals, not just the first purchase — the app's webhook handler writes the same fields on both, and distinguishing them would need diffing against the previous revision. Accepted as a known limitation of an admin FYI email. |
+| Invitation accepted | `map_invitations` updated, `status = accepted` | The original inviter | Uses the invitation's own `email` field (who it was sent to), not necessarily the Directus account that redeemed it — accepting a link only requires being signed in as *someone*, not the invited address (see §8.2) |
+
+All four follow the same pattern: an event-hook trigger (`accountability: "all"`, so reads run with full data access regardless of who made the underlying write), `item-read` operations to resolve foreign keys the trigger payload doesn't carry, and a `mail` operation using Directus's core transport. The two admin-facing flows share a two-step "read `is_admin=true` users, then a Run Script (`exec`) operation joins their emails into one comma-separated string" recipient lookup, rather than hardcoding an admin address — single source of truth with the `is_admin` flag the app already uses.
+
 ---
 
 ### 3.5 Google Maps Integration
@@ -340,6 +351,7 @@ Unchanged from the prior implementation: Tailwind + Radix UI, Lucide icons, ligh
 ### 8.2 Remaining / accepted gaps
 - `isPublic` is not yet enforced on read — a map's share URL is treated as the access-control boundary by design (matches the original "share the link" product model)
 - Rate limiting is not implemented
+- Accepting a map invitation only requires the accepting user to be signed in as *some* account and hold a valid, unexpired token — it does not check that the signed-in account's email matches the invitation's `email` field. The invitation-accepted notification to the inviter is therefore based on the address the invite was sent to, which may not be the account that actually redeemed it.
 
 ---
 
