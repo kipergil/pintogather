@@ -77,13 +77,20 @@ Directus is a separately hosted service (see `docker-compose.yml` for local dev,
    - Test mode and live mode each need their own webhook endpoint and therefore their own signing secret — a webhook secret from one mode will not verify events from the other.
    - For local development, use the [Stripe CLI](https://docs.stripe.com/stripe-cli) (`stripe listen --forward-to localhost:5000/api/webhooks/stripe`) instead of a dashboard endpoint — it prints a signing secret scoped to your local session.
 
-### Map invitation emails — no app-level env var
+### Notification emails — no app-level env var
 
-Map invitation emails are **not** sent by this app server — there's no SMTP or email-API env var for it here at all. They're sent by a **Directus Flow** (`directus/src/flows/`, provisioned by `npm run directus:flows:apply`), triggered whenever the server creates a `map_invitations` row. The Flow reads the invitation's map and inviter, then uses Directus's own "Send Email" operation — which sends through Directus's **core mail transport**, configured directly on the Directus instance (`EMAIL_SMTP_HOST`/`PORT`/`USER`/`PASSWORD`/`SECURE`, etc.), the same transport Directus's own password-reset and user-invite emails already use.
+None of this app's transactional/notification emails are sent by the app server — there's no SMTP or email-API env var for any of it here at all. They're sent by **Directus Flows** (`directus/src/flows/`, provisioned by `npm run directus:flows:apply`), each triggered by the app server's normal writes to Directus:
+
+- Map invitation created → emails the invitee
+- New user signup → emails everyone with `is_admin=true`
+- User moves to a paid plan → emails everyone with `is_admin=true`
+- Map invitation accepted → emails the original inviter
+
+Each Flow reads whatever related data its trigger payload doesn't already carry (the map, the inviter, etc.), then uses Directus's own "Send Email" operation — which sends through Directus's **core mail transport**, configured directly on the Directus instance (`EMAIL_SMTP_HOST`/`PORT`/`USER`/`PASSWORD`/`SECURE`, etc.), the same transport Directus's own password-reset and user-invite emails already use.
 
 Why not send it from the app server directly: the SMTP relay this instance sends through is only reachable at a Docker-internal address from containers on that same host (e.g. `172.17.0.1` on Elestio) — reachable from Directus itself, but not from the app server, which is typically deployed elsewhere (Vercel). Routing through a Directus Flow sidesteps that network boundary entirely.
 
-If Directus's own transactional email isn't working yet, its core mail transport needs configuring on the Directus instance itself (outside this repo — via the Elestio panel or wherever Directus's own environment is managed), not here. Once that's working, `npm run directus:flows:apply` provisions the Flow and invitations start emailing automatically — no code deploy needed to adjust the email content or recipient logic afterward, since Flows are configured through Directus itself.
+If Directus's own transactional email isn't working yet, its core mail transport needs configuring on the Directus instance itself (outside this repo — via the Elestio panel or wherever Directus's own environment is managed), not here. Once that's working, `npm run directus:flows:apply` provisions all four Flows — no code deploy needed to adjust email content or recipients afterward, since Flows are configured through Directus itself. The two admin-facing Flows notify whoever currently has `is_admin=true`, not a fixed address — grant/revoke admin access (via the app's own `ADMIN_EMAILS`-driven first-sign-in grant, or directly in Directus) and the recipient list updates automatically.
 
 The Share dialog also shows a "copy invite link" button on every pending invitation, so invites can be shared manually regardless of email delivery.
 
