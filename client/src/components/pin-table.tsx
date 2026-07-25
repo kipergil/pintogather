@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,6 @@ import {
   Instagram,
   Linkedin,
   Edit,
-  ChevronDown,
-  MessageSquareText,
-  Eye,
-  EyeOff,
   ExternalLink,
   MoreVertical,
   Database,
@@ -37,7 +33,6 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
-import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { buildSocialUrl } from "@/lib/social-links";
 import { PinStyleSwatch } from "@/components/pin-style-picker";
@@ -79,23 +74,6 @@ interface PinTableProps {
   readOnly?: boolean;
   /** Called when a row is clicked, so the map can pan/zoom to that pin. */
   onPinSelect?: (pinId: string) => void;
-}
-
-function GoogleMapsLink({ url }: { url?: string | null }) {
-  if (!url) return <span className="text-sm text-muted-foreground/60">—</span>;
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-      data-testid="link-google-maps"
-    >
-      <ExternalLink className="h-3.5 w-3.5" />
-      View
-    </a>
-  );
 }
 
 const AVATAR_PALETTE = [
@@ -156,37 +134,20 @@ function SocialLinks({ pin }: { pin: Pin }) {
   );
 }
 
-function NoteToggle({ expanded, onClick }: { expanded: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-      data-testid="button-toggle-note"
-    >
-      <MessageSquareText className="h-3.5 w-3.5" />
-      {expanded ? "Hide note" : "Show note"}
-      <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
-    </button>
-  );
-}
-
 function NoteContent({ label, note }: { label: string; note: string }) {
   return (
-    <div className="mt-2 rounded-lg bg-muted/50 border border-border p-3">
+    <div className="rounded-lg bg-muted/50 border border-border p-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
-      <p className="text-sm text-foreground/90 whitespace-pre-wrap">{note}</p>
+      <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{note}</p>
     </div>
   );
 }
 
 export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [contributorFilter, setContributorFilter] = useState<ContributorFilter>("all");
-  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const [selectedPinIds, setSelectedPinIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -213,15 +174,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     if (shareUrl) {
       setLocation(`/map/${shareUrl}/edit-pin/${pin.id}`);
     }
-  };
-
-  const toggleNote = (pinId: string) => {
-    setExpandedNoteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(pinId)) next.delete(pinId);
-      else next.add(pinId);
-      return next;
-    });
   };
 
   const deletePinMutation = useMutation({
@@ -340,23 +292,6 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     pin.note?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const pinIdsWithNotes = filteredPins.filter((pin) => pin.note).map((pin) => pin.id);
-  const allNotesExpanded =
-    pinIdsWithNotes.length > 0 && pinIdsWithNotes.every((id) => expandedNoteIds.has(id));
-
-  const toggleAllNotes = () => {
-    setExpandedNoteIds((prev) => {
-      if (allNotesExpanded) {
-        const next = new Set(prev);
-        pinIdsWithNotes.forEach((id) => next.delete(id));
-        return next;
-      }
-      const next = new Set(prev);
-      pinIdsWithNotes.forEach((id) => next.add(id));
-      return next;
-    });
-  };
-
   // Only pins the viewer can actually delete are selectable — a bulk action
   // that silently no-ops on some selections would be confusing.
   const selectablePinIds = filteredPins.filter(canDeletePin).map((pin) => pin.id);
@@ -382,18 +317,8 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="relative flex-1 sm:flex-none">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search pins..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-full sm:w-64"
-            data-testid="input-search-pins"
-          />
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {!readOnly && user && (
             <Select value={contributorFilter} onValueChange={(v) => setContributorFilter(v as ContributorFilter)}>
               <SelectTrigger className="h-9 w-40" data-testid="select-contributor-filter">
@@ -406,22 +331,63 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
               </SelectContent>
             </Select>
           )}
-          {pinIdsWithNotes.length > 0 && (
-            <Button variant="outline" size="sm" onClick={toggleAllNotes} data-testid="button-toggle-all-notes">
-              {allNotesExpanded ? (
-                <>
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Hide all notes
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Show all notes
-                </>
-              )}
-            </Button>
+          {!readOnly && selectablePinIds.length > 0 && (
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all pins"
+                data-testid="checkbox-select-all-pins"
+              />
+              Select all
+            </label>
           )}
         </div>
+
+        {searchOpen ? (
+          <div className="relative w-full max-w-64">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search pins..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onBlur={() => {
+                if (!searchQuery) setSearchOpen(false);
+              }}
+              className="pl-9 pr-8 w-full"
+              data-testid="input-search-pins"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+                data-testid="button-clear-search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => {
+              setSearchOpen(true);
+              requestAnimationFrame(() => searchInputRef.current?.focus());
+            }}
+            aria-label="Search pins"
+            data-testid="button-open-search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {selectedPinIds.size > 0 && (
@@ -478,292 +444,150 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
           </p>
         </div>
       ) : (
-        <>
-          {/* Mobile Card Layout */}
-          <div className="block lg:hidden space-y-3">
-            {filteredPins.map((pin) => (
-              <Card
-                key={pin.id}
-                className={`border-border ${onPinSelect ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
-                onClick={() => onPinSelect?.(pin.id)}
-                data-testid={`row-pin-${pin.id}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {canDeletePin(pin) && (
-                        <Checkbox
-                          checked={selectedPinIds.has(pin.id)}
-                          onCheckedChange={() => togglePinSelected(pin.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Select ${pin.userName}`}
-                          className="shrink-0"
-                          data-testid={`checkbox-pin-${pin.id}`}
-                        />
-                      )}
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
-                        <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-medium text-foreground text-sm truncate">{pin.userName}</h4>
-                          <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
-                          {pin.approved === false && (
-                            <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
-                              <Clock className="h-3 w-3" />
-                              Pending
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">{formatDate(pin.createdAt)}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {canApprovePin(pin) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                          onClick={() => approvePinMutation.mutate(pin.id)}
-                          disabled={approvePinMutation.isPending}
-                          data-testid={`button-approve-pin-${pin.id}`}
-                        >
-                          <Check className="h-3.5 w-3.5 mr-1" />
-                          Approve
-                        </Button>
-                      )}
-                      {pin.googleMapsUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-2.5 text-xs"
-                          asChild
-                        >
-                          <a
-                            href={pin.googleMapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            data-testid="link-google-maps"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                            View
-                          </a>
-                        </Button>
-                      )}
-                      {(canEditPin(pin) || canDeletePin(pin) || directusUrl) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground"
-                              data-testid={`button-pin-actions-${pin.id}`}
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {canEditPin(pin) && (
-                              <DropdownMenuItem onClick={() => handleEditPin(pin)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                            )}
-                            {canDeletePin(pin) && (
-                              <DropdownMenuItem
-                                onClick={() => handleDeletePin(pin)}
-                                disabled={deletePinMutation.isPending}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                {pin.approved === false ? "Discard" : "Delete"}
-                              </DropdownMenuItem>
-                            )}
-                            {directusUrl && (
-                              <DropdownMenuItem asChild>
-                                <a
-                                  href={buildDirectusAdminUrl(directusUrl, "pins", pin.id)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Database className="h-4 w-4 mr-2" />
-                                  Open in Directus
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
+        <div className="space-y-3">
+          {filteredPins.map((pin) => (
+            <Card
+              key={pin.id}
+              className={`border-border ${onPinSelect ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+              onClick={() => onPinSelect?.(pin.id)}
+              data-testid={`row-pin-${pin.id}`}
+            >
+              <CardContent className="p-4 flex flex-col gap-3 lg:flex-row lg:items-start">
+                {/* Identity */}
+                <div className="flex items-start gap-3 lg:w-64 lg:shrink-0">
+                  {canDeletePin(pin) && (
+                    <Checkbox
+                      checked={selectedPinIds.has(pin.id)}
+                      onCheckedChange={() => togglePinSelected(pin.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${pin.userName}`}
+                      className="mt-1 shrink-0"
+                      data-testid={`checkbox-pin-${pin.id}`}
+                    />
+                  )}
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
+                    <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
                   </div>
-
-                  {(pin.city || pin.town || pin.country || pin.postcode) && (
-                    <div className="flex items-start gap-2 mb-2">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                      <p className="text-sm text-muted-foreground">
-                        {[pin.city, pin.town, pin.country, pin.postcode].filter(Boolean).join(', ')}
-                      </p>
-                    </div>
-                  )}
-
-                  {pin.note && (
-                    <div className="mb-3">
-                      <NoteToggle expanded={expandedNoteIds.has(pin.id)} onClick={() => toggleNote(pin.id)} />
-                      {expandedNoteIds.has(pin.id) && <NoteContent label={resolvedNoteLabel} note={pin.note} />}
-                    </div>
-                  )}
-
-                  {(pin.twitterHandle || pin.instagramHandle || pin.linkedinHandle) && <SocialLinks pin={pin} />}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop Table Layout */}
-          <div className="hidden lg:block overflow-x-auto rounded-xl border border-border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  {!readOnly && (
-                    <th className="w-10 py-3 px-4">
-                      {selectablePinIds.length > 0 && (
-                        <Checkbox
-                          checked={allSelected}
-                          onCheckedChange={toggleSelectAll}
-                          aria-label="Select all pins"
-                          data-testid="checkbox-select-all-pins"
-                        />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-medium text-foreground text-sm break-words">{pin.userName}</h4>
+                      <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
+                      {pin.approved === false && (
+                        <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
+                          <Clock className="h-3 w-3" />
+                          Pending
+                        </Badge>
                       )}
-                    </th>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(pin.createdAt)}</p>
+                    {(pin.city || pin.town || pin.country || pin.postcode) && (
+                      <div className="flex items-start gap-1.5 mt-1">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground break-words">
+                          {[pin.city, pin.town, pin.country, pin.postcode].filter(Boolean).join(', ')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Note */}
+                <div className="flex-1 min-w-0">
+                  {pin.note ? (
+                    <NoteContent label={resolvedNoteLabel} note={pin.note} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground/50 italic">No {resolvedNoteLabel.toLowerCase()}</p>
                   )}
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Map</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{resolvedNoteLabel}</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Social</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Added</th>
-                  {!readOnly && (
-                    <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPins.map((pin) => {
-                  const expanded = expandedNoteIds.has(pin.id);
-                  return (
-                    <Fragment key={pin.id}>
-                      <tr
-                        className={`transition-colors ${expanded ? "" : "border-b border-border last:border-b-0"} ${onPinSelect ? "cursor-pointer hover:bg-muted/50" : "hover:bg-muted/30"}`}
-                        onClick={() => onPinSelect?.(pin.id)}
-                        data-testid={`row-pin-${pin.id}`}
+                </div>
+
+                {/* Social + actions */}
+                <div
+                  className="flex items-center justify-between gap-2 lg:flex-col lg:items-end lg:justify-start lg:w-44 lg:shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SocialLinks pin={pin} />
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {canApprovePin(pin) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                        onClick={() => approvePinMutation.mutate(pin.id)}
+                        disabled={approvePinMutation.isPending}
+                        data-testid={`button-approve-pin-${pin.id}`}
                       >
-                        {!readOnly && (
-                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                            {canDeletePin(pin) && (
-                              <Checkbox
-                                checked={selectedPinIds.has(pin.id)}
-                                onCheckedChange={() => togglePinSelected(pin.id)}
-                                aria-label={`Select ${pin.userName}`}
-                                data-testid={`checkbox-pin-${pin.id}`}
-                              />
-                            )}
-                          </td>
-                        )}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
-                              <span className="text-xs font-semibold">{getInitials(pin.userName)}</span>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
-                                <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
-                                {pin.approved === false && (
-                                  <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
-                                    <Clock className="h-3 w-3" />
-                                    Pending
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-sm text-foreground">
-                          {[pin.city, pin.town].filter(Boolean).join(', ') || pin.country || '—'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <GoogleMapsLink url={pin.googleMapsUrl} />
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {pin.note ? (
-                            <NoteToggle expanded={expanded} onClick={() => toggleNote(pin.id)} />
-                          ) : (
-                            <span className="text-sm text-muted-foreground/60">—</span>
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        Approve
+                      </Button>
+                    )}
+                    {pin.googleMapsUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2.5 text-xs"
+                        asChild
+                      >
+                        <a
+                          href={pin.googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-testid="link-google-maps"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                          View in Maps
+                        </a>
+                      </Button>
+                    )}
+                    {(canEditPin(pin) || canDeletePin(pin) || directusUrl) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                            data-testid={`button-pin-actions-${pin.id}`}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canEditPin(pin) && (
+                            <DropdownMenuItem onClick={() => handleEditPin(pin)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
                           )}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <SocialLinks pin={pin} />
-                        </td>
-                        <td className="py-3.5 px-4 text-sm text-muted-foreground">
-                          {formatDate(pin.createdAt)}
-                        </td>
-                        {!readOnly && (
-                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1">
-                              {canApprovePin(pin) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => approvePinMutation.mutate(pin.id)}
-                                  disabled={approvePinMutation.isPending}
-                                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  title="Approve"
-                                  data-testid={`button-approve-pin-${pin.id}`}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canEditPin(pin) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleEditPin(pin)}
-                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canDeletePin(pin) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeletePin(pin)}
-                                  disabled={deletePinMutation.isPending}
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  title={pin.approved === false ? "Discard" : "Delete"}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <OpenInDirectusButton collection="pins" itemId={pin.id} />
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                      {expanded && pin.note && (
-                        <tr className="border-b border-border last:border-b-0">
-                          <td colSpan={readOnly ? 6 : 8} className="px-4 pb-3.5 -mt-1">
-                            <NoteContent label={resolvedNoteLabel} note={pin.note} />
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
+                          {canDeletePin(pin) && (
+                            <DropdownMenuItem
+                              onClick={() => handleDeletePin(pin)}
+                              disabled={deletePinMutation.isPending}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {pin.approved === false ? "Discard" : "Delete"}
+                            </DropdownMenuItem>
+                          )}
+                          {directusUrl && (
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={buildDirectusAdminUrl(directusUrl, "pins", pin.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Database className="h-4 w-4 mr-2" />
+                                Open in Directus
+                              </a>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );
