@@ -87,6 +87,12 @@ async function getMapOwnerHasCustomBranding(mapCollection: MapCollection): Promi
   return TIER_LIMITS[owner?.userGroup ?? "freemium"].customBranding;
 }
 
+/** Display name for the map's owner — used on the share-image card. Null for an orphaned map. */
+async function getMapOwnerName(mapCollection: MapCollection): Promise<string | null> {
+  const owner = mapCollection.ownerId ? await storage.getUserProfile(mapCollection.ownerId) : undefined;
+  return owner?.fullName || [owner?.firstName, owner?.lastName].filter(Boolean).join(" ") || null;
+}
+
 /**
  * Whether a map's owner is currently on a tier that includes custom pin
  * colors/icons — checked at *display* time, same reasoning as custom
@@ -865,10 +871,11 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      const [hasCustomBranding, hasPinCustomization, maxPins] = await Promise.all([
+      const [hasCustomBranding, hasPinCustomization, maxPins, ownerName] = await Promise.all([
         getMapOwnerHasCustomBranding(mapCollection),
         getMapOwnerHasPinCustomization(mapCollection),
         getMapOwnerMaxPins(mapCollection),
+        getMapOwnerName(mapCollection),
       ]);
       const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
       // Same reasoning as brandingLogoUrl above: a downgraded owner's
@@ -884,6 +891,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         defaultPinColor,
         defaultPinIcon,
         hasPinCustomization,
+        ownerName,
         pins: styledPins,
         pinCount: pins.length,
         maxPins,
