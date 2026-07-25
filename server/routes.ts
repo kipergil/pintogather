@@ -616,6 +616,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
+      // Email delivery is handled by a Directus Flow (see
+      // directus/src/flows/), triggered on this row's creation — not sent
+      // from here, since the app server can't reach the SMTP relay this
+      // Directus instance sends through (see the flow's own doc comment).
       const invitation = await storage.createInvitation({
         mapId,
         email,
@@ -625,7 +629,6 @@ export async function registerRoutes(app: Express): Promise<void> {
         expiresAt,
       });
 
-      // TODO: send email notification (SendGrid) once configured.
       res.status(201).json(invitation);
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -656,6 +659,35 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Public preview — lets the accept-invitation page show what the invite is
+  // for (map name, inviter, role) before the recipient signs in, without
+  // requiring auth just to look.
+  app.get("/api/invitations/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found or expired" });
+
+      const [mapCollection, inviter] = await Promise.all([
+        storage.getMapCollectionById(invitation.mapId),
+        storage.getUserProfile(invitation.invitedBy),
+      ]);
+
+      res.json({
+        status: invitation.status,
+        permission: invitation.permission,
+        expiresAt: invitation.expiresAt,
+        expired: new Date() > invitation.expiresAt,
+        mapName: mapCollection?.name ?? "a map",
+        mapShareUrl: mapCollection?.shareUrl,
+        inviterName: inviter?.fullName || inviter?.email || "Someone",
+      });
+    } catch (error) {
+      console.error("Error fetching invitation preview:", error);
+      res.status(500).json({ message: "Failed to fetch invitation" });
+    }
+  });
+
   app.post("/api/invitations/:token/accept", isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);
@@ -683,7 +715,8 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
-      res.json({ message: "Invitation accepted successfully" });
+      const mapCollection = await storage.getMapCollectionById(invitation.mapId);
+      res.json({ message: "Invitation accepted successfully", mapShareUrl: mapCollection?.shareUrl });
     } catch (error) {
       console.error("Error accepting invitation:", error);
       res.status(500).json({ message: "Failed to accept invitation" });

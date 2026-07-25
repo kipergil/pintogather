@@ -30,6 +30,7 @@ interface Invitation {
   permission: string;
   status: string;
   createdAt: string;
+  token: string;
 }
 
 interface InvitationsResponse {
@@ -99,6 +100,15 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       toast({ title: "Error", description: "Failed to copy URL", variant: "destructive" });
+    }
+  };
+
+  const copyInviteLink = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/invitations/${token}`);
+      toast({ title: "Invite link copied", description: "Share it directly if email doesn't arrive.", variant: "success" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to copy invite link", variant: "destructive" });
     }
   };
 
@@ -293,14 +303,27 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
                             {invitation.permission}
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteInvitationMutation.mutate(invitation.id)}
-                          disabled={deleteInvitationMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center shrink-0">
+                          {invitation.status === "pending" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyInviteLink(invitation.token)}
+                              title="Copy invite link"
+                              data-testid={`button-copy-invite-link-${invitation.id}`}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteInvitationMutation.mutate(invitation.id)}
+                            disabled={deleteInvitationMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
