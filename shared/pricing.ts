@@ -41,6 +41,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Up to 8 collaborators per map",
       "PinTogather branding on public maps",
       "Screenshot-based AI venue import",
+      "Archive & restore maps",
     ],
   },
   {
@@ -55,6 +56,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Unlimited collaborators per map",
       "Your own branding on public maps",
       "Screenshot-based AI venue import",
+      "Archive & restore maps",
     ],
   },
 ];

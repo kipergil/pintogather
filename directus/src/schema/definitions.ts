@@ -94,6 +94,11 @@ export const mapCollectionsCollection: CollectionDefinition = {
       false,
       "Whether this map appears on the owner's public profile page (/u/:username). Independent of is_public/default_permission, which govern anonymous edit access via the share link.",
     ),
+    booleanField(
+      "archived",
+      false,
+      "Soft-hide: excluded from the owner's home-page map list and public profile, but the map and its pins are untouched and still reachable via its share link. Basic/Premium only.",
+    ),
     dateCreatedField(),
   ],
   relationFields: [mapOwner],

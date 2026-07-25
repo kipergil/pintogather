@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,8 @@ import {
   Database,
   Check,
   Clock,
+  Loader2,
+  X,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getInitials } from "@/lib/map-utils";
@@ -180,6 +183,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
   const [searchQuery, setSearchQuery] = useState("");
   const [contributorFilter, setContributorFilter] = useState<ContributorFilter>("all");
   const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
+  const [selectedPinIds, setSelectedPinIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -249,6 +253,52 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     }
   };
 
+  const bulkDeletePinsMutation = useMutation({
+    mutationFn: async (pinIds: string[]) => {
+      const response = await apiRequest("POST", "/api/pins/bulk-delete", { pinIds });
+      return response.json() as Promise<{ deletedCount: number; skippedCount: number }>;
+    },
+    onSuccess: (result) => {
+      setSelectedPinIds(new Set());
+      toast({
+        title: result.deletedCount === 1 ? "Pin deleted" : `${result.deletedCount} pins deleted`,
+        description:
+          result.skippedCount > 0
+            ? `${result.skippedCount} pin${result.skippedCount === 1 ? "" : "s"} couldn't be removed — you don't have permission.`
+            : "The selected pins have been removed from this map.",
+        variant: result.deletedCount > 0 ? "success" : "destructive",
+      });
+      if (shareUrl) {
+        queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete pins",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const togglePinSelected = (pinId: string) => {
+    setSelectedPinIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(pinId)) next.delete(pinId);
+      else next.add(pinId);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    const count = selectedPinIds.size;
+    if (count === 0) return;
+    if (window.confirm(`Delete ${count} selected pin${count === 1 ? "" : "s"}? This can't be undone.`)) {
+      bulkDeletePinsMutation.mutate(Array.from(selectedPinIds));
+    }
+  };
+
   const approvePinMutation = useMutation({
     mutationFn: async (pinId: string) => {
       await apiRequest("PUT", `/api/pins/${pinId}/approve`);
@@ -300,6 +350,18 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
       const next = new Set(prev);
       pinIdsWithNotes.forEach((id) => next.add(id));
       return next;
+    });
+  };
+
+  // Only pins the viewer can actually delete are selectable — a bulk action
+  // that silently no-ops on some selections would be confusing.
+  const selectablePinIds = filteredPins.filter(canDeletePin).map((pin) => pin.id);
+  const allSelected = selectablePinIds.length > 0 && selectablePinIds.every((id) => selectedPinIds.has(id));
+
+  const toggleSelectAll = () => {
+    setSelectedPinIds((prev) => {
+      if (allSelected) return new Set();
+      return new Set(selectablePinIds);
     });
   };
 
@@ -358,6 +420,42 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
         </div>
       </div>
 
+      {selectedPinIds.size > 0 && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
+          data-testid="pin-bulk-actions-bar"
+        >
+          <span className="text-sm font-medium text-foreground">
+            {selectedPinIds.size} pin{selectedPinIds.size === 1 ? "" : "s"} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedPinIds(new Set())}
+              data-testid="button-clear-pin-selection"
+            >
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Clear
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={bulkDeletePinsMutation.isPending}
+              data-testid="button-bulk-delete-pins"
+            >
+              {bulkDeletePinsMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       {filteredPins.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border bg-muted/30">
           <MapPin className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
@@ -387,6 +485,16 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex items-center gap-3 min-w-0">
+                      {canDeletePin(pin) && (
+                        <Checkbox
+                          checked={selectedPinIds.has(pin.id)}
+                          onCheckedChange={() => togglePinSelected(pin.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${pin.userName}`}
+                          className="shrink-0"
+                          data-testid={`checkbox-pin-${pin.id}`}
+                        />
+                      )}
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
                         <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
                       </div>
@@ -509,6 +617,18 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
+                  {!readOnly && (
+                    <th className="w-10 py-3 px-4">
+                      {selectablePinIds.length > 0 && (
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all pins"
+                          data-testid="checkbox-select-all-pins"
+                        />
+                      )}
+                    </th>
+                  )}
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Map</th>
@@ -530,6 +650,18 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                         onClick={() => onPinSelect?.(pin.id)}
                         data-testid={`row-pin-${pin.id}`}
                       >
+                        {!readOnly && (
+                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
+                            {canDeletePin(pin) && (
+                              <Checkbox
+                                checked={selectedPinIds.has(pin.id)}
+                                onCheckedChange={() => togglePinSelected(pin.id)}
+                                aria-label={`Select ${pin.userName}`}
+                                data-testid={`checkbox-pin-${pin.id}`}
+                              />
+                            )}
+                          </td>
+                        )}
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
@@ -612,7 +744,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                       </tr>
                       {expanded && pin.note && (
                         <tr className="border-b border-border last:border-b-0">
-                          <td colSpan={readOnly ? 6 : 7} className="px-4 pb-3.5 -mt-1">
+                          <td colSpan={readOnly ? 6 : 8} className="px-4 pb-3.5 -mt-1">
                             <NoteContent label={resolvedNoteLabel} note={pin.note} />
                           </td>
                         </tr>

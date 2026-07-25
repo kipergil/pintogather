@@ -202,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const limits = TIER_LIMITS[user.userGroup];
       const [ownedMapCount, aiUsage] = await Promise.all([
-        storage.getMapCollectionsByUserId(user.id).then((maps) => maps.length),
+        storage.getMapCollectionsByUserId(user.id, { archived: false }).then((maps) => maps.length),
         getAiUsageToday(user.id, user.userGroup),
       ]);
 
@@ -455,10 +455,15 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const ownedOnly = req.query.ownedOnly === "true";
       const contributedOnly = req.query.contributedOnly === "true";
+      const archivedOnly = req.query.archivedOnly === "true";
 
       let maps;
-      if (ownedOnly) {
-        maps = await storage.getMapCollectionsByUserId(user.id);
+      if (archivedOnly) {
+        maps = TIER_LIMITS[user.userGroup].mapArchiving
+          ? await storage.getMapCollectionsByUserId(user.id, { archived: true })
+          : [];
+      } else if (ownedOnly) {
+        maps = await storage.getMapCollectionsByUserId(user.id, { archived: false });
       } else if (contributedOnly) {
         maps = await storage.getContributedMaps(user.id);
       } else {
@@ -485,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!user) return res.status(401).json({ message: "Unauthorized" });
 
       const maxMaps = TIER_LIMITS[user.userGroup].maxMaps;
-      const ownedMapCount = (await storage.getMapCollectionsByUserId(user.id)).length;
+      const ownedMapCount = (await storage.getMapCollectionsByUserId(user.id, { archived: false })).length;
       if (ownedMapCount >= maxMaps) {
         return res.status(403).json({
           message: `You've reached the ${maxMaps}-map limit for the ${user.userGroup} plan. Upgrade at /pricing for more.`,
@@ -601,6 +606,70 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error deleting map:", error);
       res.status(500).json({ message: "Failed to delete map" });
+    }
+  });
+
+  // Archiving (Basic/Premium only) soft-hides maps from the home page and
+  // public profile without touching the map or its pins — an alternative to
+  // DELETE /api/maps/:mapId's permanent removal. Bulk by design: the client
+  // multi-selects maps to archive/restore together.
+  app.post("/api/maps/archive", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      if (!TIER_LIMITS[user.userGroup].mapArchiving) {
+        return res.status(403).json({
+          message: `Archiving maps isn't available on the ${user.userGroup} plan. Upgrade at /pricing to use it.`,
+        });
+      }
+
+      const parsed = z.array(z.string()).min(1).max(100).safeParse(req.body?.mapIds);
+      if (!parsed.success) return res.status(400).json({ message: "mapIds must be a non-empty array of map ids" });
+
+      const archivedIds = await storage.setMapsArchived(parsed.data, user.id, true);
+      res.json({ archivedCount: archivedIds.length, archivedIds });
+    } catch (error) {
+      console.error("Error archiving maps:", error);
+      res.status(500).json({ message: "Failed to archive maps" });
+    }
+  });
+
+  app.post("/api/maps/unarchive", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      if (!TIER_LIMITS[user.userGroup].mapArchiving) {
+        return res.status(403).json({
+          message: `Archiving maps isn't available on the ${user.userGroup} plan. Upgrade at /pricing to use it.`,
+        });
+      }
+
+      const parsed = z.array(z.string()).min(1).max(100).safeParse(req.body?.mapIds);
+      if (!parsed.success) return res.status(400).json({ message: "mapIds must be a non-empty array of map ids" });
+
+      // Restoring puts a map back against the maxMaps quota, so — same
+      // pattern as bulk pin import — restore as many of the requested maps
+      // as fit and report the rest as skipped, rather than rejecting the
+      // whole batch outright.
+      const maxMaps = TIER_LIMITS[user.userGroup].maxMaps;
+      const [activeMaps, archivedOwnedMaps] = await Promise.all([
+        storage.getMapCollectionsByUserId(user.id, { archived: false }),
+        storage.getMapCollectionsByUserId(user.id, { archived: true }),
+      ]);
+      const requestedIds = new Set(parsed.data);
+      const requestedArchived = archivedOwnedMaps.filter((map) => requestedIds.has(map.id));
+
+      const roomLeft = Math.max(0, maxMaps - activeMaps.length);
+      const idsToRestore = requestedArchived.slice(0, roomLeft).map((map) => map.id);
+      const skippedDueToLimit = requestedArchived.length - idsToRestore.length;
+
+      const restoredIds = idsToRestore.length > 0 ? await storage.setMapsArchived(idsToRestore, user.id, false) : [];
+      res.json({ restoredCount: restoredIds.length, restoredIds, skippedDueToLimit });
+    } catch (error) {
+      console.error("Error restoring maps:", error);
+      res.status(500).json({ message: "Failed to restore maps" });
     }
   });
 
@@ -1097,6 +1166,35 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error deleting pin:", error);
       res.status(500).json({ message: "Failed to delete pin" });
+    }
+  });
+
+  // Bulk delete, for the pin table's multi-select. POST (not a bulk DELETE)
+  // so the id list travels as a normal JSON body rather than needing a body
+  // on a DELETE request. Reuses isPinModifiable per pin — same authorization
+  // as the single-delete route above, just applied to each requested id, so
+  // a request can partially succeed (e.g. a mix of your own pins and ones
+  // you don't have permission to remove).
+  app.post("/api/pins/bulk-delete", async (req, res) => {
+    try {
+      const parsed = z.array(z.string()).min(1).max(200).safeParse(req.body?.pinIds);
+      if (!parsed.success) return res.status(400).json({ message: "pinIds must be a non-empty array of pin ids" });
+
+      const user = await getCurrentUser(req);
+      const results = await Promise.all(
+        parsed.data.map(async (id) => {
+          const pin = await storage.getPinById(id);
+          if (!pin) return false;
+          if (!(await isPinModifiable(pin, user))) return false;
+          return storage.deletePin(id);
+        }),
+      );
+
+      const deletedCount = results.filter(Boolean).length;
+      res.json({ deletedCount, skippedCount: parsed.data.length - deletedCount });
+    } catch (error) {
+      console.error("Error bulk deleting pins:", error);
+      res.status(500).json({ message: "Failed to delete pins" });
     }
   });
 

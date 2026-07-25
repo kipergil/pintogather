@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Crown, Clock } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ interface MapCollection {
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
   showOnProfile?: boolean;
+  archived?: boolean;
   createdAt: string;
   pinCount: number;
   /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
@@ -68,9 +70,33 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const directusUrl = useDirectusAdminUrl();
+  const queryClient = useQueryClient();
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
+  });
+
+  const restoreMapMutation = useMutation({
+    mutationFn: async (mapId: string) => {
+      const response = await apiRequest("POST", "/api/maps/unarchive", { mapIds: [mapId] });
+      return response.json() as Promise<{ restoredCount: number; skippedDueToLimit: number }>;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${params.shareUrl}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      if (result.restoredCount > 0) {
+        toast({ title: "Map restored", description: "It's back on your home page.", variant: "success" });
+      } else {
+        toast({
+          title: "Couldn't restore",
+          description: "You've reached your plan's map limit. Upgrade or archive another map first.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Couldn't restore map", description: error.message || "Please try again", variant: "destructive" });
+    },
   });
 
   if (isLoading) {
@@ -163,12 +189,33 @@ export default function MapDetail({ params }: MapDetailProps) {
                     Owner
                   </Badge>
                 )}
+                {mapCollection.archived && (
+                  <Badge variant="outline" className="gap-1 border-muted-foreground/30 bg-muted text-muted-foreground">
+                    Archived
+                  </Badge>
+                )}
               </div>
               {mapCollection.description && (
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
             </div>
             <div className="flex items-center gap-2 sm:shrink-0">
+              {isOwner && mapCollection.archived && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => restoreMapMutation.mutate(mapCollection.id)}
+                  disabled={restoreMapMutation.isPending}
+                  data-testid="button-restore-map"
+                >
+                  {restoreMapMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArchiveRestore className="h-4 w-4 mr-2" />
+                  )}
+                  Restore
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
