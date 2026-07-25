@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -145,6 +145,8 @@ function NoteContent({ label, note }: { label: string; note: string }) {
 
 export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [contributorFilter, setContributorFilter] = useState<ContributorFilter>("all");
   const [selectedPinIds, setSelectedPinIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -315,18 +317,8 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="relative flex-1 sm:flex-none">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search pins..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-full sm:w-64"
-            data-testid="input-search-pins"
-          />
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {!readOnly && user && (
             <Select value={contributorFilter} onValueChange={(v) => setContributorFilter(v as ContributorFilter)}>
               <SelectTrigger className="h-9 w-40" data-testid="select-contributor-filter">
@@ -351,6 +343,51 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
             </label>
           )}
         </div>
+
+        {searchOpen ? (
+          <div className="relative w-full max-w-64">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search pins..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onBlur={() => {
+                if (!searchQuery) setSearchOpen(false);
+              }}
+              className="pl-9 pr-8 w-full"
+              data-testid="input-search-pins"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+                data-testid="button-clear-search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => {
+              setSearchOpen(true);
+              requestAnimationFrame(() => searchInputRef.current?.focus());
+            }}
+            aria-label="Search pins"
+            data-testid="button-open-search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {selectedPinIds.size > 0 && (
