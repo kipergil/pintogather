@@ -417,6 +417,73 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // --- Discover (curated maps) -------------------------------------------------------
+
+  // Public, unauthenticated: PinTogather's editorially curated map collection.
+  // Freemium/anonymous visitors see only the top curatedOrder maps
+  // (TIER_LIMITS.maxCuratedMapsVisible); Basic/Premium see everything.
+  // Filter facets (categories/countries/cities) are derived from whatever is
+  // actually curated right now, not the full fixed enum, so the UI never
+  // offers a filter that dead-ends on zero results.
+  app.get("/api/discover", async (req, res) => {
+    try {
+      const allCurated = await storage.getCuratedMapCollections();
+
+      const categories = Array.from(new Set(allCurated.map((m) => m.curatedCategory).filter((v): v is NonNullable<typeof v> => !!v))).sort();
+      const countries = Array.from(new Set(allCurated.map((m) => m.curatedCountry).filter((v): v is NonNullable<typeof v> => !!v))).sort();
+      const citiesByCountry: Record<string, string[]> = {};
+      for (const map of allCurated) {
+        if (!map.curatedCountry || !map.curatedCity) continue;
+        const existing = citiesByCountry[map.curatedCountry] ?? [];
+        if (!existing.includes(map.curatedCity)) existing.push(map.curatedCity);
+        citiesByCountry[map.curatedCountry] = existing;
+      }
+      for (const country of Object.keys(citiesByCountry)) citiesByCountry[country].sort();
+
+      const { category, country, city } = req.query;
+      const filtered = allCurated.filter((map) => {
+        if (typeof category === "string" && map.curatedCategory !== category) return false;
+        if (typeof country === "string" && map.curatedCountry !== country) return false;
+        if (typeof city === "string" && map.curatedCity !== city) return false;
+        return true;
+      });
+
+      const user = await getCurrentUser(req);
+      const maxVisible = TIER_LIMITS[user?.userGroup ?? "freemium"].maxCuratedMapsVisible;
+      const visible = Number.isFinite(maxVisible) ? filtered.slice(0, maxVisible) : filtered;
+
+      const maps = await Promise.all(
+        visible.map(async (map) => {
+          const [pins, ownerName] = await Promise.all([storage.getPinsByMapId(map.id), getMapOwnerName(map)]);
+          return {
+            id: map.id,
+            name: map.name,
+            shareUrl: map.shareUrl,
+            curatedCategory: map.curatedCategory,
+            curatedCountry: map.curatedCountry,
+            curatedCity: map.curatedCity,
+            curatedTagline: map.curatedTagline,
+            ownerName,
+            pinCount: pins.filter((pin) => pin.approved).length,
+            createdAt: map.createdAt,
+          };
+        }),
+      );
+
+      res.json({
+        maps,
+        totalCount: filtered.length,
+        visibleCount: maps.length,
+        maxVisible,
+        isLimited: filtered.length > maps.length,
+        filters: { categories, countries, citiesByCountry },
+      });
+    } catch (error) {
+      console.error("Error fetching discover maps:", error);
+      res.status(500).json({ message: "Failed to fetch curated maps" });
+    }
+  });
+
   // --- Uploads --------------------------------------------------------------------
   // Map branding logos. Uploaded files live in Directus under a per-user
   // subfolder (map-logos/<userId>/), but the browser never talks to Directus

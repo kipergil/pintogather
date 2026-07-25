@@ -22,6 +22,7 @@ import MapForm from "@/pages/map-form";
 import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
 import Pricing from "@/pages/pricing";
+import Discover from "@/pages/discover";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
@@ -29,12 +30,13 @@ import ImportPins from "@/pages/import-pins";
 import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
-import { LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
+import { Compass, LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/discover" component={Discover} />
       <Route path="/profile" component={Profile} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={Auth} />
@@ -64,16 +66,26 @@ function HeaderContent() {
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <button
-            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-            onClick={() => setLocation("/")}
-            data-testid="button-home-logo"
-          >
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/30">
-              <MapPinned className="w-4 h-4 text-primary-foreground" strokeWidth={2.25} />
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-foreground">PinTogather</span>
-          </button>
+          <div className="flex items-center gap-5">
+            <button
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+              onClick={() => setLocation("/")}
+              data-testid="button-home-logo"
+            >
+              <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/30">
+                <MapPinned className="w-4 h-4 text-primary-foreground" strokeWidth={2.25} />
+              </div>
+              <span className="text-lg font-semibold tracking-tight text-foreground">PinTogather</span>
+            </button>
+            <button
+              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setLocation("/discover")}
+              data-testid="button-nav-discover"
+            >
+              <Compass className="h-4 w-4" />
+              Discover
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             {!loading && user && user.userGroup !== "premium" && (

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
 import { cn } from "@/lib/utils";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { CuratedCategory, PinColor, PinIcon } from "@shared/enums";
+import { CURATED_CATEGORY_LABELS } from "@/lib/curated-maps";
 
 interface MapDetailProps {
   params: {
@@ -39,6 +40,8 @@ interface MapCollection {
   brandingLogoUrl?: string | null;
   showOnProfile?: boolean;
   archived?: boolean;
+  curated?: boolean;
+  curatedCategory?: CuratedCategory | null;
   createdAt: string;
   pinCount: number;
   /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
@@ -197,6 +200,12 @@ export default function MapDetail({ params }: MapDetailProps) {
                   <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
                     <Crown className="h-3 w-3" />
                     Owner
+                  </Badge>
+                )}
+                {mapCollection.curated && (
+                  <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary" data-testid="badge-curated">
+                    <Compass className="h-3 w-3" />
+                    Curated{mapCollection.curatedCategory ? ` · ${CURATED_CATEGORY_LABELS[mapCollection.curatedCategory]}` : ""}
                   </Badge>
                 )}
                 {mapCollection.archived && (
