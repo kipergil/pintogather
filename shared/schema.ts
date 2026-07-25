@@ -97,6 +97,8 @@ export interface MapCollection {
   brandingLogoUrl: string | null;
   /** Whether this map appears on the owner's public profile page (/u/:username). Independent of isPublic/defaultPermission, which govern anonymous edit access via the share link. */
   showOnProfile: boolean;
+  /** Soft-hide (Basic/Premium only): excluded from the owner's home-page list and public profile, but the map and its pins are untouched and still reachable via its share link. */
+  archived: boolean;
   createdAt: Date;
 }
 

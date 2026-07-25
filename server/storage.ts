@@ -7,6 +7,7 @@ import {
   readItems,
   readUsers,
   updateItem,
+  updateItems,
   updateUser,
   uploadFiles,
 } from "@directus/sdk";
@@ -46,6 +47,7 @@ const MAP_FIELDS = [
   "note_prompt",
   "branding_logo_url",
   "show_on_profile",
+  "archived",
   "date_created",
 ] as const;
 
@@ -121,6 +123,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     notePrompt: row.note_prompt,
     brandingLogoUrl: row.branding_logo_url,
     showOnProfile: row.show_on_profile,
+    archived: row.archived,
     createdAt: new Date(row.date_created),
   };
 }
@@ -205,10 +208,13 @@ export interface IStorage {
   getMapCollectionByName(name: string): Promise<MapCollection | undefined>;
   getMapCollectionById(mapId: string): Promise<MapCollection | undefined>;
   getAllMapCollections(): Promise<MapCollection[]>;
-  getMapCollectionsByUserId(userId: string): Promise<MapCollection[]>;
+  /** Omit `opts.archived` for all owned maps regardless of archived status; pass true/false to filter to just one. */
+  getMapCollectionsByUserId(userId: string, opts?: { archived?: boolean }): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   getPublicMapsByUserId(userId: string): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
+  /** Bulk-sets `archived` on maps this user owns; silently ignores any requested id the user doesn't own. Returns the ids actually updated. */
+  setMapsArchived(mapIds: string[], userId: string, archived: boolean): Promise<string[]>;
   updateMapPermissions(
     mapId: string,
     isPublic: boolean,
@@ -322,10 +328,13 @@ class DirectusStorage implements IStorage {
     return (rows as DirectusMapCollection[]).map(toMapCollection);
   }
 
-  async getMapCollectionsByUserId(userId: string): Promise<MapCollection[]> {
+  async getMapCollectionsByUserId(userId: string, opts?: { archived?: boolean }): Promise<MapCollection[]> {
+    const filter: Record<string, unknown> = { owner: { _eq: userId } };
+    if (opts?.archived !== undefined) filter.archived = { _eq: opts.archived };
+
     const rows = await this.client.request(
       readItems("map_collections", {
-        filter: { owner: { _eq: userId } },
+        filter,
         fields: MAP_FIELDS,
         sort: ["-date_created"],
         limit: -1,
@@ -335,7 +344,9 @@ class DirectusStorage implements IStorage {
   }
 
   async getMapCollectionsForUser(userId: string): Promise<MapCollection[]> {
-    const ownedMaps = await this.getMapCollectionsByUserId(userId);
+    // Archived maps are the owner's own housekeeping — deliberately excluded
+    // from this "everything I can see" listing, same as the home page.
+    const ownedMaps = await this.getMapCollectionsByUserId(userId, { archived: false });
     const contributedMaps = await this.getContributedMaps(userId);
     const uniqueMaps = new Map<string, MapCollection>();
     for (const map of [...ownedMaps, ...contributedMaps]) uniqueMaps.set(map.id, map);
@@ -859,13 +870,30 @@ class DirectusStorage implements IStorage {
   async getPublicMapsByUserId(userId: string): Promise<MapCollection[]> {
     const rows = await this.client.request(
       readItems("map_collections", {
-        filter: { owner: { _eq: userId }, show_on_profile: { _eq: true } },
+        filter: { owner: { _eq: userId }, show_on_profile: { _eq: true }, archived: { _eq: false } },
         fields: MAP_FIELDS,
         sort: ["-date_created"],
         limit: -1,
       }),
     );
     return (rows as DirectusMapCollection[]).map(toMapCollection);
+  }
+
+  async setMapsArchived(mapIds: string[], userId: string, archived: boolean): Promise<string[]> {
+    if (mapIds.length === 0) return [];
+
+    const owned = await this.client.request(
+      readItems("map_collections", {
+        filter: { id: { _in: mapIds }, owner: { _eq: userId } },
+        fields: ["id"],
+        limit: -1,
+      }),
+    );
+    const ownedIds = (owned as Array<{ id: string }>).map((row) => row.id);
+    if (ownedIds.length === 0) return [];
+
+    await this.client.request(updateItems("map_collections", ownedIds, { archived }));
+    return ownedIds;
   }
 }
 

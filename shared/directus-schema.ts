@@ -47,6 +47,8 @@ export interface MapCollection {
   branding_logo_url: string | null;
   /** Whether this map appears on the owner's public profile page (/u/:username). */
   show_on_profile: boolean;
+  /** Soft-hide: excluded from home/profile listings but not deleted. */
+  archived: boolean;
   date_created: string;
 }
 

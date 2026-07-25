@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapCard, MapCardSkeleton, type MapCollectionSummary } from "@/components/map-card";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,6 +18,11 @@ import {
   Landmark,
   Check,
   UserCircle,
+  Archive,
+  ArchiveRestore,
+  ListChecks,
+  Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,15 +35,19 @@ import { downloadPinsCsv } from "@/lib/csv-export";
 import { useUsage } from "@/hooks/useUsage";
 import type { UsageSummary } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
+import { TIER_LIMITS } from "@shared/limits";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [deleteMapModal, setDeleteMapModal] = useState<{ isOpen: boolean; map: MapCollectionSummary | null }>({
     isOpen: false,
     map: null,
   });
+  const hasMapArchiving = TIER_LIMITS[user?.userGroup ?? "freemium"].mapArchiving;
 
   const { data: ownedMaps = [], isLoading: isLoadingOwned } = useQuery<MapCollectionSummary[]>({
     queryKey: ["/api/maps", user?.id, "owned"],
@@ -58,6 +67,64 @@ export default function Home() {
       return Array.isArray(data) ? data : [];
     },
     enabled: !authLoading && !!user?.id,
+  });
+
+  const { data: archivedMaps = [], isLoading: isLoadingArchived } = useQuery<MapCollectionSummary[]>({
+    queryKey: ["/api/maps", user?.id, "archived"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/maps?archivedOnly=true");
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !authLoading && !!user?.id && hasMapArchiving,
+  });
+
+  const archiveMapsMutation = useMutation({
+    mutationFn: async (mapIds: string[]) => {
+      const response = await apiRequest("POST", "/api/maps/archive", { mapIds });
+      return response.json() as Promise<{ archivedCount: number }>;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      toast({
+        title: result.archivedCount === 1 ? "Map archived" : `${result.archivedCount} maps archived`,
+        description: "Find them anytime in the Archived maps tab.",
+        variant: "success",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't archive maps",
+        description: error.message || "Please try again",
+        variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
+      });
+    },
+  });
+
+  const restoreMapsMutation = useMutation({
+    mutationFn: async (mapIds: string[]) => {
+      const response = await apiRequest("POST", "/api/maps/unarchive", { mapIds });
+      return response.json() as Promise<{ restoredCount: number; skippedDueToLimit: number }>;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      const parts: string[] = [];
+      if (result.restoredCount > 0) parts.push(`${result.restoredCount} map${result.restoredCount === 1 ? "" : "s"} restored`);
+      if (result.skippedDueToLimit > 0) parts.push(`${result.skippedDueToLimit} skipped — map limit reached`);
+      toast({
+        title: result.restoredCount > 0 ? "Restored" : "Couldn't restore",
+        description: parts.length > 0 ? `${parts.join(", ")}.` : "No maps were restored.",
+        variant: result.restoredCount > 0 ? "success" : "destructive",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't restore maps",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleExportCsv = async (map: MapCollectionSummary) => {
@@ -102,12 +169,20 @@ export default function Home() {
             usage={usage}
             ownedMaps={ownedMaps}
             contributedMaps={contributedMaps}
+            archivedMaps={archivedMaps}
             isLoadingOwned={isLoadingOwned}
             isLoadingContributed={isLoadingContributed}
+            isLoadingArchived={isLoadingArchived}
+            hasMapArchiving={hasMapArchiving}
             totalPins={totalPins}
             onCreateClick={() => setLocation("/map/new")}
             onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
             onExportCsv={handleExportCsv}
+            onArchiveMaps={(mapIds) => archiveMapsMutation.mutate(mapIds)}
+            onRestoreMaps={(mapIds) => restoreMapsMutation.mutate(mapIds)}
+            isArchiving={archiveMapsMutation.isPending}
+            isRestoring={restoreMapsMutation.isPending}
+            restoringIds={restoreMapsMutation.isPending ? restoreMapsMutation.variables ?? [] : []}
           />
         ) : (
           <AnonymousLanding />
@@ -134,12 +209,20 @@ interface SignedInDashboardProps {
   usage?: UsageSummary;
   ownedMaps: MapCollectionSummary[];
   contributedMaps: MapCollectionSummary[];
+  archivedMaps: MapCollectionSummary[];
   isLoadingOwned: boolean;
   isLoadingContributed: boolean;
+  isLoadingArchived: boolean;
+  hasMapArchiving: boolean;
   totalPins: number;
   onCreateClick: () => void;
   onDeleteMap: (map: MapCollectionSummary) => void;
   onExportCsv: (map: MapCollectionSummary) => void;
+  onArchiveMaps: (mapIds: string[]) => void;
+  onRestoreMaps: (mapIds: string[]) => void;
+  isArchiving: boolean;
+  isRestoring: boolean;
+  restoringIds: string[];
 }
 
 function SignedInDashboard({
@@ -148,13 +231,57 @@ function SignedInDashboard({
   usage,
   ownedMaps,
   contributedMaps,
+  archivedMaps,
   isLoadingOwned,
   isLoadingContributed,
+  isLoadingArchived,
+  hasMapArchiving,
   totalPins,
   onCreateClick,
   onDeleteMap,
   onExportCsv,
+  onArchiveMaps,
+  onRestoreMaps,
+  isArchiving,
+  isRestoring,
+  restoringIds,
 }: SignedInDashboardProps) {
+  const [ownedSelectMode, setOwnedSelectMode] = useState(false);
+  const [selectedOwnedIds, setSelectedOwnedIds] = useState<Set<string>>(new Set());
+  const [archivedSelectMode, setArchivedSelectMode] = useState(false);
+  const [selectedArchivedIds, setSelectedArchivedIds] = useState<Set<string>>(new Set());
+
+  const toggleOwnedSelected = (map: MapCollectionSummary) => {
+    setSelectedOwnedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(map.id)) next.delete(map.id);
+      else next.add(map.id);
+      return next;
+    });
+  };
+
+  const toggleArchivedSelected = (map: MapCollectionSummary) => {
+    setSelectedArchivedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(map.id)) next.delete(map.id);
+      else next.add(map.id);
+      return next;
+    });
+  };
+
+  const handleArchiveSelected = () => {
+    if (selectedOwnedIds.size === 0) return;
+    onArchiveMaps(Array.from(selectedOwnedIds));
+    setSelectedOwnedIds(new Set());
+    setOwnedSelectMode(false);
+  };
+
+  const handleRestoreSelected = () => {
+    if (selectedArchivedIds.size === 0) return;
+    onRestoreMaps(Array.from(selectedArchivedIds));
+    setSelectedArchivedIds(new Set());
+    setArchivedSelectMode(false);
+  };
   return (
     <div className="animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
@@ -192,6 +319,11 @@ function SignedInDashboard({
           <TabsTrigger value="contributed" data-testid="tab-contributed-maps">
             Contributed {contributedMaps.length > 0 && `(${contributedMaps.length})`}
           </TabsTrigger>
+          {hasMapArchiving && (
+            <TabsTrigger value="archived" data-testid="tab-archived-maps">
+              Archived {archivedMaps.length > 0 && `(${archivedMaps.length})`}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="owned" className="mt-6">
@@ -214,17 +346,72 @@ function SignedInDashboard({
               }
             />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {ownedMaps.map((map) => (
-                <MapCard
-                  key={map.id}
-                  map={map}
-                  role="owner"
-                  onDelete={onDeleteMap}
-                  onExportCsv={onExportCsv}
-                />
-              ))}
-            </div>
+            <>
+              {hasMapArchiving && (
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  {ownedSelectMode && selectedOwnedIds.size > 0 ? (
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedOwnedIds.size} selected
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="flex items-center gap-2">
+                    {ownedSelectMode && selectedOwnedIds.size > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleArchiveSelected}
+                        disabled={isArchiving}
+                        data-testid="button-archive-selected"
+                      >
+                        {isArchiving ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Archive className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Archive selected
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setOwnedSelectMode((prev) => !prev);
+                        setSelectedOwnedIds(new Set());
+                      }}
+                      data-testid="button-toggle-owned-select-mode"
+                    >
+                      {ownedSelectMode ? (
+                        <>
+                          <X className="h-3.5 w-3.5 mr-1.5" />
+                          Cancel
+                        </>
+                      ) : (
+                        <>
+                          <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                          Select
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {ownedMaps.map((map) => (
+                  <MapCard
+                    key={map.id}
+                    map={map}
+                    role="owner"
+                    onDelete={onDeleteMap}
+                    onExportCsv={onExportCsv}
+                    selectable={ownedSelectMode}
+                    selected={selectedOwnedIds.has(map.id)}
+                    onToggleSelected={toggleOwnedSelected}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </TabsContent>
 
@@ -249,6 +436,90 @@ function SignedInDashboard({
             </div>
           )}
         </TabsContent>
+
+        {hasMapArchiving && (
+          <TabsContent value="archived" className="mt-6">
+            {isLoadingArchived ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[...Array(3)].map((_, i) => (
+                  <MapCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : archivedMaps.length === 0 ? (
+              <EmptyState
+                icon={<Archive className="h-8 w-8" />}
+                title="No archived maps"
+                description="Archived maps are hidden from your home page and public profile, but never deleted — restore one anytime."
+              />
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  {archivedSelectMode && selectedArchivedIds.size > 0 ? (
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedArchivedIds.size} selected
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="flex items-center gap-2">
+                    {archivedSelectMode && selectedArchivedIds.size > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRestoreSelected}
+                        disabled={isRestoring}
+                        data-testid="button-restore-selected"
+                      >
+                        {isRestoring ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <ArchiveRestore className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Restore selected
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setArchivedSelectMode((prev) => !prev);
+                        setSelectedArchivedIds(new Set());
+                      }}
+                      data-testid="button-toggle-archived-select-mode"
+                    >
+                      {archivedSelectMode ? (
+                        <>
+                          <X className="h-3.5 w-3.5 mr-1.5" />
+                          Cancel
+                        </>
+                      ) : (
+                        <>
+                          <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                          Select
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {archivedMaps.map((map) => (
+                    <MapCard
+                      key={map.id}
+                      map={map}
+                      role="owner"
+                      archived
+                      onRestore={(m) => onRestoreMaps([m.id])}
+                      isRestoring={restoringIds.includes(map.id)}
+                      selectable={archivedSelectMode}
+                      selected={selectedArchivedIds.has(map.id)}
+                      onToggleSelected={toggleArchivedSelected}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

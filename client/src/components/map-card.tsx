@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { MapPin, Crown, Users } from "lucide-react";
+import { MapPin, Crown, Users, ArchiveRestore, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MapActionsMenu } from "@/components/map-actions-menu";
 import { ShareModal } from "@/components/share-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
@@ -34,9 +35,28 @@ interface MapCardProps {
   role: "owner" | "contributor";
   onDelete?: (map: MapCollectionSummary) => void;
   onExportCsv?: (map: MapCollectionSummary) => void;
+  /** Archived-list mode: shows a "Restore" action instead of the normal actions menu. */
+  archived?: boolean;
+  onRestore?: (map: MapCollectionSummary) => void;
+  isRestoring?: boolean;
+  /** Bulk-select mode (for archiving or restoring several at once) — shows a checkbox overlay. */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelected?: (map: MapCollectionSummary) => void;
 }
 
-export function MapCard({ map, role, onDelete, onExportCsv }: MapCardProps) {
+export function MapCard({
+  map,
+  role,
+  onDelete,
+  onExportCsv,
+  archived = false,
+  onRestore,
+  isRestoring = false,
+  selectable = false,
+  selected = false,
+  onToggleSelected,
+}: MapCardProps) {
   const [, setLocation] = useLocation();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const directusUrl = useDirectusAdminUrl();
@@ -44,22 +64,39 @@ export function MapCard({ map, role, onDelete, onExportCsv }: MapCardProps) {
 
   return (
     <div
-      className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5"
+      className={`group relative flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:shadow-md hover:-translate-y-0.5 ${selectable ? "pl-11" : ""}`}
       data-testid={`card-map-${map.id}`}
     >
+      {selectable && (
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelected?.(map)}
+          aria-label={`Select ${map.name}`}
+          className="absolute left-4 top-5"
+          data-testid={`checkbox-select-map-${map.id}`}
+        />
+      )}
+
       <div className="flex items-start justify-between gap-3 mb-2">
         <h4 className="font-semibold text-foreground leading-snug line-clamp-1">{map.name}</h4>
-        <Badge
-          variant="outline"
-          className={
-            role === "owner"
-              ? "shrink-0 gap-1 border-primary/30 bg-primary/5 text-primary"
-              : "shrink-0 gap-1 border-secondary/30 bg-secondary/5 text-secondary"
-          }
-        >
-          {role === "owner" ? <Crown className="h-3 w-3" /> : <Users className="h-3 w-3" />}
-          {role === "owner" ? "Owner" : "Contributor"}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {archived && (
+            <Badge variant="outline" className="gap-1 border-muted-foreground/30 bg-muted text-muted-foreground">
+              Archived
+            </Badge>
+          )}
+          <Badge
+            variant="outline"
+            className={
+              role === "owner"
+                ? "gap-1 border-primary/30 bg-primary/5 text-primary"
+                : "gap-1 border-secondary/30 bg-secondary/5 text-secondary"
+            }
+          >
+            {role === "owner" ? <Crown className="h-3 w-3" /> : <Users className="h-3 w-3" />}
+            {role === "owner" ? "Owner" : "Contributor"}
+          </Badge>
+        </div>
       </div>
 
       {map.description ? (
@@ -83,28 +120,48 @@ export function MapCard({ map, role, onDelete, onExportCsv }: MapCardProps) {
             Open map
           </Button>
         </Link>
-        <MapActionsMenu
-          mapId={map.id}
-          isOwner={isOwner}
-          onEditMap={() => setLocation(`/map/${map.shareUrl}/edit`)}
-          onImportPins={() => setLocation(`/map/${map.shareUrl}/import`)}
-          onShare={() => setIsShareModalOpen(true)}
-          onExportCsv={onExportCsv ? () => onExportCsv(map) : undefined}
-          onDelete={onDelete ? () => onDelete(map) : undefined}
-          directusUrl={directusUrl}
-          testIdSuffix={map.id}
-          triggerClassName="h-8 w-8 shrink-0 ml-auto"
-        />
+        {archived ? (
+          <Button
+            variant="default"
+            size="sm"
+            className="ml-auto"
+            onClick={() => onRestore?.(map)}
+            disabled={isRestoring}
+            data-testid={`button-restore-map-${map.id}`}
+          >
+            {isRestoring ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <ArchiveRestore className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Restore
+          </Button>
+        ) : (
+          <MapActionsMenu
+            mapId={map.id}
+            isOwner={isOwner}
+            onEditMap={() => setLocation(`/map/${map.shareUrl}/edit`)}
+            onImportPins={() => setLocation(`/map/${map.shareUrl}/import`)}
+            onShare={() => setIsShareModalOpen(true)}
+            onExportCsv={onExportCsv ? () => onExportCsv(map) : undefined}
+            onDelete={onDelete ? () => onDelete(map) : undefined}
+            directusUrl={directusUrl}
+            testIdSuffix={map.id}
+            triggerClassName="h-8 w-8 shrink-0 ml-auto"
+          />
+        )}
       </div>
 
-      <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        shareUrl={map.shareUrl}
-        mapName={map.name}
-        mapId={map.id}
-        isOwner={isOwner}
-      />
+      {!archived && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          shareUrl={map.shareUrl}
+          mapName={map.name}
+          mapId={map.id}
+          isOwner={isOwner}
+        />
+      )}
     </div>
   );
 }
