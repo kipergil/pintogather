@@ -174,7 +174,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner 
             <h4 className="font-medium text-blue-900 mb-2">How Collaboration Works</h4>
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• Anyone with this URL can view the map</li>
-              <li>• Visitors can add pins by clicking on the map</li>
+              <li>• Visitors can add pins by clicking the map or searching for a venue</li>
               <li>• Contributors automatically appear in your map collections</li>
               <li>• Map owners can delete any pin, contributors can only delete their own</li>
             </ul>
