@@ -9,6 +9,10 @@ import { Client } from "pg";
 const statements: string[] = [
   // map_viewers: one grant per (map, user)
   `CREATE UNIQUE INDEX IF NOT EXISTS map_viewers_map_user_uidx ON map_viewers (map, "user")`,
+  // user_follows: one follow relationship per (follower, following) pair
+  `CREATE UNIQUE INDEX IF NOT EXISTS user_follows_follower_following_uidx ON user_follows (follower, following)`,
+  // map_likes: one like per (user, map) pair
+  `CREATE UNIQUE INDEX IF NOT EXISTS map_likes_user_map_uidx ON map_likes ("user", map)`,
 ];
 
 /**

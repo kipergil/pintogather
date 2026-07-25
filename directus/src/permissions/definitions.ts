@@ -42,6 +42,14 @@ export const servicePolicy: PolicyDefinition = {
     { collection: "map_invitations", action: "read" },
     { collection: "map_invitations", action: "update" },
     { collection: "map_invitations", action: "delete" },
+    { collection: "user_follows", action: "create" },
+    { collection: "user_follows", action: "read" },
+    { collection: "user_follows", action: "update" },
+    { collection: "user_follows", action: "delete" },
+    { collection: "map_likes", action: "create" },
+    { collection: "map_likes", action: "read" },
+    { collection: "map_likes", action: "update" },
+    { collection: "map_likes", action: "delete" },
     // Per-user map-branding logo uploads (see server/storage.ts's
     // uploadUserLogo) — files live under map-logos/<userId>/ so each
     // user's uploads are isolated in their own subfolder.

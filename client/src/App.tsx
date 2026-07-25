@@ -23,6 +23,7 @@ import PublicMap from "@/pages/public-map";
 import Profile from "@/pages/profile";
 import Pricing from "@/pages/pricing";
 import Discover from "@/pages/discover";
+import Feed from "@/pages/feed";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
@@ -31,13 +32,14 @@ import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
 import AdminCurateMap from "@/pages/admin-curate-map";
 import NotFound from "@/pages/not-found";
-import { Compass, LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
+import { Compass, LogIn, MapPinned, Rss, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/discover" component={Discover} />
+      <Route path="/feed" component={Feed} />
       <Route path="/profile" component={Profile} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={Auth} />
@@ -87,6 +89,16 @@ function HeaderContent() {
               <Compass className="h-4 w-4" />
               <span className="hidden sm:inline">Discover</span>
             </button>
+            {!loading && user && (
+              <button
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setLocation("/feed")}
+                data-testid="button-nav-feed"
+              >
+                <Rss className="h-4 w-4" />
+                <span className="hidden sm:inline">Feed</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

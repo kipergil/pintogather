@@ -16,6 +16,7 @@ import type { UserGroup } from "../shared/enums.js";
 import type {
   MapCollection,
   MapInvitation,
+  MapLike,
   MapViewer,
   Pin,
   CurateMap,
@@ -26,12 +27,15 @@ import type {
   UpdateMapDetails,
   UpdateProfile,
   User,
+  UserFollow,
 } from "../shared/schema.js";
 import type {
   MapCollection as DirectusMapCollection,
   MapInvitation as DirectusMapInvitation,
+  MapLike as DirectusMapLike,
   MapViewer as DirectusMapViewer,
   Pin as DirectusPin,
+  UserFollow as DirectusUserFollow,
 } from "../shared/directus-schema.js";
 import { getServiceDirectusClient } from "./lib/directus.js";
 import { toDomainUser } from "./services/users.js";
@@ -98,6 +102,10 @@ const INVITATION_FIELDS = [
   "expires_at",
   "date_created",
 ] as const;
+
+const FOLLOW_FIELDS = ["id", "follower", "following", "date_created"] as const;
+
+const LIKE_FIELDS = ["id", "user", "map", "date_created"] as const;
 
 const USER_FIELDS = [
   "id",
@@ -210,6 +218,24 @@ function toMapViewer(row: DirectusMapViewer): MapViewer {
   };
 }
 
+function toUserFollow(row: DirectusUserFollow): UserFollow {
+  return {
+    id: row.id,
+    followerId: row.follower,
+    followingId: row.following,
+    createdAt: new Date(row.date_created),
+  };
+}
+
+function toMapLike(row: DirectusMapLike): MapLike {
+  return {
+    id: row.id,
+    userId: row.user,
+    mapId: row.map,
+    createdAt: new Date(row.date_created),
+  };
+}
+
 function toMapInvitation(row: DirectusMapInvitation): MapInvitation {
   return {
     id: row.id,
@@ -235,6 +261,8 @@ export interface IStorage {
   getMapCollectionsByUserId(userId: string, opts?: { archived?: boolean }): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   getPublicMapsByUserId(userId: string): Promise<MapCollection[]>;
+  /** Public (show_on_profile, not archived) maps owned by any of the given users, newest first — powers /feed. */
+  getPublicMapsByOwnerIds(ownerIds: string[]): Promise<MapCollection[]>;
   /** Every curated map (curated=true), sorted by curatedOrder, optionally narrowed by category/country/city — powers /discover. Unfiltered by viewer/tier; that gating happens in the route. */
   getCuratedMapCollections(filters?: { category?: string; country?: string; city?: string }): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
@@ -290,6 +318,23 @@ export interface IStorage {
   // Uploads
   uploadUserLogo(userId: string, file: UploadableFile): Promise<string>;
   uploadVenueScreenshot(userId: string, file: UploadableFile): Promise<string>;
+
+  // Follows
+  followUser(followerId: string, followingId: string): Promise<UserFollow>;
+  unfollowUser(followerId: string, followingId: string): Promise<boolean>;
+  getFollowRelation(followerId: string, followingId: string): Promise<UserFollow | undefined>;
+  getFollowerCount(userId: string): Promise<number>;
+  getFollowingCount(userId: string): Promise<number>;
+  /** ids of every user this user follows — the feed's source list. */
+  getFollowingIds(userId: string): Promise<string[]>;
+
+  // Likes
+  likeMap(userId: string, mapId: string): Promise<MapLike>;
+  unlikeMap(userId: string, mapId: string): Promise<boolean>;
+  /** Bulk like counts, keyed by mapId — avoids one query per map on list pages. */
+  getMapLikeCounts(mapIds: string[]): Promise<Record<string, number>>;
+  /** Which of the given maps this user has liked. */
+  getUserLikedMapIds(userId: string, mapIds: string[]): Promise<Set<string>>;
 }
 
 export interface UploadableFile {
@@ -933,6 +978,27 @@ class DirectusStorage implements IStorage {
     return (rows as DirectusMapCollection[]).map(toMapCollection);
   }
 
+  async getPublicMapsByOwnerIds(ownerIds: string[]): Promise<MapCollection[]> {
+    if (ownerIds.length === 0) return [];
+    const rows = await this.client.request(
+      readItems("map_collections", {
+        // Eligible for the feed if the owner opted it into their profile, OR
+        // it's a curated map — curated maps are already globally public via
+        // /discover, so show_on_profile (aimed at regular users' own maps)
+        // shouldn't hide them from their followers' feeds too.
+        filter: {
+          owner: { _in: ownerIds },
+          archived: { _eq: false },
+          _or: [{ show_on_profile: { _eq: true } }, { curated: { _eq: true } }],
+        },
+        fields: MAP_FIELDS,
+        sort: ["-date_created"],
+        limit: -1,
+      }),
+    );
+    return (rows as DirectusMapCollection[]).map(toMapCollection);
+  }
+
   async getCuratedMapCollections(filters?: { category?: string; country?: string; city?: string }): Promise<MapCollection[]> {
     const filter: Record<string, unknown> = { curated: { _eq: true } };
     if (filters?.category) filter.curated_category = { _eq: filters.category };
@@ -965,6 +1031,96 @@ class DirectusStorage implements IStorage {
 
     await this.client.request(updateItems("map_collections", ownedIds, { archived }));
     return ownedIds;
+  }
+
+  async followUser(followerId: string, followingId: string): Promise<UserFollow> {
+    const created = await this.client.request(
+      createItem("user_follows", { follower: followerId, following: followingId }, { fields: FOLLOW_FIELDS }),
+    );
+    return toUserFollow(created as unknown as DirectusUserFollow);
+  }
+
+  async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
+    const existing = await this.getFollowRelation(followerId, followingId);
+    if (!existing) return false;
+    await this.client.request(deleteItem("user_follows", existing.id));
+    return true;
+  }
+
+  async getFollowRelation(followerId: string, followingId: string): Promise<UserFollow | undefined> {
+    const rows = await this.client.request(
+      readItems("user_follows", {
+        filter: { follower: { _eq: followerId }, following: { _eq: followingId } },
+        fields: FOLLOW_FIELDS,
+        limit: 1,
+      }),
+    );
+    const row = rows[0] as DirectusUserFollow | undefined;
+    return row ? toUserFollow(row) : undefined;
+  }
+
+  async getFollowerCount(userId: string): Promise<number> {
+    const rows = await this.client.request(
+      readItems("user_follows", { filter: { following: { _eq: userId } }, fields: ["id"], limit: -1 }),
+    );
+    return rows.length;
+  }
+
+  async getFollowingCount(userId: string): Promise<number> {
+    const rows = await this.client.request(
+      readItems("user_follows", { filter: { follower: { _eq: userId } }, fields: ["id"], limit: -1 }),
+    );
+    return rows.length;
+  }
+
+  async getFollowingIds(userId: string): Promise<string[]> {
+    const rows = await this.client.request(
+      readItems("user_follows", { filter: { follower: { _eq: userId } }, fields: ["following"], limit: -1 }),
+    );
+    return (rows as Array<{ following: string }>).map((row) => row.following);
+  }
+
+  async likeMap(userId: string, mapId: string): Promise<MapLike> {
+    const created = await this.client.request(
+      createItem("map_likes", { user: userId, map: mapId }, { fields: LIKE_FIELDS }),
+    );
+    return toMapLike(created as unknown as DirectusMapLike);
+  }
+
+  async unlikeMap(userId: string, mapId: string): Promise<boolean> {
+    const rows = await this.client.request(
+      readItems("map_likes", {
+        filter: { user: { _eq: userId }, map: { _eq: mapId } },
+        fields: ["id"],
+        limit: 1,
+      }),
+    );
+    const row = rows[0] as { id: string } | undefined;
+    if (!row) return false;
+    await this.client.request(deleteItem("map_likes", row.id));
+    return true;
+  }
+
+  async getMapLikeCounts(mapIds: string[]): Promise<Record<string, number>> {
+    if (mapIds.length === 0) return {};
+    const rows = await this.client.request(
+      readItems("map_likes", { filter: { map: { _in: mapIds } }, fields: ["map"], limit: -1 }),
+    );
+    const counts: Record<string, number> = {};
+    for (const row of rows as Array<{ map: string }>) counts[row.map] = (counts[row.map] ?? 0) + 1;
+    return counts;
+  }
+
+  async getUserLikedMapIds(userId: string, mapIds: string[]): Promise<Set<string>> {
+    if (mapIds.length === 0) return new Set();
+    const rows = await this.client.request(
+      readItems("map_likes", {
+        filter: { user: { _eq: userId }, map: { _in: mapIds } },
+        fields: ["map"],
+        limit: -1,
+      }),
+    );
+    return new Set((rows as Array<{ map: string }>).map((row) => row.map));
   }
 }
 

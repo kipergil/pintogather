@@ -10,6 +10,7 @@ import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { SharePopover } from "@/components/share-popover";
+import { LikeButton } from "@/components/like-button";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
@@ -42,6 +43,8 @@ interface MapCollection {
   archived?: boolean;
   curated?: boolean;
   curatedCategory?: CuratedCategory | null;
+  likeCount: number;
+  likedByViewer: boolean;
   createdAt: string;
   pinCount: number;
   /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
@@ -244,6 +247,13 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
+              <LikeButton
+                mapId={mapCollection.id}
+                liked={mapCollection.likedByViewer}
+                likeCount={mapCollection.likeCount}
+                invalidateKeys={[`/api/maps/${params.shareUrl}`]}
+                className="h-9 px-2"
+              />
               <SharePopover
                 mapId={mapCollection.id}
                 shareUrl={mapCollection.shareUrl}

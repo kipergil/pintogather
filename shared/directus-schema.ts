@@ -115,6 +115,20 @@ export interface MapInvitation {
   date_created: string;
 }
 
+export interface UserFollow {
+  id: string;
+  follower: string;
+  following: string;
+  date_created: string;
+}
+
+export interface MapLike {
+  id: string;
+  user: string;
+  map: string;
+  date_created: string;
+}
+
 /**
  * The full PinTogather Directus schema, keyed by collection name. Pass this
  * as the generic to `createDirectus<PinTogatherSchema>(url)` so every SDK
@@ -126,4 +140,6 @@ export interface PinTogatherSchema {
   pins: Pin[];
   map_viewers: MapViewer[];
   map_invitations: MapInvitation[];
+  user_follows: UserFollow[];
+  map_likes: MapLike[];
 }

@@ -382,8 +382,20 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await getUserByUsername(req.params.username);
       if (!user || !user.username) return res.status(404).json({ message: "Profile not found" });
 
+      const viewer = await getCurrentUser(req);
+
       const hasCustomBranding = TIER_LIMITS[user.userGroup].customBranding;
       const maps = await storage.getPublicMapsByUserId(user.id);
+      const mapIds = maps.map((map) => map.id);
+
+      const [followerCount, followingCount, isFollowedByViewer, likeCounts, viewerLikedMapIds] = await Promise.all([
+        storage.getFollowerCount(user.id),
+        storage.getFollowingCount(user.id),
+        viewer && viewer.id !== user.id ? !!(await storage.getFollowRelation(viewer.id, user.id)) : false,
+        storage.getMapLikeCounts(mapIds),
+        viewer ? storage.getUserLikedMapIds(viewer.id, mapIds) : Promise.resolve(new Set<string>()),
+      ]);
+
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);
@@ -395,6 +407,8 @@ export async function registerRoutes(app: Express): Promise<void> {
             shareUrl: map.shareUrl,
             brandingLogoUrl: hasCustomBranding ? map.brandingLogoUrl : null,
             pinCount: approvedCount,
+            likeCount: likeCounts[map.id] ?? 0,
+            likedByViewer: viewerLikedMapIds.has(map.id),
             createdAt: map.createdAt,
           };
         }),
@@ -409,12 +423,109 @@ export async function registerRoutes(app: Express): Promise<void> {
         twitterHandle: user.twitterHandle,
         instagramHandle: user.instagramHandle,
         linkedinHandle: user.linkedinHandle,
+        followerCount,
+        followingCount,
+        isFollowedByViewer,
         maps: mapsWithPinCount,
       };
       res.json(profile);
     } catch (error) {
       console.error("Error fetching public profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  // Follow/unfollow another user by username. Self-follows are rejected.
+  app.post("/api/users/:username/follow", isAuthenticated, async (req, res) => {
+    try {
+      const viewer = await getCurrentUser(req);
+      if (!viewer) return res.status(401).json({ message: "Unauthorized" });
+
+      const target = await getUserByUsername(req.params.username);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.id === viewer.id) return res.status(400).json({ message: "You can't follow yourself" });
+
+      const existing = await storage.getFollowRelation(viewer.id, target.id);
+      if (!existing) await storage.followUser(viewer.id, target.id);
+
+      const followerCount = await storage.getFollowerCount(target.id);
+      res.json({ following: true, followerCount });
+    } catch (error) {
+      console.error("Error following user:", error);
+      res.status(500).json({ message: "Failed to follow user" });
+    }
+  });
+
+  app.delete("/api/users/:username/follow", isAuthenticated, async (req, res) => {
+    try {
+      const viewer = await getCurrentUser(req);
+      if (!viewer) return res.status(401).json({ message: "Unauthorized" });
+
+      const target = await getUserByUsername(req.params.username);
+      if (!target) return res.status(404).json({ message: "User not found" });
+
+      await storage.unfollowUser(viewer.id, target.id);
+
+      const followerCount = await storage.getFollowerCount(target.id);
+      res.json({ following: false, followerCount });
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      res.status(500).json({ message: "Failed to unfollow user" });
+    }
+  });
+
+  // Recently added maps from accounts the viewer follows, plus the
+  // pintogather system account — a simple reverse-chronological feed, no
+  // ranking logic beyond recency. Only maps the owner has chosen to show on
+  // their profile (show_on_profile) are eligible, same visibility rule as
+  // the public profile page itself.
+  app.get("/api/feed", isAuthenticated, async (req, res) => {
+    try {
+      const viewer = await getCurrentUser(req);
+      if (!viewer) return res.status(401).json({ message: "Unauthorized" });
+
+      const [followingIds, systemAccount] = await Promise.all([
+        storage.getFollowingIds(viewer.id),
+        getUserByUsername("pintogather"),
+      ]);
+      const ownerIds = Array.from(new Set([...followingIds, ...(systemAccount ? [systemAccount.id] : [])]));
+
+      const maps = await storage.getPublicMapsByOwnerIds(ownerIds);
+      const mapIds = maps.map((map) => map.id);
+      const [likeCounts, viewerLikedMapIds] = await Promise.all([
+        storage.getMapLikeCounts(mapIds),
+        storage.getUserLikedMapIds(viewer.id, mapIds),
+      ]);
+
+      const items = await Promise.all(
+        maps.map(async (map) => {
+          const [pins, owner] = await Promise.all([
+            storage.getPinsByMapId(map.id),
+            map.ownerId ? storage.getUserProfile(map.ownerId) : Promise.resolve(undefined),
+          ]);
+          const hasCustomBranding = owner ? TIER_LIMITS[owner.userGroup].customBranding : false;
+          return {
+            id: map.id,
+            name: map.name,
+            description: map.description,
+            shareUrl: map.shareUrl,
+            brandingLogoUrl: hasCustomBranding ? map.brandingLogoUrl : null,
+            pinCount: pins.filter((pin) => pin.approved).length,
+            likeCount: likeCounts[map.id] ?? 0,
+            likedByViewer: viewerLikedMapIds.has(map.id),
+            ownerId: map.ownerId,
+            ownerName: owner?.fullName || [owner?.firstName, owner?.lastName].filter(Boolean).join(" ") || null,
+            ownerUsername: owner?.username ?? null,
+            ownerAvatarUrl: owner?.profileImageUrl ?? null,
+            createdAt: map.createdAt,
+          };
+        }),
+      );
+
+      res.json({ items, followingCount: followingIds.length });
+    } catch (error) {
+      console.error("Error fetching feed:", error);
+      res.status(500).json({ message: "Failed to fetch feed" });
     }
   });
 
@@ -944,11 +1055,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      const [hasCustomBranding, hasPinCustomization, maxPins, ownerName] = await Promise.all([
+      const [hasCustomBranding, hasPinCustomization, maxPins, ownerName, likeCounts] = await Promise.all([
         getMapOwnerHasCustomBranding(mapCollection),
         getMapOwnerHasPinCustomization(mapCollection),
         getMapOwnerMaxPins(mapCollection),
         getMapOwnerName(mapCollection),
+        storage.getMapLikeCounts([mapCollection.id]),
       ]);
       const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
       // Same reasoning as brandingLogoUrl above: a downgraded owner's
@@ -957,6 +1069,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       const defaultPinColor = hasPinCustomization ? mapCollection.defaultPinColor : null;
       const defaultPinIcon = hasPinCustomization ? mapCollection.defaultPinIcon : null;
       const styledPins = hasPinCustomization ? pins : pins.map((pin) => ({ ...pin, pinColor: null, pinIcon: null }));
+      const likedByViewer = user ? (await storage.getUserLikedMapIds(user.id, [mapCollection.id])).has(mapCollection.id) : false;
 
       res.json({
         ...mapCollection,
@@ -968,9 +1081,47 @@ export async function registerRoutes(app: Express): Promise<void> {
         pins: styledPins,
         pinCount: pins.length,
         maxPins,
+        likeCount: likeCounts[mapCollection.id] ?? 0,
+        likedByViewer,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });
+    }
+  });
+
+  app.post("/api/maps/:mapId/like", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { mapId } = req.params;
+      const mapCollection = await storage.getMapCollectionById(mapId);
+      if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+      const existing = await storage.getUserLikedMapIds(user.id, [mapId]);
+      if (!existing.has(mapId)) await storage.likeMap(user.id, mapId);
+
+      const likeCounts = await storage.getMapLikeCounts([mapId]);
+      res.json({ liked: true, likeCount: likeCounts[mapId] ?? 0 });
+    } catch (error) {
+      console.error("Error liking map:", error);
+      res.status(500).json({ message: "Failed to like map" });
+    }
+  });
+
+  app.delete("/api/maps/:mapId/like", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { mapId } = req.params;
+      await storage.unlikeMap(user.id, mapId);
+
+      const likeCounts = await storage.getMapLikeCounts([mapId]);
+      res.json({ liked: false, likeCount: likeCounts[mapId] ?? 0 });
+    } catch (error) {
+      console.error("Error unliking map:", error);
+      res.status(500).json({ message: "Failed to unlike map" });
     }
   });
 
