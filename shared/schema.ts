@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   CURATED_CATEGORY,
+  CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
   INVITATION_STATUS,
   MAP_VIEWER_ROLE,
@@ -154,6 +155,34 @@ export const updateMapDetailsSchema = z.object({
   showOnProfile: z.boolean().optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
+
+/**
+ * Admin-only: converts an existing map (any owner) into a curated /discover
+ * entry, or edits/un-curates one already curated. Kept separate from
+ * updateMapDetailsSchema, which deliberately never accepts curated fields —
+ * this one is only ever reached through the admin-gated
+ * PUT /api/admin/maps/:mapId/curate route, never the owner's own edit form.
+ * The map's owner is never touched, so credit stays with whoever made it.
+ */
+export const curateMapSchema = z
+  .object({
+    curated: z.boolean(),
+    curatedCategory: z.enum(CURATED_CATEGORY).nullable().optional(),
+    curatedCountry: z.enum(CURATED_COUNTRY).nullable().optional(),
+    curatedCity: z.string().trim().max(100).nullable().optional(),
+    curatedOrder: z.number().int().nullable().optional(),
+    curatedTagline: z.string().trim().max(200).nullable().optional(),
+  })
+  .refine((data) => !data.curated || !!(data.curatedCategory && data.curatedCountry && data.curatedCity), {
+    message: "Category, country, and city are required to curate a map.",
+    path: ["curatedCategory"],
+  })
+  .refine(
+    (data) =>
+      !data.curatedCountry || !data.curatedCity || (CURATED_CITY_BY_COUNTRY[data.curatedCountry] as readonly string[]).includes(data.curatedCity),
+    { message: "That city isn't one of the selected country's known cities.", path: ["curatedCity"] },
+  );
+export type CurateMap = z.infer<typeof curateMapSchema>;
 
 export interface Pin {
   id: string;

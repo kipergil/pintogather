@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "./storage.js";
 import {
   bulkInsertPinsSchema,
+  curateMapSchema,
   insertMapCollectionSchema,
   insertPinSchema,
   updateMapDetailsSchema,
@@ -1430,6 +1431,84 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error updating user group:", error);
       res.status(500).json({ message: "Failed to update user group" });
+    }
+  });
+
+  // Every map across every owner, for the admin "convert to curated map"
+  // search/browse list. Deliberately lean (no per-map pin counts) — this is
+  // a picker, not a dashboard.
+  app.get("/api/admin/maps", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || !(await storage.isAdmin(user.id))) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const allMaps = await storage.getAllMapCollections();
+      const maps = await Promise.all(
+        allMaps.map(async (map) => ({
+          id: map.id,
+          name: map.name,
+          shareUrl: map.shareUrl,
+          ownerId: map.ownerId,
+          ownerName: await getMapOwnerName(map),
+          curated: map.curated,
+          curatedCategory: map.curatedCategory,
+          createdAt: map.createdAt,
+        })),
+      );
+      res.json(maps);
+    } catch (error) {
+      console.error("Error fetching admin maps list:", error);
+      res.status(500).json({ message: "Failed to fetch maps" });
+    }
+  });
+
+  // Single map's full detail (including current curated fields) for the
+  // curate/edit page.
+  app.get("/api/admin/maps/:mapId", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || !(await storage.isAdmin(user.id))) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const map = await storage.getMapCollectionById(req.params.mapId);
+      if (!map) return res.status(404).json({ message: "Map not found" });
+
+      const ownerName = await getMapOwnerName(map);
+      res.json({ ...map, ownerName });
+    } catch (error) {
+      console.error("Error fetching admin map detail:", error);
+      res.status(500).json({ message: "Failed to fetch map" });
+    }
+  });
+
+  // Converts an existing map (any owner) into a curated /discover entry, or
+  // edits/un-curates one already curated. The owner is never touched — the
+  // map stays credited to whoever made it.
+  app.put("/api/admin/maps/:mapId/curate", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user || !(await storage.isAdmin(user.id))) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const existing = await storage.getMapCollectionById(req.params.mapId);
+      if (!existing) return res.status(404).json({ message: "Map not found" });
+
+      const data = curateMapSchema.parse(req.body);
+      const updated = await storage.updateMapCuration(req.params.mapId, data);
+      if (!updated) return res.status(500).json({ message: "Failed to update map curation" });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map((err) => err.message);
+        return res.status(400).json({ message: errorMessages.join(", "), errors: error.errors });
+      }
+      console.error("Error updating map curation:", error);
+      res.status(500).json({ message: "Failed to update map curation" });
     }
   });
 }

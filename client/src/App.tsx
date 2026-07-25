@@ -29,6 +29,7 @@ import EditPin from "@/pages/edit-pin";
 import ImportPins from "@/pages/import-pins";
 import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
+import AdminCurateMap from "@/pages/admin-curate-map";
 import NotFound from "@/pages/not-found";
 import { Compass, LogIn, MapPinned, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={Auth} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/admin/maps/:mapId/curate" component={AdminCurateMap} />
       <Route path="/p/:shareUrl" component={PublicMap} />
       <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/map/new" component={MapForm} />

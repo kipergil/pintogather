@@ -18,6 +18,7 @@ import type {
   MapInvitation,
   MapViewer,
   Pin,
+  CurateMap,
   InsertMapCollection,
   InsertMapInvitation,
   InsertMapViewer,
@@ -245,6 +246,8 @@ export interface IStorage {
     defaultPermission: string,
   ): Promise<MapCollection | undefined>;
   updateMapDetails(mapId: string, data: UpdateMapDetails): Promise<MapCollection | undefined>;
+  /** Admin-only: sets/clears a map's curated /discover fields. Never touches owner. */
+  updateMapCuration(mapId: string, data: CurateMap): Promise<MapCollection | undefined>;
   deleteMapCollection(mapId: string, userId: string): Promise<boolean>;
 
   // Map Viewers
@@ -435,6 +438,27 @@ class DirectusStorage implements IStorage {
       return toMapCollection(updated as unknown as DirectusMapCollection);
     } catch (error) {
       console.error("Error updating map details:", error);
+      return undefined;
+    }
+  }
+
+  async updateMapCuration(mapId: string, data: CurateMap): Promise<MapCollection | undefined> {
+    try {
+      // Passed through as-is (no forced nulling when curated=false) — an
+      // admin un-curating a map can leave its category/country/city/tagline
+      // in place so re-curating it later doesn't mean re-entering everything.
+      const payload = {
+        curated: data.curated,
+        curated_category: data.curatedCategory ?? null,
+        curated_country: data.curatedCountry ?? null,
+        curated_city: data.curatedCity ?? null,
+        curated_order: data.curatedOrder ?? null,
+        curated_tagline: data.curatedTagline ?? null,
+      };
+      const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
+      return toMapCollection(updated as unknown as DirectusMapCollection);
+    } catch (error) {
+      console.error("Error updating map curation:", error);
       return undefined;
     }
   }
