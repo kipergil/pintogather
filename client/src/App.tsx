@@ -78,12 +78,12 @@ function HeaderContent() {
               <span className="text-lg font-semibold tracking-tight text-foreground">PinTogather</span>
             </button>
             <button
-              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setLocation("/discover")}
               data-testid="button-nav-discover"
             >
               <Compass className="h-4 w-4" />
-              Discover
+              <span className="hidden sm:inline">Discover</span>
             </button>
           </div>
 
