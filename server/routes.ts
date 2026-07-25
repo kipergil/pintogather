@@ -420,11 +420,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   // --- Discover (curated maps) -------------------------------------------------------
 
   // Public, unauthenticated: PinTogather's editorially curated map collection.
-  // Freemium/anonymous visitors see only the top curatedOrder maps
-  // (TIER_LIMITS.maxCuratedMapsVisible); Basic/Premium see everything.
-  // Filter facets (categories/countries/cities) are derived from whatever is
-  // actually curated right now, not the full fixed enum, so the UI never
-  // offers a filter that dead-ends on zero results.
+  // Freemium/anonymous visitors get every curated map back (so the page can
+  // show what exists as a teaser) but only the top curatedOrder maps
+  // (TIER_LIMITS.maxCuratedMapsVisible) come with a shareUrl — the rest are
+  // marked `locked: true` with shareUrl omitted, so the UI can't render a
+  // working link to them even if it tried. Basic/Premium get everything
+  // unlocked. Filter facets (categories/countries/cities) are derived from
+  // whatever is actually curated right now, not the full fixed enum, so the
+  // UI never offers a filter that dead-ends on zero results.
   app.get("/api/discover", async (req, res) => {
     try {
       const allCurated = await storage.getCuratedMapCollections();
@@ -450,15 +453,16 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const user = await getCurrentUser(req);
       const maxVisible = TIER_LIMITS[user?.userGroup ?? "freemium"].maxCuratedMapsVisible;
-      const visible = Number.isFinite(maxVisible) ? filtered.slice(0, maxVisible) : filtered;
 
       const maps = await Promise.all(
-        visible.map(async (map) => {
+        filtered.map(async (map, index) => {
+          const locked = Number.isFinite(maxVisible) && index >= maxVisible;
           const [pins, ownerName] = await Promise.all([storage.getPinsByMapId(map.id), getMapOwnerName(map)]);
           return {
             id: map.id,
             name: map.name,
-            shareUrl: map.shareUrl,
+            shareUrl: locked ? null : map.shareUrl,
+            locked,
             curatedCategory: map.curatedCategory,
             curatedCountry: map.curatedCountry,
             curatedCity: map.curatedCity,
@@ -469,13 +473,14 @@ export async function registerRoutes(app: Express): Promise<void> {
           };
         }),
       );
+      const visibleCount = maps.filter((m) => !m.locked).length;
 
       res.json({
         maps,
         totalCount: filtered.length,
-        visibleCount: maps.length,
+        visibleCount,
         maxVisible,
-        isLimited: filtered.length > maps.length,
+        isLimited: filtered.length > visibleCount,
         filters: { categories, countries, citiesByCountry },
       });
     } catch (error) {

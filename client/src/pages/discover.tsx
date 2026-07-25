@@ -13,7 +13,9 @@ import type { CuratedCategory, CuratedCountry } from "@shared/enums";
 interface DiscoverMap {
   id: string;
   name: string;
-  shareUrl: string;
+  shareUrl: string | null;
+  /** True beyond the viewer's tier cap — no shareUrl is sent for these, so the card can't link anywhere but /pricing. */
+  locked: boolean;
   curatedCategory: CuratedCategory | null;
   curatedCountry: CuratedCountry | null;
   curatedCity: string | null;
@@ -44,32 +46,63 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
     [map.id, map.name, map.curatedCategory],
   );
 
+  const cardBody = (
+    <Card
+      className={`border-border overflow-hidden h-full transition-all ${
+        map.locked
+          ? "cursor-pointer"
+          : "hover:border-primary/40 hover:shadow-md cursor-pointer"
+      }`}
+    >
+      <div className="relative">
+        <img
+          src={coverUrl}
+          alt=""
+          className={`w-full aspect-[8/5] object-cover ${map.locked ? "grayscale opacity-60" : ""}`}
+        />
+        {map.locked && (
+          <>
+            <div className="absolute top-2.5 right-2.5 h-8 w-8 rounded-full bg-background/90 flex items-center justify-center shadow-sm">
+              <Lock className="h-4 w-4 text-foreground" />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow">
+                <Lock className="h-3.5 w-3.5" />
+                Upgrade to see
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      <CardContent className={`p-4 space-y-2 ${map.locked ? "opacity-60" : ""}`}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {map.curatedCategory && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {CURATED_CATEGORY_LABELS[map.curatedCategory]}
+            </Badge>
+          )}
+          {map.curatedCity && <span className="text-xs text-muted-foreground">{map.curatedCity}</span>}
+        </div>
+        <h3 className="font-semibold text-foreground leading-snug">{map.name}</h3>
+        {map.curatedTagline && <p className="text-sm text-muted-foreground line-clamp-2">{map.curatedTagline}</p>}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+          </span>
+          {map.ownerName && <span>Curated by {map.ownerName}</span>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <Link href={`/map/${map.shareUrl}`} data-testid={`card-discover-map-${map.id}`}>
-      <Card className="border-border overflow-hidden h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
-        <img src={coverUrl} alt="" className="w-full aspect-[8/5] object-cover" />
-        <CardContent className="p-4 space-y-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {map.curatedCategory && (
-              <Badge variant="secondary" className="text-xs font-medium">
-                {CURATED_CATEGORY_LABELS[map.curatedCategory]}
-              </Badge>
-            )}
-            {map.curatedCity && (
-              <span className="text-xs text-muted-foreground">{map.curatedCity}</span>
-            )}
-          </div>
-          <h3 className="font-semibold text-foreground leading-snug">{map.name}</h3>
-          {map.curatedTagline && <p className="text-sm text-muted-foreground line-clamp-2">{map.curatedTagline}</p>}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
-            </span>
-            {map.ownerName && <span>Curated by {map.ownerName}</span>}
-          </div>
-        </CardContent>
-      </Card>
+    <Link
+      href={map.locked || !map.shareUrl ? "/pricing" : `/map/${map.shareUrl}`}
+      data-testid={`card-discover-map-${map.id}`}
+      data-locked={map.locked}
+    >
+      {cardBody}
     </Link>
   );
 }
