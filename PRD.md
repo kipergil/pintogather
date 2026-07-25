@@ -169,6 +169,8 @@ All four follow the same pattern: an event-hook trigger (`accountability: "all"`
 
 Unchanged from prior implementation — Google Maps JavaScript API (Map, Marker, Places), OpenStreetMap Nominatim as the reverse-geocoding fallback. Default center: London, UK.
 
+**"My location" toggle.** A button next to "Reset view" (`simple-google-map.tsx`) lets a viewer show their own position on the map as a distinct blue dot with an accuracy halo — visually different from venue pins (Google's familiar `#4285F4` vs. the app's `#3B82F6`/`#F59E0B` pin colors) and always rendered on top (`zIndex: 9999`). Purely client-side and opt-in: the browser's location permission is never requested on page load, only when the button is clicked, and clicking again removes the marker and stops watching. Uses `navigator.geolocation.watchPosition` so the dot follows the viewer while enabled, but only pans/zooms the map to it the first time it appears — later updates move the marker without yanking the view. A 15-second client-side fallback timer resets the button out of its "locating" state if neither the success nor error callback ever fires (observed with an unanswered permission prompt), so it can't get stuck. Available to any viewer of a map, including anonymous ones — unrelated to pin edit permissions.
+
 ---
 
 ## 4. Technical Architecture

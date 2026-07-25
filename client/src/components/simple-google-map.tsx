@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
+import { Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 import { buildSocialUrl } from '../lib/social-links';
+import { useToast } from '../hooks/use-toast';
+
+/** Google's familiar "blue dot" color for a user's own location — deliberately distinct from the app's pin colors (#3B82F6 approved / #F59E0B pending). */
+const MY_LOCATION_COLOR = '#4285F4';
 
 function escapeHtml(value: string): string {
   const div = document.createElement('div');
@@ -110,6 +114,19 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
   const activeInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // "Show my location" — opt-in only, never requested automatically. Off by
+  // default; the user must click the toggle button, which is what triggers
+  // the browser's permission prompt if it hasn't been granted yet.
+  const [myLocationStatus, setMyLocationStatus] = useState<'off' | 'locating' | 'on'>('off');
+  const myLocationMarkerRef = useRef<google.maps.Marker | null>(null);
+  const myLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
+  const geoWatchIdRef = useRef<number | null>(null);
+  // Backstop for the (rare, but observed) case where the browser's own
+  // geolocation `timeout` option doesn't fire — e.g. the permission prompt
+  // itself sits unanswered — so the button never gets stuck on "locating".
+  const geoTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isAddPinModalOpen, setIsAddPinModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
@@ -320,7 +337,135 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
     map.fitBounds(bounds);
   };
 
+  // Places (or moves) the "your location" marker + accuracy halo. Pans/zooms
+  // to it only the first time it appears, so later position updates while
+  // watching don't yank the view out from under the user.
+  const updateMyLocationMarker = (position: GeolocationPosition) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
 
+    if (!myLocationMarkerRef.current) {
+      myLocationMarkerRef.current = new google.maps.Marker({
+        position: latLng,
+        map,
+        title: 'Your location',
+        zIndex: 9999,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 7,
+          fillColor: MY_LOCATION_COLOR,
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+      });
+      map.panTo(latLng);
+      if ((map.getZoom() ?? 0) < 14) map.setZoom(14);
+    } else {
+      myLocationMarkerRef.current.setPosition(latLng);
+    }
+
+    if (!myLocationAccuracyCircleRef.current) {
+      myLocationAccuracyCircleRef.current = new google.maps.Circle({
+        map,
+        center: latLng,
+        radius: position.coords.accuracy,
+        fillColor: MY_LOCATION_COLOR,
+        fillOpacity: 0.15,
+        strokeColor: MY_LOCATION_COLOR,
+        strokeOpacity: 0.3,
+        strokeWeight: 1,
+        clickable: false,
+      });
+    } else {
+      myLocationAccuracyCircleRef.current.setCenter(latLng);
+      myLocationAccuracyCircleRef.current.setRadius(position.coords.accuracy);
+    }
+
+    clearGeoTimeout();
+    setMyLocationStatus('on');
+  };
+
+  const clearGeoTimeout = () => {
+    if (geoTimeoutIdRef.current !== null) {
+      clearTimeout(geoTimeoutIdRef.current);
+      geoTimeoutIdRef.current = null;
+    }
+  };
+
+  const stopWatchingMyLocation = () => {
+    clearGeoTimeout();
+    if (geoWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      geoWatchIdRef.current = null;
+    }
+    myLocationMarkerRef.current?.setMap(null);
+    myLocationMarkerRef.current = null;
+    myLocationAccuracyCircleRef.current?.setMap(null);
+    myLocationAccuracyCircleRef.current = null;
+  };
+
+  // Toggle handler for the "My location" button — the only place location
+  // permission is ever requested; nothing here runs until the user clicks it.
+  const handleToggleMyLocation = () => {
+    if (myLocationStatus !== 'off') {
+      stopWatchingMyLocation();
+      setMyLocationStatus('off');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      toast({
+        title: 'Location not available',
+        description: "Your browser doesn't support geolocation.",
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setMyLocationStatus('locating');
+    geoWatchIdRef.current = navigator.geolocation.watchPosition(
+      updateMyLocationMarker,
+      (geoError) => {
+        let description = "Couldn't get your location. Please try again.";
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          description = 'Location permission was denied. Allow it in your browser settings to show your position.';
+        } else if (geoError.code === geoError.TIMEOUT) {
+          description = 'Getting your location timed out. Please try again.';
+        }
+        toast({ title: "Couldn't show your location", description, variant: 'destructive' });
+        stopWatchingMyLocation();
+        setMyLocationStatus('off');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 },
+    );
+
+    // Some browsers leave the permission prompt unanswered indefinitely
+    // (or otherwise never invoke either callback) — without this, the
+    // button would stay stuck on "locating" forever in that case.
+    geoTimeoutIdRef.current = setTimeout(() => {
+      toast({
+        title: "Couldn't show your location",
+        description: 'No response to the location permission request. Please try again.',
+        variant: 'destructive',
+      });
+      stopWatchingMyLocation();
+      setMyLocationStatus('off');
+    }, 15000);
+  };
+
+  // Stop watching if the map unmounts while location sharing is on.
+  useEffect(() => {
+    return () => {
+      if (geoWatchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      }
+      if (geoTimeoutIdRef.current !== null) {
+        clearTimeout(geoTimeoutIdRef.current);
+      }
+    };
+  }, []);
 
   if (error) {
     return (
@@ -397,6 +542,27 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
             >
               <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
               Reset view
+            </Button>
+          )}
+          {!isLoading && !error && (
+            <Button
+              type="button"
+              variant={myLocationStatus === 'on' ? 'default' : 'secondary'}
+              size="sm"
+              className="absolute top-2 right-2 shadow-md"
+              onClick={handleToggleMyLocation}
+              disabled={myLocationStatus === 'locating'}
+              title={myLocationStatus === 'on' ? 'Hide your location' : 'Show your location'}
+              data-testid="button-toggle-my-location"
+            >
+              {myLocationStatus === 'locating' ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : myLocationStatus === 'on' ? (
+                <LocateFixed className="h-3.5 w-3.5 mr-1.5" />
+              ) : (
+                <Locate className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              My location
             </Button>
           )}
         </div>
