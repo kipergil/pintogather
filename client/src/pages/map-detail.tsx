@@ -1,22 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Users, MapPin, AlertCircle, Settings, Share2, Crown, Upload, Menu, Download, Database, Clock } from "lucide-react";
+import { ArrowLeft, Users, MapPin, AlertCircle, Crown, Clock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { MapActionsMenu } from "@/components/map-actions-menu";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
-import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
+import { useDirectusAdminUrl } from "@/lib/directusAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
@@ -183,53 +178,15 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" data-testid="button-map-menu">
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {isOwner && (
-                    <DropdownMenuItem
-                      onClick={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
-                      data-testid="menu-item-edit-map"
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Edit map
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
-                    data-testid="menu-item-import-pins"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import pins
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsShareModalOpen(true)} data-testid="menu-item-share-map">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </DropdownMenuItem>
-                  {isOwner && (
-                    <DropdownMenuItem onClick={exportPins} data-testid="menu-item-export-csv">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export CSV
-                    </DropdownMenuItem>
-                  )}
-                  {isOwner && directusUrl && (
-                    <DropdownMenuItem asChild data-testid="menu-item-open-directus">
-                      <a
-                        href={buildDirectusAdminUrl(directusUrl, "map_collections", mapCollection.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Database className="h-4 w-4 mr-2" />
-                        Open in Directus
-                      </a>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <MapActionsMenu
+                mapId={mapCollection.id}
+                isOwner={isOwner}
+                onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
+                onImportPins={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
+                onShare={() => setIsShareModalOpen(true)}
+                onExportCsv={exportPins}
+                directusUrl={directusUrl}
+              />
             </div>
           </div>
 
