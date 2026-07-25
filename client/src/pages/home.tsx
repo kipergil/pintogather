@@ -597,11 +597,11 @@ function AnonymousLanding() {
           Collaborative maps, made simple
         </div>
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground mb-5 max-w-3xl mx-auto">
-          Pin your world, together
+          Pin your people. Pin your favorite places.
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          Create a shared map in seconds. Send the link and let people drop pins by clicking the map or searching
-          for a venue, approve what you want to keep, and showcase your favourite maps on your own public profile.
+          Create a shared map and invite your community. Each person can mark where they are, or search Google Maps
+          to drop a pin on a specific venue — then everyone sees it all in one place.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link href="/auth">
@@ -623,8 +623,8 @@ function AnonymousLanding() {
         <HowItWorksStep
           step={2}
           icon={<Share2 className="h-5 w-5" />}
-          title="Share the link"
-          description="Anyone can add a pin by clicking the map or searching for a venue."
+          title="Everyone adds a pin"
+          description="Contributors mark their own location, or search for a specific venue — restaurant, cafe, landmark, anywhere."
         />
         <HowItWorksStep
           step={3}
@@ -711,7 +711,7 @@ function UseCasesSection({ showCta }: { showCta: boolean }) {
           Built for every kind of community
         </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          However your group comes together, PinTogather gives it a shared home on the map.
+          Some communities map where people are. Others map the places they love. Many do both.
         </p>
       </div>
 

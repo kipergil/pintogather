@@ -509,10 +509,14 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
               Add venue
             </Button>
           </div>
-          {isArmedForClick && (
+          {isArmedForClick ? (
             <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mt-2.5">
               <MousePointerClick className="h-4 w-4 shrink-0" />
               Click anywhere on the map to drop a pin there
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-2.5">
+              Two ways to add a pin — click the map to drop one anywhere, or search for a specific venue.
             </p>
           )}
         </div>

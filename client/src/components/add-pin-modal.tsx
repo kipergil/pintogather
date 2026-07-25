@@ -460,7 +460,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               data-testid="button-add-pin"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {createPinMutation.isPending ? "Adding..." : "Add pin"}
+              {createPinMutation.isPending ? "Adding..." : "Add to map"}
             </Button>
           )}
         </div>

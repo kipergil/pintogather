@@ -195,6 +195,9 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
           required
           data-testid="input-map-name"
         />
+        <p className="text-xs text-muted-foreground">
+          You'll invite people to pin their location or favorite spots here.
+        </p>
       </div>
 
       <div className="space-y-2">
