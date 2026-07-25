@@ -1,14 +1,11 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { MapPin, Link2, Trash2, Crown, Users, MoreHorizontal, Settings, Upload, Download } from "lucide-react";
+import { MapPin, Crown, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { MapActionsMenu } from "@/components/map-actions-menu";
+import { ShareModal } from "@/components/share-modal";
+import { useDirectusAdminUrl } from "@/lib/directusAdmin";
 
 export interface MapCollectionSummary {
   id: string;
@@ -35,13 +32,15 @@ function formatRelativeDate(dateString: string) {
 interface MapCardProps {
   map: MapCollectionSummary;
   role: "owner" | "contributor";
-  onCopyLink: (map: MapCollectionSummary) => void;
   onDelete?: (map: MapCollectionSummary) => void;
   onExportCsv?: (map: MapCollectionSummary) => void;
 }
 
-export function MapCard({ map, role, onCopyLink, onDelete, onExportCsv }: MapCardProps) {
+export function MapCard({ map, role, onDelete, onExportCsv }: MapCardProps) {
   const [, setLocation] = useLocation();
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const directusUrl = useDirectusAdminUrl();
+  const isOwner = role === "owner";
 
   return (
     <div
@@ -84,71 +83,28 @@ export function MapCard({ map, role, onCopyLink, onDelete, onExportCsv }: MapCar
             Open map
           </Button>
         </Link>
-        {role === "owner" ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 shrink-0 ml-auto"
-                data-testid={`button-map-actions-${map.id}`}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => setLocation(`/map/${map.shareUrl}/edit`)}
-                data-testid={`menu-item-edit-map-${map.id}`}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Edit map
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setLocation(`/map/${map.shareUrl}/import`)}
-                data-testid={`menu-item-import-pins-${map.id}`}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import pins
-              </DropdownMenuItem>
-              {onExportCsv && (
-                <DropdownMenuItem onClick={() => onExportCsv(map)} data-testid={`menu-item-export-csv-${map.id}`}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => onCopyLink(map)} data-testid={`menu-item-copy-link-${map.id}`}>
-                <Link2 className="h-4 w-4 mr-2" />
-                Copy link
-              </DropdownMenuItem>
-              {onDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDelete(map)}
-                    className="text-destructive focus:text-destructive"
-                    data-testid={`menu-item-delete-map-${map.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete map
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => onCopyLink(map)}
-            title="Copy share link"
-            data-testid={`button-copy-map-${map.id}`}
-          >
-            <Link2 className="h-4 w-4" />
-          </Button>
-        )}
+        <MapActionsMenu
+          mapId={map.id}
+          isOwner={isOwner}
+          onEditMap={() => setLocation(`/map/${map.shareUrl}/edit`)}
+          onImportPins={() => setLocation(`/map/${map.shareUrl}/import`)}
+          onShare={() => setIsShareModalOpen(true)}
+          onExportCsv={onExportCsv ? () => onExportCsv(map) : undefined}
+          onDelete={onDelete ? () => onDelete(map) : undefined}
+          directusUrl={directusUrl}
+          testIdSuffix={map.id}
+          triggerClassName="h-8 w-8 shrink-0 ml-auto"
+        />
       </div>
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        shareUrl={map.shareUrl}
+        mapName={map.name}
+        mapId={map.id}
+        isOwner={isOwner}
+      />
     </div>
   );
 }

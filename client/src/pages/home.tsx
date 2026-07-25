@@ -60,24 +60,6 @@ export default function Home() {
     enabled: !authLoading && !!user?.id,
   });
 
-  const handleCopyMapUrl = async (map: MapCollectionSummary) => {
-    try {
-      const url = `${window.location.origin}/map/${map.shareUrl}`;
-      await navigator.clipboard.writeText(url);
-      toast({
-        title: "Link copied",
-        description: `Share link for "${map.name}" copied to clipboard`,
-        variant: "success",
-      });
-    } catch (error) {
-      toast({
-        title: "Couldn't copy link",
-        description: "Please copy the URL manually from the map page",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleExportCsv = async (map: MapCollectionSummary) => {
     try {
       const response = await apiRequest("GET", `/api/maps/${map.shareUrl}`);
@@ -124,7 +106,6 @@ export default function Home() {
             isLoadingContributed={isLoadingContributed}
             totalPins={totalPins}
             onCreateClick={() => setLocation("/map/new")}
-            onCopyLink={handleCopyMapUrl}
             onDeleteMap={(map) => setDeleteMapModal({ isOpen: true, map })}
             onExportCsv={handleExportCsv}
           />
@@ -157,7 +138,6 @@ interface SignedInDashboardProps {
   isLoadingContributed: boolean;
   totalPins: number;
   onCreateClick: () => void;
-  onCopyLink: (map: MapCollectionSummary) => void;
   onDeleteMap: (map: MapCollectionSummary) => void;
   onExportCsv: (map: MapCollectionSummary) => void;
 }
@@ -172,7 +152,6 @@ function SignedInDashboard({
   isLoadingContributed,
   totalPins,
   onCreateClick,
-  onCopyLink,
   onDeleteMap,
   onExportCsv,
 }: SignedInDashboardProps) {
@@ -241,7 +220,6 @@ function SignedInDashboard({
                   key={map.id}
                   map={map}
                   role="owner"
-                  onCopyLink={onCopyLink}
                   onDelete={onDeleteMap}
                   onExportCsv={onExportCsv}
                 />
@@ -266,7 +244,7 @@ function SignedInDashboard({
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {contributedMaps.map((map) => (
-                <MapCard key={map.id} map={map} role="contributor" onCopyLink={onCopyLink} />
+                <MapCard key={map.id} map={map} role="contributor" />
               ))}
             </div>
           )}
