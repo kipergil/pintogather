@@ -256,6 +256,7 @@ export interface IStorage {
 
   // Uploads
   uploadUserLogo(userId: string, file: UploadableFile): Promise<string>;
+  uploadVenueScreenshot(userId: string, file: UploadableFile): Promise<string>;
 }
 
 export interface UploadableFile {
@@ -266,6 +267,9 @@ export interface UploadableFile {
 
 /** Root folder (no parent) all per-user branding-logo subfolders live under. */
 const LOGO_ROOT_FOLDER_NAME = "map-logos";
+
+/** Subfolder name (nested under each user's own top-level folder) that AI-import screenshots are uploaded into. */
+const VENUE_SCREENSHOT_SUBFOLDER_NAME = "uploads";
 
 class DirectusStorage implements IStorage {
   private get client() {
@@ -780,6 +784,46 @@ class DirectusStorage implements IStorage {
 
   async uploadUserLogo(userId: string, file: UploadableFile): Promise<string> {
     const folderId = await this.ensureUserLogoFolder(userId);
+
+    const formData = new FormData();
+    formData.append("folder", folderId);
+    formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
+
+    const created = await this.client.request(uploadFiles(formData, { fields: ["id"] }));
+    return created.id;
+  }
+
+  /** Finds (or creates) this user's own top-level folder (no shared parent — named exactly as the user's id). */
+  private async ensureUserRootFolder(userId: string): Promise<string> {
+    const existing = await this.client.request(
+      readFolders({ filter: { name: { _eq: userId }, parent: { _null: true } }, fields: ["id"], limit: 1 }),
+    );
+    if (existing[0]) return existing[0].id;
+
+    const created = await this.client.request(createFolder({ name: userId }, { fields: ["id"] }));
+    return created.id;
+  }
+
+  /** Finds (or creates) this user's "uploads" subfolder, nested under their own top-level folder. */
+  private async ensureUserUploadsFolder(userId: string): Promise<string> {
+    const rootId = await this.ensureUserRootFolder(userId);
+    const existing = await this.client.request(
+      readFolders({
+        filter: { name: { _eq: VENUE_SCREENSHOT_SUBFOLDER_NAME }, parent: { _eq: rootId } },
+        fields: ["id"],
+        limit: 1,
+      }),
+    );
+    if (existing[0]) return existing[0].id;
+
+    const created = await this.client.request(
+      createFolder({ name: VENUE_SCREENSHOT_SUBFOLDER_NAME, parent: rootId }, { fields: ["id"] }),
+    );
+    return created.id;
+  }
+
+  async uploadVenueScreenshot(userId: string, file: UploadableFile): Promise<string> {
+    const folderId = await this.ensureUserUploadsFolder(userId);
 
     const formData = new FormData();
     formData.append("folder", folderId);
