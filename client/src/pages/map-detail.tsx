@@ -9,6 +9,7 @@ import { MapActionsMenu } from "@/components/map-actions-menu";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ShareModal } from "@/components/share-modal";
+import { SharePopover } from "@/components/share-popover";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
@@ -31,6 +32,8 @@ interface MapCollection {
   description?: string;
   shareUrl: string;
   ownerId?: string;
+  /** The map owner's display name — used on the share-image card. Null for an orphaned map. */
+  ownerName?: string | null;
   noteLabel?: string | null;
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
@@ -206,7 +209,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 sm:shrink-0">
+            <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
               {isOwner && mapCollection.archived && (
                 <Button
                   variant="default"
@@ -232,12 +235,20 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
+              <SharePopover
+                mapId={mapCollection.id}
+                shareUrl={mapCollection.shareUrl}
+                mapName={mapCollection.name}
+                ownerName={mapCollection.ownerName}
+                pinCount={mapCollection.pinCount}
+                isOwner={isOwner}
+                onInvite={() => setIsShareModalOpen(true)}
+              />
               <MapActionsMenu
                 mapId={mapCollection.id}
                 isOwner={isOwner}
                 onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
                 onImportPins={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
-                onShare={() => setIsShareModalOpen(true)}
                 onExportCsv={exportPins}
                 directusUrl={directusUrl}
               />
@@ -295,7 +306,7 @@ export default function MapDetail({ params }: MapDetailProps) {
         </CardContent>
       </Card>
 
-      {/* Share Modal */}
+      {/* Invite dialog — copy-link/social sharing lives in the SharePopover above, so this opens straight to the invite section. */}
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
@@ -303,6 +314,7 @@ export default function MapDetail({ params }: MapDetailProps) {
         mapName={mapCollection.name}
         mapId={mapCollection.id}
         isOwner={isOwner}
+        showLinkAndSocial={false}
       />
 
       <AuthModal

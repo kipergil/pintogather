@@ -14,7 +14,8 @@ export interface MapActionsMenuProps {
   mapId: string;
   isOwner: boolean;
   onImportPins: () => void;
-  onShare: () => void;
+  /** Omitted on surfaces that already show a standalone Share button (e.g. map-detail) — the item is hidden entirely rather than duplicating it. */
+  onShare?: () => void;
   /** Owner-only actions — omit the corresponding item entirely when not provided. */
   onEditMap?: () => void;
   onExportCsv?: () => void;
@@ -62,10 +63,12 @@ export function MapActionsMenu({
           <Upload className="h-4 w-4 mr-2" />
           Import pins
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onShare} data-testid={`menu-item-share-map${suffix}`}>
-          <Share2 className="h-4 w-4 mr-2" />
-          Share
-        </DropdownMenuItem>
+        {onShare && (
+          <DropdownMenuItem onClick={onShare} data-testid={`menu-item-share-map${suffix}`}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </DropdownMenuItem>
+        )}
         {isOwner && onExportCsv && (
           <DropdownMenuItem onClick={onExportCsv} data-testid={`menu-item-export-csv${suffix}`}>
             <Download className="h-4 w-4 mr-2" />
