@@ -9,7 +9,7 @@
 ## 1. Product Overview
 
 ### 1.1 Vision
-PinTogather is a collaborative mapping platform that enables communities, teams, and groups to create shared map collections where members can pin locations, share points of interest, and collaborate. The platform bridges the gap between social networking and geographic visualization, making it easy for people to discover and share meaningful places together.
+PinTogather lets communities, teams, and groups build a shared map together, pin by pin. Each contributor adds either their own location — where they are, or where they're based — or a specific venue worth visiting, found via Google Maps search. Some communities map where people are; others map the places they love; many do both. The platform bridges the gap between social networking and geographic visualization, making it easy for people to discover and share meaningful places together.
 
 ### 1.2 Problem Statement
 Communities and teams often need to share location-based information but lack accessible tools that combine:
