@@ -50,6 +50,12 @@ const MAP_FIELDS = [
   "archived",
   "default_pin_color",
   "default_pin_icon",
+  "curated",
+  "curated_category",
+  "curated_country",
+  "curated_city",
+  "curated_order",
+  "curated_tagline",
   "date_created",
 ] as const;
 
@@ -130,6 +136,12 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     archived: row.archived,
     defaultPinColor: row.default_pin_color,
     defaultPinIcon: row.default_pin_icon,
+    curated: row.curated,
+    curatedCategory: row.curated_category,
+    curatedCountry: row.curated_country,
+    curatedCity: row.curated_city,
+    curatedOrder: row.curated_order,
+    curatedTagline: row.curated_tagline,
     createdAt: new Date(row.date_created),
   };
 }
@@ -222,6 +234,8 @@ export interface IStorage {
   getMapCollectionsByUserId(userId: string, opts?: { archived?: boolean }): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
   getPublicMapsByUserId(userId: string): Promise<MapCollection[]>;
+  /** Every curated map (curated=true), sorted by curatedOrder, optionally narrowed by category/country/city — powers /discover. Unfiltered by viewer/tier; that gating happens in the route. */
+  getCuratedMapCollections(filters?: { category?: string; country?: string; city?: string }): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
   /** Bulk-sets `archived` on maps this user owns; silently ignores any requested id the user doesn't own. Returns the ids actually updated. */
   setMapsArchived(mapIds: string[], userId: string, archived: boolean): Promise<string[]>;
@@ -889,6 +903,23 @@ class DirectusStorage implements IStorage {
         filter: { owner: { _eq: userId }, show_on_profile: { _eq: true }, archived: { _eq: false } },
         fields: MAP_FIELDS,
         sort: ["-date_created"],
+        limit: -1,
+      }),
+    );
+    return (rows as DirectusMapCollection[]).map(toMapCollection);
+  }
+
+  async getCuratedMapCollections(filters?: { category?: string; country?: string; city?: string }): Promise<MapCollection[]> {
+    const filter: Record<string, unknown> = { curated: { _eq: true } };
+    if (filters?.category) filter.curated_category = { _eq: filters.category };
+    if (filters?.country) filter.curated_country = { _eq: filters.country };
+    if (filters?.city) filter.curated_city = { _eq: filters.city };
+
+    const rows = await this.client.request(
+      readItems("map_collections", {
+        filter,
+        fields: MAP_FIELDS,
+        sort: ["curated_order", "-date_created"],
         limit: -1,
       }),
     );

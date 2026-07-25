@@ -1,6 +1,17 @@
-import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, PIN_COLOR, PIN_ICON, USER_GROUP } from "../../../shared/enums.js";
+import {
+  CURATED_CATEGORY,
+  CURATED_CITY_BY_COUNTRY,
+  CURATED_COUNTRY,
+  INVITATION_STATUS,
+  MAP_VIEWER_ROLE,
+  PERMISSION,
+  PIN_COLOR,
+  PIN_ICON,
+  USER_GROUP,
+} from "../../../shared/enums.js";
 import {
   booleanField,
+  cascadingSelectField,
   dateCreatedField,
   dateField,
   decimalField,
@@ -106,6 +117,31 @@ export const mapCollectionsCollection: CollectionDefinition = {
     selectField("default_pin_icon", PIN_ICON, {
       nullable: true,
       note: "Default marker icon glyph for this map's pins (Basic/Premium only). Falls back to a plain pin when empty. A pin's own pin_icon overrides this.",
+    }),
+    booleanField(
+      "curated",
+      false,
+      "Whether this map appears on the public /discover page. Admin-managed — set directly here in Directus, never through the app's own map forms.",
+    ),
+    selectField("curated_category", CURATED_CATEGORY, {
+      nullable: true,
+      note: "Discover-page theme category. Only meaningful when curated is true.",
+    }),
+    selectField("curated_country", CURATED_COUNTRY, {
+      nullable: true,
+      note: "Discover-page country. Set this before curated_city — curated_city's choices narrow to this country's cities.",
+    }),
+    cascadingSelectField("curated_city", CURATED_CITY_BY_COUNTRY, "curated_country", {
+      nullable: true,
+      note: "Discover-page city — choices narrow once curated_country is set above.",
+    }),
+    integerField("curated_order", {
+      nullable: true,
+      note: "Display order among curated maps; also determines which 3 freemium/anonymous visitors see on /discover. Lower shows first.",
+    }),
+    richTextField("curated_tagline", {
+      nullable: true,
+      note: "Short editorial blurb shown on the Discover card, distinct from this map's own owner-written description.",
     }),
     dateCreatedField(),
   ],

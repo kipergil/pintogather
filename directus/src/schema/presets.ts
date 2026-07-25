@@ -160,6 +160,42 @@ export function integerField(
   };
 }
 
+/**
+ * A select-dropdown field whose choices narrow based on another field's
+ * current value — e.g. curated_city only offers UK cities once
+ * curated_country is "uk". The flat `optionsByParent` map is also the
+ * field's fallback/full choice list (shown before the parent is set).
+ */
+export function cascadingSelectField(
+  field: string,
+  optionsByParent: Record<string, readonly string[]>,
+  parentField: string,
+  opts: { nullable?: boolean; note?: string } = {},
+): FieldDefinition {
+  const allChoices = Array.from(new Set(Object.values(optionsByParent).flat()));
+  return {
+    field,
+    type: "string",
+    meta: {
+      interface: "select-dropdown",
+      options: { choices: allChoices.map((value) => ({ text: value, value })) },
+      display: "labels",
+      note: opts.note,
+      width: "half",
+      conditions: Object.entries(optionsByParent).map(([parentValue, choices]) => ({
+        name: `${parentField}=${parentValue}`,
+        rule: { [parentField]: { _eq: parentValue } },
+        options: { choices: choices.map((value) => ({ text: value, value })) },
+      })),
+    },
+    schema: {
+      default_value: null,
+      is_nullable: opts.nullable ?? true,
+      max_length: 64,
+    },
+  };
+}
+
 export function selectField(
   field: string,
   choices: readonly string[],

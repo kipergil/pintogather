@@ -17,6 +17,8 @@ export const TIER_LIMITS: Record<
     screenshotImport: boolean;
     mapArchiving: boolean;
     pinCustomization: boolean;
+    /** How many curated maps a visitor can see on /discover — the rest are blurred/locked behind an upgrade prompt. */
+    maxCuratedMapsVisible: number;
   }
 > = {
   freemium: {
@@ -28,6 +30,7 @@ export const TIER_LIMITS: Record<
     screenshotImport: false,
     mapArchiving: false,
     pinCustomization: false,
+    maxCuratedMapsVisible: 3,
   },
   basic: {
     maxMaps: 10,
@@ -38,6 +41,7 @@ export const TIER_LIMITS: Record<
     screenshotImport: true,
     mapArchiving: true,
     pinCustomization: true,
+    maxCuratedMapsVisible: Infinity,
   },
   premium: {
     maxMaps: Infinity,
@@ -48,5 +52,6 @@ export const TIER_LIMITS: Record<
     screenshotImport: true,
     mapArchiving: true,
     pinCustomization: true,
+    maxCuratedMapsVisible: Infinity,
   },
 };

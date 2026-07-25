@@ -1,5 +1,20 @@
 /** Minimal, hand-rolled shapes for the parts of Directus's field/relation meta we set. */
 
+/**
+ * A Directus field "condition" — dynamically overrides parts of this field's
+ * own meta (typically `options.choices`) when `rule` matches the current
+ * item's other field values, e.g. `{ curated_country: { _eq: "uk" } }`. Used
+ * to make curated_city a real cascading dropdown scoped to curated_country.
+ */
+export interface FieldCondition {
+  name: string;
+  rule: Record<string, unknown>;
+  options?: Record<string, unknown>;
+  hidden?: boolean;
+  readonly?: boolean;
+  required?: boolean;
+}
+
 export interface FieldMeta {
   interface?: string;
   options?: Record<string, unknown>;
@@ -13,6 +28,7 @@ export interface FieldMeta {
   required?: boolean;
   special?: string[];
   group?: string;
+  conditions?: FieldCondition[];
 }
 
 export interface FieldSchema {

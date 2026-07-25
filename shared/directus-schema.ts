@@ -1,4 +1,13 @@
-import type { InvitationStatus, MapViewerRole, Permission, PinColor, PinIcon, UserGroup } from "./enums.js";
+import type {
+  CuratedCategory,
+  CuratedCountry,
+  InvitationStatus,
+  MapViewerRole,
+  Permission,
+  PinColor,
+  PinIcon,
+  UserGroup,
+} from "./enums.js";
 
 /**
  * Custom fields added to directus_users to support Clerk-backed accounts and
@@ -51,6 +60,12 @@ export interface MapCollection {
   archived: boolean;
   default_pin_color: PinColor | null;
   default_pin_icon: PinIcon | null;
+  curated: boolean;
+  curated_category: CuratedCategory | null;
+  curated_country: CuratedCountry | null;
+  curated_city: string | null;
+  curated_order: number | null;
+  curated_tagline: string | null;
   date_created: string;
 }
 

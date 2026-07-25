@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, PIN_COLOR, PIN_ICON, USER_GROUP } from "./enums.js";
+import {
+  CURATED_CATEGORY,
+  CURATED_COUNTRY,
+  INVITATION_STATUS,
+  MAP_VIEWER_ROLE,
+  PERMISSION,
+  PIN_COLOR,
+  PIN_ICON,
+  USER_GROUP,
+} from "./enums.js";
 
 /**
  * Domain types used throughout the app (client + server). These are the
@@ -103,6 +112,19 @@ export interface MapCollection {
   defaultPinColor: (typeof PIN_COLOR)[number] | null;
   /** Default marker icon glyph for this map's pins (Basic/Premium only) — falls back to a plain pin when null. A pin's own pinIcon, if set, overrides this. */
   defaultPinIcon: (typeof PIN_ICON)[number] | null;
+  /**
+   * Curated-map fields (/discover page) — admin-managed directly in Directus,
+   * never through the app's own map-create/edit forms, so these are absent
+   * from insertMapCollectionSchema/updateMapDetailsSchema below on purpose.
+   */
+  curated: boolean;
+  curatedCategory: (typeof CURATED_CATEGORY)[number] | null;
+  curatedCountry: (typeof CURATED_COUNTRY)[number] | null;
+  curatedCity: string | null;
+  /** Display order among curated maps — also determines which 3 freemium/anonymous visitors see. Lower shows first. */
+  curatedOrder: number | null;
+  /** Short editorial blurb shown on the Discover card, distinct from the map's own owner-written description. */
+  curatedTagline: string | null;
   createdAt: Date;
 }
 
