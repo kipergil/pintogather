@@ -12,8 +12,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlacesSearch } from "./places-search";
+import { PinStylePicker } from "./pin-style-picker";
+import type { PinColor, PinIcon } from "@shared/enums";
 import {
   MapPin,
+  MapPinned,
   Plus,
   AtSign,
   ChevronDown,
@@ -28,6 +31,9 @@ interface AddPinModalProps {
     shareUrl: string;
     noteLabel?: string | null;
     notePrompt?: string | null;
+    defaultPinColor?: PinColor | null;
+    defaultPinIcon?: PinIcon | null;
+    hasPinCustomization?: boolean;
   };
   /** Set when opened by clicking a spot on the map; left null when opened via the "Add a venue" search button. */
   selectedLocation: {
@@ -53,6 +59,8 @@ interface PinFormData {
   instagramHandle: string;
   linkedinHandle: string;
   note: string;
+  pinColor: PinColor | null;
+  pinIcon: PinIcon | null;
 }
 
 interface PlaceResult {
@@ -73,6 +81,8 @@ const emptyForm: PinFormData = {
   instagramHandle: "",
   linkedinHandle: "",
   note: "",
+  pinColor: null,
+  pinIcon: null,
 };
 
 export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: initialLocation }: AddPinModalProps) {
@@ -87,6 +97,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const [showSocialLinks, setShowSocialLinks] = useState(false);
   const [fillMySocials, setFillMySocials] = useState(false);
+  const [showPinStyle, setShowPinStyle] = useState(false);
+  const hasPinCustomization = mapCollection.hasPinCustomization ?? false;
 
   const [formData, setFormData] = useState<PinFormData>(emptyForm);
 
@@ -267,6 +279,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       instagramHandle: formData.instagramHandle.trim() || null,
       linkedinHandle: formData.linkedinHandle.trim() || null,
       note: formData.note.trim() || null,
+      pinColor: formData.pinColor,
+      pinIcon: formData.pinIcon,
     };
 
     createPinMutation.mutate(pinData);
@@ -280,6 +294,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     setLocationSource(null);
     setShowSocialLinks(false);
     setFillMySocials(false);
+    setShowPinStyle(false);
     onClose();
   };
 
@@ -434,6 +449,36 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+
+              {hasPinCustomization && (
+                <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
+                      data-testid="button-toggle-pin-style"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <MapPinned className="h-3.5 w-3.5" />
+                        Pin color & icon
+                        <span className="text-xs font-normal text-muted-foreground/70">optional</span>
+                      </span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3 space-y-3">
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Leave this as the default to use the map's usual pin style.
+                    </p>
+                    <PinStylePicker
+                      color={formData.pinColor}
+                      icon={formData.pinIcon}
+                      onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
+                      noneLabel="Map default"
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
 
               <p className="text-xs text-muted-foreground/80 leading-relaxed">
                 Anyone with access to this map can see the details you add here.

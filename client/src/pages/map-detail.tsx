@@ -17,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
 import { cn } from "@/lib/utils";
+import type { PinColor, PinIcon } from "@shared/enums";
 
 interface MapDetailProps {
   params: {
@@ -39,6 +40,10 @@ interface MapCollection {
   pinCount: number;
   /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
   maxPins: number;
+  defaultPinColor?: PinColor | null;
+  defaultPinIcon?: PinIcon | null;
+  /** Whether the map owner's current tier includes pin colors/icons — gates showing the picker to anyone adding/editing a pin here. */
+  hasPinCustomization?: boolean;
   pins: Array<{
     id: string;
     userName: string;
@@ -58,6 +63,8 @@ interface MapCollection {
     note?: string;
     googleMapsUrl?: string | null;
     approved?: boolean;
+    pinColor?: PinColor | null;
+    pinIcon?: PinIcon | null;
     createdAt: string;
   }>;
 }

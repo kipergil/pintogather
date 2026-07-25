@@ -6,8 +6,10 @@ import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 import { buildSocialUrl } from '../lib/social-links';
 import { useToast } from '../hooks/use-toast';
+import { buildPinMarkerIcon, resolvePinStyle } from '../lib/pin-styles';
+import type { PinColor, PinIcon } from '@shared/enums';
 
-/** Google's familiar "blue dot" color for a user's own location — deliberately distinct from the app's pin colors (#3B82F6 approved / #F59E0B pending). */
+/** Google's familiar "blue dot" color for a user's own location — deliberately distinct from the app's default pin color (blue). */
 const MY_LOCATION_COLOR = '#4285F4';
 
 function escapeHtml(value: string): string {
@@ -86,6 +88,8 @@ interface Pin {
   note?: string;
   googleMapsUrl?: string | null;
   approved?: boolean;
+  pinColor?: PinColor | null;
+  pinIcon?: PinIcon | null;
   createdAt: string;
 }
 
@@ -96,6 +100,9 @@ interface SimpleMapProps {
     shareUrl: string;
     noteLabel?: string | null;
     notePrompt?: string | null;
+    defaultPinColor?: PinColor | null;
+    defaultPinIcon?: PinIcon | null;
+    hasPinCustomization?: boolean;
     pins: Pin[];
   };
   /** Disables click-to-add-pin, for public/embedded views where visitors can only view. */
@@ -239,6 +246,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
 
     // Add markers for each pin
     mapCollection.pins.forEach(pin => {
+      const { color, icon } = resolvePinStyle(pin, mapCollection);
       const marker = new google.maps.Marker({
         position: {
           lat: parseFloat(pin.latitude),
@@ -246,23 +254,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
         },
         map: mapInstanceRef.current,
         title: pin.userName,
-        icon: pin.approved === false
-          ? {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: '#F59E0B',
-              fillOpacity: 1,
-              strokeColor: '#B45309',
-              strokeWeight: 2,
-            }
-          : {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: '#3B82F6',
-              fillOpacity: 1,
-              strokeColor: '#1E40AF',
-              strokeWeight: 2,
-            }
+        icon: buildPinMarkerIcon({ color, icon, pending: pin.approved === false }),
       });
 
       // Create concise location info - using only available fields

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateMapForm } from "@/components/create-map-form";
 import { useAuth } from "@/contexts/AuthContext";
+import type { PinColor, PinIcon } from "@shared/enums";
 
 interface MapFormProps {
   params?: {
@@ -22,6 +23,8 @@ interface MapCollection {
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
   showOnProfile?: boolean;
+  defaultPinColor?: PinColor | null;
+  defaultPinIcon?: PinIcon | null;
 }
 
 export default function MapForm({ params }: MapFormProps) {
@@ -150,6 +153,8 @@ export default function MapForm({ params }: MapFormProps) {
                     notePrompt: mapCollection.notePrompt ?? "",
                     brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
                     showOnProfile: mapCollection.showOnProfile ?? false,
+                    defaultPinColor: mapCollection.defaultPinColor ?? null,
+                    defaultPinIcon: mapCollection.defaultPinIcon ?? null,
                     shareUrl: mapCollection.shareUrl,
                   }
                 : undefined

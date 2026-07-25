@@ -1,4 +1,4 @@
-import type { InvitationStatus, MapViewerRole, Permission, UserGroup } from "./enums.js";
+import type { InvitationStatus, MapViewerRole, Permission, PinColor, PinIcon, UserGroup } from "./enums.js";
 
 /**
  * Custom fields added to directus_users to support Clerk-backed accounts and
@@ -49,6 +49,8 @@ export interface MapCollection {
   show_on_profile: boolean;
   /** Soft-hide: excluded from home/profile listings but not deleted. */
   archived: boolean;
+  default_pin_color: PinColor | null;
+  default_pin_icon: PinIcon | null;
   date_created: string;
 }
 
@@ -72,6 +74,8 @@ export interface Pin {
   note: string | null;
   google_maps_url: string | null;
   approved: boolean;
+  pin_color: PinColor | null;
+  pin_icon: PinIcon | null;
   date_created: string;
 }
 

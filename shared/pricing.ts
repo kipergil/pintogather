@@ -42,6 +42,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "PinTogather branding on public maps",
       "Screenshot-based AI venue import",
       "Archive & restore maps",
+      "Custom pin colors & icons",
     ],
   },
   {
@@ -57,6 +58,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Your own branding on public maps",
       "Screenshot-based AI venue import",
       "Archive & restore maps",
+      "Custom pin colors & icons",
     ],
   },
 ];

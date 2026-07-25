@@ -1,4 +1,4 @@
-import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, USER_GROUP } from "../../../shared/enums.js";
+import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, PIN_COLOR, PIN_ICON, USER_GROUP } from "../../../shared/enums.js";
 import {
   booleanField,
   dateCreatedField,
@@ -99,6 +99,14 @@ export const mapCollectionsCollection: CollectionDefinition = {
       false,
       "Soft-hide: excluded from the owner's home-page map list and public profile, but the map and its pins are untouched and still reachable via its share link. Basic/Premium only.",
     ),
+    selectField("default_pin_color", PIN_COLOR, {
+      nullable: true,
+      note: "Default marker color for this map's pins (Basic/Premium only). Falls back to the app default (blue) when empty. A pin's own pin_color overrides this.",
+    }),
+    selectField("default_pin_icon", PIN_ICON, {
+      nullable: true,
+      note: "Default marker icon glyph for this map's pins (Basic/Premium only). Falls back to a plain pin when empty. A pin's own pin_icon overrides this.",
+    }),
     dateCreatedField(),
   ],
   relationFields: [mapOwner],
@@ -145,6 +153,14 @@ export const pinsCollection: CollectionDefinition = {
       note: "Link to this venue on Google Maps, captured at import/creation time.",
     }),
     booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
+    selectField("pin_color", PIN_COLOR, {
+      nullable: true,
+      note: "Per-pin marker color override (Basic/Premium map owners only). Overrides the map's default_pin_color when set.",
+    }),
+    selectField("pin_icon", PIN_ICON, {
+      nullable: true,
+      note: "Per-pin marker icon glyph override (Basic/Premium map owners only). Overrides the map's default_pin_icon when set.",
+    }),
     dateCreatedField(),
   ],
   relationFields: [pinMap, pinUser],

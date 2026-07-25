@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, USER_GROUP } from "./enums.js";
+import { INVITATION_STATUS, MAP_VIEWER_ROLE, PERMISSION, PIN_COLOR, PIN_ICON, USER_GROUP } from "./enums.js";
 
 /**
  * Domain types used throughout the app (client + server). These are the
@@ -99,6 +99,10 @@ export interface MapCollection {
   showOnProfile: boolean;
   /** Soft-hide (Basic/Premium only): excluded from the owner's home-page list and public profile, but the map and its pins are untouched and still reachable via its share link. */
   archived: boolean;
+  /** Default marker color for this map's pins (Basic/Premium only) — falls back to the app default (blue) when null. A pin's own pinColor, if set, overrides this. */
+  defaultPinColor: (typeof PIN_COLOR)[number] | null;
+  /** Default marker icon glyph for this map's pins (Basic/Premium only) — falls back to a plain pin when null. A pin's own pinIcon, if set, overrides this. */
+  defaultPinIcon: (typeof PIN_ICON)[number] | null;
   createdAt: Date;
 }
 
@@ -112,6 +116,8 @@ export const insertMapCollectionSchema = z.object({
   notePrompt: z.string().trim().nullable().optional(),
   brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
   showOnProfile: z.boolean().optional(),
+  defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
+  defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 
@@ -121,6 +127,8 @@ export const updateMapDetailsSchema = z.object({
   noteLabel: z.string().trim().max(60).nullable().optional(),
   notePrompt: z.string().trim().nullable().optional(),
   brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
+  defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
+  defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
   showOnProfile: z.boolean().optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
@@ -145,6 +153,10 @@ export interface Pin {
   note: string | null;
   googleMapsUrl: string | null;
   approved: boolean;
+  /** Per-pin marker color override (Basic/Premium map owners only) — overrides the map's defaultPinColor when set. */
+  pinColor: (typeof PIN_COLOR)[number] | null;
+  /** Per-pin marker icon glyph override (Basic/Premium map owners only) — overrides the map's defaultPinIcon when set. */
+  pinIcon: (typeof PIN_ICON)[number] | null;
   createdAt: Date;
 }
 
@@ -167,6 +179,8 @@ export const insertPinSchema = z.object({
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
   approved: z.boolean().optional(),
+  pinColor: z.enum(PIN_COLOR).nullable().optional(),
+  pinIcon: z.enum(PIN_ICON).nullable().optional(),
 });
 export type InsertPin = z.infer<typeof insertPinSchema>;
 

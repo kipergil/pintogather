@@ -48,6 +48,8 @@ const MAP_FIELDS = [
   "branding_logo_url",
   "show_on_profile",
   "archived",
+  "default_pin_color",
+  "default_pin_icon",
   "date_created",
 ] as const;
 
@@ -71,6 +73,8 @@ const PIN_FIELDS = [
   "note",
   "google_maps_url",
   "approved",
+  "pin_color",
+  "pin_icon",
   "date_created",
 ] as const;
 
@@ -124,6 +128,8 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     brandingLogoUrl: row.branding_logo_url,
     showOnProfile: row.show_on_profile,
     archived: row.archived,
+    defaultPinColor: row.default_pin_color,
+    defaultPinIcon: row.default_pin_icon,
     createdAt: new Date(row.date_created),
   };
 }
@@ -149,6 +155,8 @@ function toPin(row: DirectusPin): Pin {
     note: row.note,
     googleMapsUrl: row.google_maps_url,
     approved: row.approved,
+    pinColor: row.pin_color,
+    pinIcon: row.pin_icon,
     createdAt: new Date(row.date_created),
   };
 }
@@ -173,6 +181,8 @@ function toDirectusPinInput(data: InsertPin) {
     note: data.note ?? null,
     google_maps_url: data.googleMapsUrl ?? null,
     approved: data.approved ?? true,
+    pin_color: data.pinColor ?? null,
+    pin_icon: data.pinIcon ?? null,
   };
 }
 
@@ -298,6 +308,8 @@ class DirectusStorage implements IStorage {
           note_prompt: data.notePrompt ?? null,
           branding_logo_url: data.brandingLogoUrl ?? null,
           show_on_profile: data.showOnProfile ?? false,
+          default_pin_color: data.defaultPinColor ?? null,
+          default_pin_icon: data.defaultPinIcon ?? null,
         },
         { fields: MAP_FIELDS },
       ),
@@ -402,6 +414,8 @@ class DirectusStorage implements IStorage {
       if (data.notePrompt !== undefined) payload.note_prompt = data.notePrompt || null;
       if (data.brandingLogoUrl !== undefined) payload.branding_logo_url = data.brandingLogoUrl || null;
       if (data.showOnProfile !== undefined) payload.show_on_profile = data.showOnProfile;
+      if (data.defaultPinColor !== undefined) payload.default_pin_color = data.defaultPinColor;
+      if (data.defaultPinIcon !== undefined) payload.default_pin_icon = data.defaultPinIcon;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
@@ -651,6 +665,8 @@ class DirectusStorage implements IStorage {
       if (data.note !== undefined) payload.note = data.note;
       if (data.googleMapsUrl !== undefined) payload.google_maps_url = data.googleMapsUrl;
       if (data.approved !== undefined) payload.approved = data.approved;
+      if (data.pinColor !== undefined) payload.pin_color = data.pinColor;
+      if (data.pinIcon !== undefined) payload.pin_icon = data.pinIcon;
 
       const updated = await this.client.request(updateItem("pins", id, payload, { fields: PIN_FIELDS }));
       return toPin(updated as unknown as DirectusPin);
