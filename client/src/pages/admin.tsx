@@ -1,15 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Users, Settings, ArrowLeft } from "lucide-react";
+import { Compass, Search, Shield, Users, Settings, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { OpenInDirectusButton } from "@/components/open-in-directus-button";
+import { CURATED_CATEGORY_LABELS } from "@/lib/curated-maps";
+import type { CuratedCategory } from "@shared/enums";
 
 interface UserProfile {
   id: string;
@@ -18,6 +21,17 @@ interface UserProfile {
   instagramHandle?: string | null;
   linkedinHandle?: string | null;
   userGroup: string;
+}
+
+interface AdminMapSummary {
+  id: string;
+  name: string;
+  shareUrl: string;
+  ownerId: string | null;
+  ownerName: string | null;
+  curated: boolean;
+  curatedCategory: CuratedCategory | null;
+  createdAt: string;
 }
 
 export default function AdminPage() {
@@ -44,6 +58,24 @@ export default function AdminPage() {
     },
     enabled: !!user && isAdmin,
   });
+
+  const { data: maps = [], isLoading: mapsLoading } = useQuery<AdminMapSummary[]>({
+    queryKey: ['admin', 'maps'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/admin/maps");
+      return response.json();
+    },
+    enabled: !!user && isAdmin,
+  });
+
+  const [mapSearch, setMapSearch] = useState("");
+  const filteredMaps = useMemo(() => {
+    const query = mapSearch.trim().toLowerCase();
+    if (!query) return maps;
+    return maps.filter(
+      (m) => m.name.toLowerCase().includes(query) || (m.ownerName ?? "").toLowerCase().includes(query),
+    );
+  }, [maps, mapSearch]);
 
   const updateUserGroupMutation = useMutation({
     mutationFn: async ({ userId, userGroup }: { userId: string; userGroup: string }) => {
@@ -227,6 +259,81 @@ export default function AdminPage() {
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">No users found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Compass className="h-5 w-5" />
+              Map Curation
+            </CardTitle>
+            <p className="text-sm text-gray-500">
+              Convert any user's map into a curated /discover entry — the owner stays the same.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="relative mb-4 max-w-sm">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by map name or owner..."
+                value={mapSearch}
+                onChange={(e) => setMapSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-admin-maps"
+              />
+            </div>
+
+            {mapsLoading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-12 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredMaps.length > 0 ? (
+              <div className="space-y-3">
+                {filteredMaps.map((map) => (
+                  <div
+                    key={map.id}
+                    className="flex items-center justify-between gap-3 p-4 border rounded-lg"
+                    data-testid={`row-admin-map-${map.id}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-900 truncate">{map.name}</h3>
+                        {map.curated && (
+                          <Badge className="bg-primary/10 text-primary border-primary/30 gap-1">
+                            <Compass className="h-3 w-3" />
+                            Curated{map.curatedCategory ? ` · ${CURATED_CATEGORY_LABELS[map.curatedCategory]}` : ""}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 truncate">
+                        Owner: {map.ownerName || "(no owner)"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant={map.curated ? "outline" : "default"}
+                        size="sm"
+                        onClick={() => setLocation(`/admin/maps/${map.id}/curate`)}
+                        data-testid={`button-curate-map-${map.id}`}
+                      >
+                        {map.curated ? "Edit curation" : "Curate"}
+                      </Button>
+                      <OpenInDirectusButton collection="map_collections" itemId={map.id} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Compass className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No maps found</p>
               </div>
             )}
           </CardContent>
