@@ -3,11 +3,11 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 
 /**
- * Guards a screen that lives outside the (tabs) group's own auth check
- * (e.g. map/create, map/[shareUrl]) — redirects to sign-in if the session
- * isn't there. The web app allows anonymous guest viewing of a public map;
- * this boilerplate keeps things simple by requiring sign-in everywhere for
- * now (see mobile/README.md's "what's not implemented yet" list).
+ * Guards a screen that lives outside the (tabs) group's own auth check and
+ * has no anonymous use case (map/create, map/edit, map/edit-pin) — redirects
+ * to sign-in if the session isn't there. map/[shareUrl] deliberately does
+ * NOT use this: like the web app's /map/:shareUrl, viewing a map and adding
+ * a pin to it both work for signed-out guests.
  */
 export function useRequireAuth() {
   const { isLoaded, isSignedIn } = useAuth();

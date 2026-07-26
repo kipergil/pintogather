@@ -49,15 +49,17 @@ the web app:
   Clerk (`@clerk/clerk-expo`). Session tokens are cached with
   `expo-secure-store`.
 - **My Maps** — list of the signed-in user's map collections.
-- **Create Map** — name + description form, surfaces server-side validation
-  errors (e.g. duplicate name).
-- **Map Detail** — native map (`react-native-maps`) showing existing pins,
-  tap-to-add-pin flow with a bottom-sheet form.
+- **Create/edit/delete map** — name, description, show-on-profile, custom
+  note label/prompt, default pin color/icon (tier-gated).
+- **Map Detail** — native map (`react-native-maps`) with colored/iconed
+  pins, tap-to-add-pin, per-pin edit/delete, a Google Maps link, and
+  anonymous guest viewing + pin-adding (no forced sign-in), matching the
+  web app's `/map/:shareUrl` behavior.
 - **Profile** — signed-in user's avatar/name/email, sign out.
 
-Not implemented (deferred — out of scope for this boilerplate): anonymous/
-guest map viewing, Discover, Feed, follows/likes, Stripe billing, pin colors/
-icons, sharing, admin panel.
+Not implemented (deferred — out of scope for this boilerplate): sharing,
+Discover, Feed, follows/likes, Stripe billing UI, collaboration/invites,
+bulk import, admin panel.
 
 ## Code sharing with the web app
 

@@ -3,12 +3,11 @@ import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, Text, 
 import MapView, { Callout, Marker, type LatLng } from "react-native-maps";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
 import { useAddPin, useDeletePin, useMap } from "@/hooks/useMaps";
-import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
 import type { Pin } from "../../../shared/schema";
@@ -28,7 +27,7 @@ const EMPTY_PIN_FORM: PinFormValue = {
 };
 
 export default function MapDetailScreen() {
-  const { isSignedIn } = useRequireAuth();
+  const { isSignedIn } = useAuth();
   const { shareUrl } = useLocalSearchParams<{ shareUrl: string }>();
   const router = useRouter();
   const { user } = useUser();
@@ -50,8 +49,6 @@ export default function MapDetailScreen() {
       : DEFAULT_REGION;
     return { ...center, latitudeDelta: 0.05, longitudeDelta: 0.05 };
   }, [map?.pins]);
-
-  if (!isSignedIn) return null;
 
   const openAddPinModal = (coordinate: LatLng) => {
     setPendingCoordinate(coordinate);
@@ -175,6 +172,15 @@ export default function MapDetailScreen() {
               );
             })}
           </MapView>
+
+          {!isSignedIn && (
+            <View className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5" testID="guest-notice">
+              <Text className="text-xs text-amber-800">
+                Viewing as a guest — pins save anonymously. <Link href="/(auth)/sign-in" className="font-semibold underline">Sign in</Link> to
+                manage your own maps.
+              </Text>
+            </View>
+          )}
 
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
             <View className="flex-row items-center gap-1.5">

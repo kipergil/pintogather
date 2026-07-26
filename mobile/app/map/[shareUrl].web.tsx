@@ -1,9 +1,9 @@
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@clerk/clerk-expo";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useMap } from "@/hooks/useMaps";
-import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
 
@@ -18,13 +18,11 @@ import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
  * experience.
  */
 export default function MapDetailWebFallback() {
-  const { isSignedIn } = useRequireAuth();
+  const { isSignedIn } = useAuth();
   const { shareUrl } = useLocalSearchParams<{ shareUrl: string }>();
   const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
-
-  if (!isSignedIn) return null;
 
   return (
     <View className="flex-1 bg-slate-50 px-4">
@@ -56,6 +54,12 @@ export default function MapDetailWebFallback() {
               The map view is only available in the iOS/Android app — open this project on a device or simulator to see pins on a
               real map. Showing the pin list here instead.
             </Text>
+            {!isSignedIn && (
+              <Text className="text-xs text-amber-700" testID="guest-notice">
+                Viewing as a guest. <Link href="/(auth)/sign-in" className="font-semibold underline">Sign in</Link> to manage your own
+                maps.
+              </Text>
+            )}
           </View>
           <FlatList
             data={map.pins}
