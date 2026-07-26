@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import MapView, { Callout, Marker, type LatLng } from "react-native-maps";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useUser } from "@clerk/clerk-expo";
 import { TextField } from "@/components/ui/TextField";
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useAddPin, useMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
 
 // Central London — same fallback the web app's map component uses when a
 // map has no pins yet to derive a center from (client/src/components/simple-google-map.tsx).
@@ -18,8 +20,10 @@ export default function MapDetailScreen() {
   const { isSignedIn } = useRequireAuth();
   const { shareUrl } = useLocalSearchParams<{ shareUrl: string }>();
   const { user } = useUser();
+  const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
   const addPin = useAddPin(shareUrl);
+  const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
 
   const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
   const [pinNote, setPinNote] = useState("");
@@ -59,7 +63,20 @@ export default function MapDetailScreen() {
 
   return (
     <View className="flex-1">
-      <Stack.Screen options={{ title: map?.name ?? "Map" }} />
+      <Stack.Screen
+        options={{
+          title: map?.name ?? "Map",
+          headerRight: isOwner
+            ? () => (
+                <Link href={`/map/edit/${shareUrl}`} asChild>
+                  <Pressable hitSlop={8} testID="button-edit-map">
+                    <Ionicons name="settings-outline" size={22} color="#2563EB" />
+                  </Pressable>
+                </Link>
+              )
+            : undefined,
+        }}
+      />
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
@@ -74,17 +91,32 @@ export default function MapDetailScreen() {
             initialRegion={initialRegion}
             onPress={(e) => setPendingCoordinate(e.nativeEvent.coordinate)}
           >
-            {map.pins.map((pin) => (
-              <Marker key={pin.id} coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }} title={pin.userName}>
-                <Callout>
-                  <View className="max-w-[220px] gap-1 p-1">
-                    <Text className="font-semibold text-slate-900">{pin.userName}</Text>
-                    {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
-                    {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
+            {map.pins.map((pin) => {
+              const style = resolvePinStyle(pin, map);
+              const hex = style.color ? PIN_COLOR_HEX[style.color] : "#3B82F6";
+              return (
+                <Marker
+                  key={pin.id}
+                  coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }}
+                  title={pin.userName}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <View
+                    className="items-center justify-center rounded-full border-2 border-white"
+                    style={{ width: 28, height: 28, backgroundColor: hex }}
+                  >
+                    <Ionicons name={style.icon ? PIN_ICON_IONICON[style.icon] : "location"} size={14} color="#ffffff" />
                   </View>
-                </Callout>
-              </Marker>
-            ))}
+                  <Callout>
+                    <View className="max-w-[220px] gap-1 p-1">
+                      <Text className="font-semibold text-slate-900">{pin.userName}</Text>
+                      {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
+                      {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
+                    </View>
+                  </Callout>
+                </Marker>
+              );
+            })}
           </MapView>
 
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
