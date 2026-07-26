@@ -11,7 +11,13 @@ export interface ShareImageOptions {
   pinCount: number;
 }
 
-/** Renders a branded 1080x1080 share card (gradient background, scattered decorative pins, map title/owner/pin-count) entirely client-side. No map imagery — just the app's own visual identity. */
+/**
+ * Renders a branded 1080x1080 share card — gradient background, a loose
+ * scatter of decorative pin glyphs confined to top/bottom bands, and the
+ * map's own title/owner/pin-count centered in the clear space between. No
+ * PinTogather wordmark or URL — the card is about the map being shared, not
+ * the app, so the color signature does the branding work instead of a logo.
+ */
 export async function generateShareImage(options: ShareImageOptions): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = SIZE;
@@ -25,81 +31,79 @@ export async function generateShareImage(options: ShareImageOptions): Promise<Bl
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, SIZE, SIZE);
 
-  // Decorative, out-of-focus-feeling scatter of pin glyphs — deterministic per map.
+  // Soft radial vignette for depth, independent of the text layout below.
+  const vignette = ctx.createRadialGradient(SIZE / 2, SIZE * 0.46, SIZE * 0.15, SIZE / 2, SIZE * 0.46, SIZE * 0.78);
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(15,23,42,0.3)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // Decorative pin-glyph texture, deterministic per map — confined to top
+  // and bottom bands so the center stays clear for the title instead of
+  // competing with it.
   const rand = seededRandom(options.mapId || options.mapName);
-  for (let i = 0; i < 14; i++) {
-    const x = rand() * SIZE;
-    const y = rand() * SIZE;
-    const scale = 1.4 + rand() * 2.6;
-    const color = PIN_COLOR_HEX[PIN_COLOR[Math.floor(rand() * PIN_COLOR.length)] as PinColor];
-    drawPinGlyph(ctx, x, y, scale, color, 0.16 + rand() * 0.14);
-  }
+  const scatterBand = (yMin: number, yMax: number, count: number) => {
+    for (let i = 0; i < count; i++) {
+      const x = 60 + rand() * (SIZE - 120);
+      const y = yMin + rand() * (yMax - yMin);
+      const scale = 1.3 + rand() * 2.4;
+      const color = PIN_COLOR_HEX[PIN_COLOR[Math.floor(rand() * PIN_COLOR.length)] as PinColor];
+      drawPinGlyph(ctx, x, y, scale, color, 0.16 + rand() * 0.14);
+    }
+  };
+  scatterBand(36, SIZE * 0.2, 6);
+  scatterBand(SIZE * 0.84, SIZE - 36, 6);
 
-  // Scrim so text stays legible over the gradient + scatter regardless of position.
-  const scrim = ctx.createLinearGradient(0, SIZE * 0.35, 0, SIZE);
-  scrim.addColorStop(0, "rgba(15, 23, 42, 0)");
-  scrim.addColorStop(1, "rgba(15, 23, 42, 0.45)");
-  ctx.fillStyle = scrim;
-  ctx.fillRect(0, SIZE * 0.35, SIZE, SIZE * 0.65);
+  // Content block (title, optional owner credit, pin-count pill) is
+  // centered as a single group in the clear middle of the card.
+  const maxTextWidth = SIZE - 140;
+  const { fontSize, lines } = fitTitle(ctx, options.mapName, maxTextWidth, {
+    maxFontSize: 78,
+    minFontSize: 42,
+    maxLines: 3,
+  });
+  const lineHeight = fontSize * 1.16;
+  const titleHeight = lines.length * lineHeight;
 
-  // Brand mark, top-left.
-  const badgeSize = 56;
-  const badgeX = 64;
-  const badgeY = 64;
-  ctx.fillStyle = "rgba(255,255,255,0.95)";
-  const radius = 14;
-  ctx.beginPath();
-  ctx.moveTo(badgeX + radius, badgeY);
-  ctx.arcTo(badgeX + badgeSize, badgeY, badgeX + badgeSize, badgeY + badgeSize, radius);
-  ctx.arcTo(badgeX + badgeSize, badgeY + badgeSize, badgeX, badgeY + badgeSize, radius);
-  ctx.arcTo(badgeX, badgeY + badgeSize, badgeX, badgeY, radius);
-  ctx.arcTo(badgeX, badgeY, badgeX + badgeSize, badgeY, radius);
-  ctx.closePath();
-  ctx.fill();
-  drawPinGlyph(ctx, badgeX + badgeSize / 2, badgeY + badgeSize / 2, 1.6, "#2563EB", 1);
+  const ownerFontSize = 32;
+  const ownerGap = 26;
+  const ownerBlockHeight = options.ownerName ? ownerGap + ownerFontSize : 0;
 
-  ctx.font = '600 34px sans-serif';
-  ctx.fillStyle = "#ffffff";
-  ctx.textBaseline = "middle";
-  ctx.fillText("PinTogather", badgeX + badgeSize + 16, badgeY + badgeSize / 2 + 2);
+  const pillGap = 40;
+  const pillHeight = 58;
 
-  // Title, vertically centered in the lower two-thirds.
-  const maxTextWidth = SIZE - 128;
-  const { fontSize, lines } = fitTitle(ctx, options.mapName, maxTextWidth);
+  const blockHeight = titleHeight + ownerBlockHeight + pillGap + pillHeight;
+  let sectionTop = SIZE / 2 - blockHeight / 2;
+
   ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(0,0,0,0.25)";
-  ctx.shadowBlur = 12;
-
-  const lineHeight = fontSize * 1.18;
-  const blockHeight = lines.length * lineHeight;
-  let titleY = SIZE * 0.62 - blockHeight / 2 + fontSize;
+  ctx.shadowColor = "rgba(0,0,0,0.22)";
+  ctx.shadowBlur = 14;
   ctx.font = `700 ${fontSize}px sans-serif`;
-  for (const line of lines) {
-    ctx.fillText(line, SIZE / 2, titleY);
-    titleY += lineHeight;
+  for (let i = 0; i < lines.length; i++) {
+    const baseline = sectionTop + fontSize + i * lineHeight;
+    ctx.fillText(lines[i], SIZE / 2, baseline);
   }
   ctx.shadowBlur = 0;
+  sectionTop += titleHeight;
 
-  let y = titleY + 8;
   if (options.ownerName) {
+    sectionTop += ownerGap;
     ctx.font = '500 32px sans-serif';
     ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(`Curated by ${options.ownerName}`, SIZE / 2, y);
-    y += 52;
+    ctx.fillText(`Curated by ${options.ownerName}`, SIZE / 2, sectionTop + ownerFontSize);
+    sectionTop += ownerFontSize;
   }
 
-  // Pin-count pill.
+  sectionTop += pillGap;
   const pillText = `${options.pinCount} ${options.pinCount === 1 ? "pin" : "pins"}`;
   ctx.font = '600 28px sans-serif';
   const pillTextWidth = ctx.measureText(pillText).width;
   const pillPaddingX = 26;
   const pillGlyphGap = 34;
   const pillWidth = pillTextWidth + pillPaddingX * 2 + pillGlyphGap;
-  const pillHeight = 56;
   const pillX = SIZE / 2 - pillWidth / 2;
-  const pillY = y + 20;
+  const pillY = sectionTop;
   ctx.fillStyle = "rgba(255,255,255,0.16)";
   ctx.beginPath();
   ctx.moveTo(pillX + pillHeight / 2, pillY);
@@ -114,11 +118,6 @@ export async function generateShareImage(options: ShareImageOptions): Promise<Bl
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(pillText, pillX + pillPaddingX + pillGlyphGap, pillY + pillHeight / 2 + 1);
-
-  ctx.textAlign = "center";
-  ctx.font = '500 24px sans-serif';
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.fillText("pintogather.app", SIZE / 2, SIZE - 56);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {

@@ -20,7 +20,11 @@ export function openLinkIntent(platform: "twitter" | "whatsapp" | "facebook", ur
       ? `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`
       : platform === "whatsapp"
         ? `https://wa.me/?text=${encodedText}%20${encodedUrl}`
-        : `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        : // Facebook's sharer.php dropped support for prefilled quote text
+          // years ago (it derives the preview from the URL's Open Graph tags
+          // instead) — `quote` is a no-op on current Facebook but harmless to
+          // send in case an older embedded webview still honors it.
+          `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
   window.open(intentUrl, "_blank", "noopener,noreferrer");
 }
 
