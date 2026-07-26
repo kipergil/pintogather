@@ -155,3 +155,17 @@ export function useDeletePin(shareUrl: string | undefined) {
     },
   });
 }
+
+export function useBulkImportPins(shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pins: Array<Omit<InsertPin, "mapId" | "userId">>) => {
+      const res = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
+      return (await res.json()) as { created: Pin[]; updated: Pin[]; skippedDueToLimit: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+  });
+}

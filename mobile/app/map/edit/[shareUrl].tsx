@@ -196,6 +196,11 @@ export default function EditMapScreen() {
           <Button variant="outline" onPress={() => setInviteSheetVisible(true)} testID="button-open-invite-sheet">
             Invite collaborators
           </Button>
+          <Link href={`/map/import/${shareUrl}`} asChild>
+            <Button variant="outline" testID="button-open-import">
+              Import pins from a list
+            </Button>
+          </Link>
           <Button variant="outline" onPress={onExportCsv} testID="button-export-csv">
             Export pins as CSV
           </Button>
