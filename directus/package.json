@@ -7,6 +7,7 @@
     "schema:apply": "tsx src/schema/apply.ts",
     "permissions:apply": "tsx src/permissions/apply.ts",
     "flows:apply": "tsx src/flows/apply.ts",
+    "backfill:is-public": "tsx src/schema/backfill-is-public.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

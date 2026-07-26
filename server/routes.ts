@@ -145,6 +145,21 @@ async function isPinModifiable(pin: Pin, user: User | null): Promise<boolean> {
   return map?.defaultPermission === "editable";
 }
 
+/**
+ * A non-public map (isPublic: false) is only viewable/contributable by its
+ * owner or an invited collaborator (a row in map_viewers) — everyone else,
+ * signed in or not, gets treated as if the map doesn't exist. A public map
+ * (the default — see the `isPublic ?? true` fallback in storage.ts's
+ * createMapCollection) keeps the original "anyone with the link" behavior.
+ */
+async function canAccessMap(map: MapCollection, user: User | null): Promise<boolean> {
+  if (map.isPublic) return true;
+  if (!user) return false;
+  if (user.id === map.ownerId) return true;
+  const access = await storage.getUserMapAccess(user.id, map.id);
+  return !!access;
+}
+
 export async function registerRoutes(app: Express): Promise<void> {
   setupAuth(app);
 
@@ -1060,6 +1075,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
       const user = await getCurrentUser(req);
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
       const isOwner = !!user && user.id === mapCollection.ownerId;
 
       const allPins = await storage.getPinsByMapId(mapCollection.id);
@@ -1141,6 +1159,11 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
+      const user = await getCurrentUser(req);
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
+
       const maxPins = await getMapOwnerMaxPins(mapCollection);
       const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
       if (currentPinCount >= maxPins) {
@@ -1149,7 +1172,6 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
-      const user = await getCurrentUser(req);
       const isOwner = !!user && user.id === mapCollection.ownerId;
       const data = insertPinSchema.parse({
         ...req.body,
@@ -1188,6 +1210,9 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
       const isOwner = user.id === mapCollection.ownerId;
 
       // Unlike the single-pin route below, a bulk request can be entirely
@@ -1379,6 +1404,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       const { id } = req.params;
       const pin = await storage.getPinById(id);
       if (!pin) return res.status(404).json({ message: "Pin not found" });
+
+      const map = await storage.getMapCollectionById(pin.mapId);
+      const user = await getCurrentUser(req);
+      if (!map || !(await canAccessMap(map, user))) {
+        return res.status(404).json({ message: "Pin not found" });
+      }
+
       res.json(pin);
     } catch (error: any) {
       console.error("Error fetching pin:", error);

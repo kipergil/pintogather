@@ -11,7 +11,8 @@
     "check": "tsc",
     "directus:schema:apply": "npm --prefix directus run schema:apply",
     "directus:permissions:apply": "npm --prefix directus run permissions:apply",
-    "directus:flows:apply": "npm --prefix directus run flows:apply"
+    "directus:flows:apply": "npm --prefix directus run flows:apply",
+    "directus:backfill:is-public": "npm --prefix directus run backfill:is-public"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.114.0",
