@@ -49,6 +49,14 @@ const config: ExpoConfig = {
   // Expo inlines any EXPO_PUBLIC_* variable from mobile/.env directly into
   // process.env at build time, so app code (see src/lib/config.ts) reads
   // those straight from process.env without needing expo-constants.
+  extra: {
+    eas: {
+      // Links this project to the EAS project Expo Go already reserved
+      // (`eas init --id ...`), so non-interactive/CI builds (EAS's GitHub
+      // integration, `--non-interactive`) don't need to run `eas init` themselves.
+      projectId: "bff12e33-c89e-4fef-86bd-2f29f29562cc",
+    },
+  },
 };
 
 export default config;
