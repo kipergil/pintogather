@@ -63,13 +63,23 @@ export default function MapDetailWebFallback() {
             renderItem={({ item: pin }) => {
               const style = map ? resolvePinStyle(pin, map) : { color: null, icon: null };
               const hex = style.color ? PIN_COLOR_HEX[style.color] : "#3B82F6";
+              const canModify = isOwner || (!!currentUser && currentUser.id === pin.userId);
               return (
                 <View className="mb-2 flex-row items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
                   <View className="mt-1 h-3 w-3 rounded-full" style={{ backgroundColor: hex }} />
                   <View className="flex-1">
                     <Text className="font-semibold text-slate-900">{pin.userName}</Text>
                     {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
+                    {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
+                    {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}
                   </View>
+                  {canModify && (
+                    <Link href={`/map/edit-pin/${shareUrl}/${pin.id}`} asChild>
+                      <Pressable hitSlop={8} testID={`button-edit-pin-${pin.id}`}>
+                        <Ionicons name="pencil" size={16} color="#64748b" />
+                      </Pressable>
+                    </Link>
+                  )}
                 </View>
               );
             }}

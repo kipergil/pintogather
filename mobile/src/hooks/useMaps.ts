@@ -63,6 +63,7 @@ export interface MapDetail extends MapCollection {
   maxPins: number;
   likeCount: number;
   likedByViewer: boolean;
+  hasPinCustomization: boolean;
 }
 
 export function useMap(shareUrl: string | undefined) {
@@ -79,6 +80,46 @@ export function useAddPin(shareUrl: string | undefined) {
     mutationFn: async (data: Omit<InsertPin, "mapId" | "userId">) => {
       const res = await apiRequest("POST", `/api/maps/${shareUrl}/pins`, data);
       return (await res.json()) as Pin;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+  });
+}
+
+export function usePin(pinId: string | undefined) {
+  return useQuery<Pin>({
+    queryKey: [`/api/pins/${pinId}`],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!pinId,
+  });
+}
+
+type PinEditableFields = Pick<
+  InsertPin,
+  "userName" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "pinColor" | "pinIcon"
+>;
+
+export function useUpdatePin(pinId: string | undefined, shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<PinEditableFields>) => {
+      const res = await apiRequest("PUT", `/api/pins/${pinId}`, data);
+      return (await res.json()) as Pin;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/pins/${pinId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+    },
+  });
+}
+
+export function useDeletePin(shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pinId: string) => {
+      await apiRequest("DELETE", `/api/pins/${pinId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
