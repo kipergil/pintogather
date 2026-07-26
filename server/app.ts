@@ -15,6 +15,24 @@ import { log } from "./log.js";
 export async function createApp(): Promise<Express> {
   const app = express();
 
+  // The web app is served from this same origin, so it never needed CORS.
+  // The mobile app (native builds have no concept of CORS at all — it's a
+  // browser-only mechanism — but its `expo start --web` preview target
+  // does) is a genuinely separate origin, so /api/* gets permissive CORS
+  // headers. Safe to reflect any origin here specifically because API auth
+  // is Bearer-token-only for cross-origin callers (see shared/api-client.ts's
+  // `includeCredentials` flag) — there's no ambient cookie a hostile page
+  // could ride along, which is the actual risk `Access-Control-Allow-
+  // Credentials`+wildcard-origin combinations guard against.
+  app.use("/api", (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
+
   // Registered before express.json(): Clerk's webhook signature is computed
   // over the exact request bytes, so this route needs the raw body rather
   // than the app-wide JSON-parsed one.

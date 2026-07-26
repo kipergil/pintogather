@@ -1,46 +1,17 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { createApiClient, throwIfResNotOk } from "@shared/api-client";
 import { getClerkToken } from "./clerkTokenStore";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    let message = text;
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && typeof parsed.message === "string") message = parsed.message;
-    } catch {
-      // body wasn't JSON — fall back to the raw text as-is
-    }
-    const error = new Error(message) as Error & { status: number };
-    error.status = res.status;
-    throw error;
-  }
-}
+// Relative baseUrl ("") + credentials:"include" — the web app talks to its
+// own same-origin Express server. See shared/api-client.ts for the actual
+// request/auth logic, which the mobile app instantiates with an absolute
+// baseUrl and no credentials instead.
+const client = createApiClient({ baseUrl: "", getToken: getClerkToken, includeCredentials: true });
 
-async function authHeaders(hasBody: boolean): Promise<HeadersInit> {
-  const headers: Record<string, string> = hasBody ? { "Content-Type": "application/json" } : {};
-  const token = await getClerkToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  return headers;
-}
+export const apiRequest = client.apiRequest;
+export const getQueryFn = client.getQueryFn;
+export const queryClient = client.queryClient;
 
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: await authHeaders(!!data),
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
-
-  await throwIfResNotOk(res);
-  return res;
-}
-
-/** Multipart file upload — no Content-Type header, the browser sets the multipart boundary itself. */
+/** Multipart file upload — no Content-Type header, the browser sets the multipart boundary itself. Web-only (uses the DOM File type), so it stays here rather than in the shared factory. */
 export async function apiUpload(url: string, file: File, fields?: Record<string, string>): Promise<Response> {
   const token = await getClerkToken();
   const formData = new FormData();
@@ -61,37 +32,3 @@ export async function apiUpload(url: string, file: File, fields?: Record<string,
   await throwIfResNotOk(res);
   return res;
 }
-
-type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      headers: await authHeaders(false),
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
