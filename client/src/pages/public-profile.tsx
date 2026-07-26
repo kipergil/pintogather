@@ -5,6 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/map-utils";
 import { buildSocialUrl } from "@/lib/social-links";
+import { useAuth } from "@/contexts/AuthContext";
+import { FollowButton } from "@/components/follow-button";
+import { LikeButton } from "@/components/like-button";
 import type { PublicProfile } from "@shared/schema";
 
 interface PublicProfileProps {
@@ -14,8 +17,10 @@ interface PublicProfileProps {
 }
 
 export default function PublicProfilePage({ params }: PublicProfileProps) {
+  const { user: viewer } = useAuth();
+  const profileQueryKey = `/api/profile/${params.username}`;
   const { data: profile, isLoading, error } = useQuery<PublicProfile>({
-    queryKey: [`/api/profile/${params.username}`],
+    queryKey: [profileQueryKey],
     retry: false,
   });
 
@@ -51,6 +56,7 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
   const twitterUrl = buildSocialUrl("twitter", profile.twitterHandle);
   const instagramUrl = buildSocialUrl("instagram", profile.instagramHandle);
   const linkedinUrl = buildSocialUrl("linkedin", profile.linkedinHandle);
+  const isOwnProfile = !!viewer && viewer.username === profile.username;
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in">
@@ -64,17 +70,37 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
         </Avatar>
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{displayName}</h1>
-          <p className="text-muted-foreground">@{profile.username}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{displayName}</h1>
+              <p className="text-muted-foreground">@{profile.username}</p>
+            </div>
+            {!isOwnProfile && (
+              <FollowButton
+                username={profile.username}
+                following={profile.isFollowedByViewer}
+                invalidateKeys={[profileQueryKey]}
+              />
+            )}
+          </div>
           {profile.bio && <p className="text-foreground/90 mt-2 max-w-lg whitespace-pre-wrap">{profile.bio}</p>}
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="h-4 w-4" />
               {profile.maps.length} {profile.maps.length === 1 ? "map" : "maps"}
             </span>
             <span aria-hidden>·</span>
             <span>{totalPins} {totalPins === 1 ? "pin" : "pins"}</span>
+            <span aria-hidden>·</span>
+            <span data-testid="text-follower-count">
+              <strong className="text-foreground font-semibold">{profile.followerCount}</strong>{" "}
+              {profile.followerCount === 1 ? "follower" : "followers"}
+            </span>
+            <span aria-hidden>·</span>
+            <span data-testid="text-following-count">
+              <strong className="text-foreground font-semibold">{profile.followingCount}</strong> following
+            </span>
           </div>
 
           {(twitterUrl || instagramUrl || linkedinUrl) && (
@@ -145,9 +171,17 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
                     ) : (
                       <p className="text-sm text-muted-foreground/60 italic mb-3">No description</p>
                     )}
-                    <div className="mt-auto pt-1 text-xs text-muted-foreground inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+                    <div className="mt-auto pt-1 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+                      </span>
+                      <LikeButton
+                        mapId={map.id}
+                        liked={map.likedByViewer}
+                        likeCount={map.likeCount}
+                        invalidateKeys={[profileQueryKey]}
+                      />
                     </div>
                   </CardContent>
                 </Card>

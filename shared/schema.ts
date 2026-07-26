@@ -80,6 +80,10 @@ export interface PublicProfile {
   twitterHandle: string | null;
   instagramHandle: string | null;
   linkedinHandle: string | null;
+  followerCount: number;
+  followingCount: number;
+  /** Whether the signed-in viewer follows this profile. Always false for anonymous visitors or the profile's own owner. */
+  isFollowedByViewer: boolean;
   maps: Array<{
     id: string;
     name: string;
@@ -87,8 +91,44 @@ export interface PublicProfile {
     shareUrl: string;
     brandingLogoUrl: string | null;
     pinCount: number;
+    likeCount: number;
+    /** Whether the signed-in viewer has liked this map. Always false for anonymous visitors. */
+    likedByViewer: boolean;
     createdAt: Date;
   }>;
+}
+
+/** One user following another. */
+export interface UserFollow {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: Date;
+}
+
+/** A user's like on a map. */
+export interface MapLike {
+  id: string;
+  userId: string;
+  mapId: string;
+  createdAt: Date;
+}
+
+/** A single map card in the /feed page — a map owned by someone the viewer follows, or the pintogather system account. */
+export interface FeedMapItem {
+  id: string;
+  name: string;
+  description: string | null;
+  shareUrl: string;
+  brandingLogoUrl: string | null;
+  pinCount: number;
+  likeCount: number;
+  likedByViewer: boolean;
+  ownerId: string | null;
+  ownerName: string | null;
+  ownerUsername: string | null;
+  ownerAvatarUrl: string | null;
+  createdAt: Date;
 }
 
 export interface MapCollection {

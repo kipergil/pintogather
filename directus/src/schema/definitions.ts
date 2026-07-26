@@ -261,9 +261,59 @@ export const mapInvitationsCollection: CollectionDefinition = {
   relationFields: [invitationMap, invitationInvitedBy],
 };
 
+const followFollower = m2o("user_follows", "follower", "directus_users", {
+  required: true,
+  nullable: false,
+  template: "{{first_name}} {{last_name}}",
+  oneField: "following",
+  onDelete: "CASCADE",
+});
+const followFollowing = m2o("user_follows", "following", "directus_users", {
+  required: true,
+  nullable: false,
+  template: "{{first_name}} {{last_name}}",
+  oneField: "followers",
+  onDelete: "CASCADE",
+});
+
+export const userFollowsCollection: CollectionDefinition = {
+  collection: "user_follows",
+  icon: "person_add",
+  note: "One user following another. Unique per (follower, following).",
+  displayTemplate: "{{follower}} follows {{following}}",
+  fields: [idField(), dateCreatedField()],
+  relationFields: [followFollower, followFollowing],
+};
+
+const likeUser = m2o("map_likes", "user", "directus_users", {
+  required: true,
+  nullable: false,
+  template: "{{first_name}} {{last_name}}",
+  oneField: "map_likes",
+  onDelete: "CASCADE",
+});
+const likeMap = m2o("map_likes", "map", "map_collections", {
+  required: true,
+  nullable: false,
+  template: "{{name}}",
+  oneField: "likes",
+  onDelete: "CASCADE",
+});
+
+export const mapLikesCollection: CollectionDefinition = {
+  collection: "map_likes",
+  icon: "favorite",
+  note: "A user's like on a map. Unique per (user, map).",
+  displayTemplate: "{{user}} liked {{map}}",
+  fields: [idField(), dateCreatedField()],
+  relationFields: [likeUser, likeMap],
+};
+
 export const allCollections: CollectionDefinition[] = [
   mapCollectionsCollection,
   pinsCollection,
   mapViewersCollection,
   mapInvitationsCollection,
+  userFollowsCollection,
+  mapLikesCollection,
 ];
