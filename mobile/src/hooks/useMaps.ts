@@ -4,10 +4,38 @@ import type { InsertMapCollection, InsertPin, MapCollection, Pin, UpdateMapDetai
 
 export type MapListItem = MapCollection & { pinCount: number };
 
-export function useMaps() {
+export function useMaps(archivedOnly = false) {
   return useQuery<MapListItem[]>({
-    queryKey: ["/api/maps"],
+    queryKey: archivedOnly ? ["/api/maps?archivedOnly=true"] : ["/api/maps"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+}
+
+export function useArchiveMaps() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (mapIds: string[]) => {
+      const res = await apiRequest("POST", "/api/maps/archive", { mapIds });
+      return (await res.json()) as { archivedCount: number; archivedIds: string[] };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps?archivedOnly=true"] });
+    },
+  });
+}
+
+export function useUnarchiveMaps() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (mapIds: string[]) => {
+      const res = await apiRequest("POST", "/api/maps/unarchive", { mapIds });
+      return (await res.json()) as { restoredCount: number; restoredIds: string[]; skippedDueToLimit: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps?archivedOnly=true"] });
+    },
   });
 }
 

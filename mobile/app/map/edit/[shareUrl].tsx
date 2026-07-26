@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
 import { InviteSheet } from "@/components/InviteSheet";
-import { useDeleteMap, useMap, useUpdateMap } from "@/hooks/useMaps";
+import { useArchiveMaps, useDeleteMap, useMap, useUpdateMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { sharePinsCsv } from "@/lib/csv-export";
 import { TIER_LIMITS } from "../../../../shared/limits";
 import type { PinColor, PinIcon } from "../../../../shared/enums";
 
@@ -22,7 +23,9 @@ export default function EditMapScreen() {
   const { data: currentUser } = useCurrentUser();
   const updateMap = useUpdateMap(map?.id);
   const deleteMap = useDeleteMap();
+  const archiveMaps = useArchiveMaps();
   const hasPinCustomization = TIER_LIMITS[currentUser?.userGroup ?? "freemium"].pinCustomization;
+  const hasMapArchiving = TIER_LIMITS[currentUser?.userGroup ?? "freemium"].mapArchiving;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,6 +69,33 @@ export default function EditMapScreen() {
     } catch (err: any) {
       setError(err?.message ?? "Couldn't save changes.");
     }
+  };
+
+  const onExportCsv = async () => {
+    if (!map) return;
+    try {
+      await sharePinsCsv(map.pins, map.noteLabel || "Note");
+    } catch (err: any) {
+      Alert.alert("Couldn't export pins", err?.message ?? "Please try again.");
+    }
+  };
+
+  const onArchive = () => {
+    if (!map) return;
+    Alert.alert("Archive map?", `"${map.name}" will be hidden from your maps list and public profile, but stays reachable via its share link.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Archive",
+        onPress: async () => {
+          try {
+            await archiveMaps.mutateAsync([map.id]);
+            router.replace("/");
+          } catch (err: any) {
+            Alert.alert("Couldn't archive map", err?.message ?? "Please try again.");
+          }
+        },
+      },
+    ]);
   };
 
   const onDelete = () => {
@@ -166,6 +196,22 @@ export default function EditMapScreen() {
           <Button variant="outline" onPress={() => setInviteSheetVisible(true)} testID="button-open-invite-sheet">
             Invite collaborators
           </Button>
+          <Button variant="outline" onPress={onExportCsv} testID="button-export-csv">
+            Export pins as CSV
+          </Button>
+          {hasMapArchiving ? (
+            <Button variant="outline" onPress={onArchive} loading={archiveMaps.isPending} testID="button-archive-map">
+              Archive map
+            </Button>
+          ) : (
+            <View className="flex-row items-center gap-2.5 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5">
+              <Ionicons name="lock-closed" size={14} color="#64748b" />
+              <Text className="flex-1 text-xs text-slate-500">Archiving maps is a Basic/Premium feature.</Text>
+              <Link href="/pricing" className="text-xs font-medium text-primary">
+                Upgrade
+              </Link>
+            </View>
+          )}
           <Button variant="destructive" onPress={onDelete} loading={deleteMap.isPending} testID="button-delete-map">
             Delete map
           </Button>

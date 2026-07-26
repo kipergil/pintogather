@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import MapView, { Callout, Marker, type LatLng } from "react-native-maps";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -43,6 +43,7 @@ export default function MapDetailScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const mapRef = useRef<MapView>(null);
 
   const initialRegion = useMemo(() => {
     const firstPin = map?.pins[0];
@@ -145,6 +146,7 @@ export default function MapDetailScreen() {
       ) : (
         <>
           <MapView
+            ref={mapRef}
             className="flex-1"
             initialRegion={initialRegion}
             onPress={(e) => openAddPinModal(e.nativeEvent.coordinate)}
@@ -187,6 +189,21 @@ export default function MapDetailScreen() {
                 manage your own maps.
               </Text>
             </View>
+          )}
+
+          {map.pins.length > 1 && (
+            <Pressable
+              onPress={() =>
+                mapRef.current?.fitToCoordinates(
+                  map.pins.map((pin) => ({ latitude: Number(pin.latitude), longitude: Number(pin.longitude) })),
+                  { edgePadding: { top: 80, right: 40, bottom: 120, left: 40 }, animated: true },
+                )
+              }
+              className="absolute bottom-24 right-4 h-11 w-11 items-center justify-center rounded-full bg-white shadow"
+              testID="button-fit-all-pins"
+            >
+              <Ionicons name="scan-outline" size={20} color="#2563EB" />
+            </Pressable>
           )}
 
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
