@@ -18,7 +18,7 @@ import type { PinColor, PinIcon } from "@shared/enums";
 import { PinStylePicker } from "@/components/pin-style-picker";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
-const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
+const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 interface MapDetailsFormData {
   name: string;

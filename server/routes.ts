@@ -20,8 +20,13 @@ import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
+import { sensitiveWriteRateLimiter } from "./lib/security.js";
 
-const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+// SVG deliberately excluded: it's an XML format that can carry <script>,
+// and this app has no server-side SVG sanitizer — an uploaded SVG would be
+// served back byte-for-byte at /api/uploads/:fileId (unauthenticated, so
+// anyone can open it directly) and execute in this origin as a stored XSS.
+const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 // Anthropic's vision API only accepts these four raster formats (no SVG).
 const ALLOWED_SCREENSHOT_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
@@ -47,7 +52,7 @@ const logoUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_LOGO_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, GIF, or SVG image."));
+      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, or GIF image."));
       return;
     }
     cb(null, true);
@@ -639,6 +644,11 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.setHeader("Content-Type", assetResponse.headers.get("content-type") || "application/octet-stream");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      // Defense-in-depth: even though the upload allow-list already excludes
+      // SVG (the one image type that can carry <script>), this blocks any
+      // script from executing if a file here is ever opened as a top-level
+      // navigation — belt-and-suspenders in case the allow-list is loosened later.
+      res.setHeader("Content-Security-Policy", "script-src 'none'; sandbox");
       res.send(Buffer.from(await assetResponse.arrayBuffer()));
     } catch (error) {
       console.error("Error fetching uploaded asset:", error);
@@ -887,7 +897,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // --- Invitations ----------------------------------------------------------------
 
-  app.post("/api/maps/:mapId/invitations", isAuthenticated, async (req, res) => {
+  app.post("/api/maps/:mapId/invitations", sensitiveWriteRateLimiter, isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
@@ -1125,7 +1135,7 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  app.post("/api/maps/:shareUrl/pins", async (req, res) => {
+  app.post("/api/maps/:shareUrl/pins", sensitiveWriteRateLimiter, async (req, res) => {
     try {
       const { shareUrl } = req.params;
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);

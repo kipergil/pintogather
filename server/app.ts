@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes.js";
 import { handleClerkWebhook } from "./webhooks/clerk.js";
 import { handleStripeWebhook } from "./webhooks/stripe.js";
 import { log } from "./log.js";
+import { apiRateLimiter, securityHeaders } from "./lib/security.js";
 
 /**
  * Builds the Express app with every route registered, but does not bind it
@@ -14,6 +15,8 @@ import { log } from "./log.js";
  */
 export async function createApp(): Promise<Express> {
   const app = express();
+
+  app.use(securityHeaders());
 
   // The web app is served from this same origin, so it never needed CORS.
   // The mobile app (native builds have no concept of CORS at all — it's a
@@ -32,6 +35,8 @@ export async function createApp(): Promise<Express> {
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });
+
+  app.use("/api", apiRateLimiter);
 
   // Registered before express.json(): Clerk's webhook signature is computed
   // over the exact request bytes, so this route needs the raw body rather
