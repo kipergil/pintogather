@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Switch, Text, View } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
@@ -151,9 +151,10 @@ export default function EditMapScreen() {
             ) : (
               <View className="flex-row items-center gap-2.5 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5">
                 <Ionicons name="lock-closed" size={14} color="#64748b" />
-                <Text className="flex-1 text-xs text-slate-500">
-                  Custom pin colors & icons are a Basic/Premium feature. Upgrade on the web app.
-                </Text>
+                <Text className="flex-1 text-xs text-slate-500">Custom pin colors & icons are a Basic/Premium feature.</Text>
+                <Link href="/pricing" className="text-xs font-medium text-primary">
+                  Upgrade
+                </Link>
               </View>
             )}
           </View>

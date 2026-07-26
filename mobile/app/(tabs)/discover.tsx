@@ -109,8 +109,11 @@ export default function DiscoverScreen() {
             <View className="flex-row items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
               <Ionicons name="lock-closed" size={16} color="#2563EB" />
               <Text className="flex-1 text-sm text-slate-700">
-                Showing {data.visibleCount} of {data.totalCount} curated maps — upgrade to see them all.
+                Showing {data.visibleCount} of {data.totalCount} curated maps.
               </Text>
+              <Link href="/pricing" className="text-sm font-medium text-primary">
+                Upgrade
+              </Link>
             </View>
           ) : null
         }

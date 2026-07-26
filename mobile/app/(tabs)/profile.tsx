@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUpdateProfile, useUsernameAvailability } from "@/hooks/useProfile";
+import { useUsage } from "@/hooks/useBilling";
+
+const TIER_LABELS: Record<string, string> = { freemium: "Free", basic: "Basic", premium: "Premium" };
 
 const BIO_MAX_LENGTH = 160;
 
@@ -24,6 +27,7 @@ export default function ProfileScreen() {
   const { user } = useUser();
   const { data: currentUser } = useCurrentUser();
   const updateProfile = useUpdateProfile();
+  const { data: usage } = useUsage();
 
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -162,6 +166,32 @@ export default function ProfileScreen() {
         <Button onPress={onSave} loading={updateProfile.isPending} disabled={!canSave} testID="button-save-profile">
           {saved ? "Saved" : "Save profile"}
         </Button>
+      </View>
+
+      <View className="gap-3 pb-6">
+        <Text className="text-sm font-semibold text-slate-900">Plan & billing</Text>
+        <View className="gap-2 rounded-xl border border-slate-200 p-3.5">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-sm text-slate-700">Current plan</Text>
+            <Text className="text-sm font-semibold text-slate-900">{TIER_LABELS[usage?.userGroup ?? "freemium"]}</Text>
+          </View>
+          {usage && (
+            <>
+              <Text className="text-xs text-slate-500">
+                {usage.maps.used} of {Number.isFinite(usage.maps.limit) ? usage.maps.limit : "unlimited"} maps used
+              </Text>
+              <Text className="text-xs text-slate-500">
+                {usage.aiSuggestions.used} of {Number.isFinite(usage.aiSuggestions.limit) ? usage.aiSuggestions.limit : "unlimited"} AI
+                suggestions used today
+              </Text>
+            </>
+          )}
+        </View>
+        <Link href="/pricing" asChild>
+          <Button variant="outline" testID="button-view-plans">
+            View plans
+          </Button>
+        </Link>
       </View>
 
       <View className="gap-3">

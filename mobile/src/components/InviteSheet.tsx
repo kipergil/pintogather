@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Link } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/ui/Button";
@@ -63,9 +64,10 @@ export function InviteSheet({ visible, onClose, mapId }: InviteSheetProps) {
           {seatLimitReached ? (
             <View className="flex-row items-center gap-2.5 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5" testID="seat-limit-locked-notice">
               <Ionicons name="lock-closed" size={14} color="#64748b" />
-              <Text className="flex-1 text-xs text-slate-500">
-                This map has reached its {seatLimit}-collaborator limit for this plan. Upgrade on the web app for more seats.
-              </Text>
+              <Text className="flex-1 text-xs text-slate-500">This map has reached its {seatLimit}-collaborator limit for this plan.</Text>
+              <Link href="/pricing" className="text-xs font-medium text-primary">
+                Upgrade
+              </Link>
             </View>
           ) : (
             <View className="gap-2.5">

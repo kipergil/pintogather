@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Link, Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
@@ -9,6 +9,7 @@ import { PinStylePicker } from "@/components/ui/PinStylePicker";
 import { useCreateMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { isUpgradeableError } from "@/lib/upgradeError";
 import { TIER_LIMITS } from "../../../shared/limits";
 import type { PinColor, PinIcon } from "../../../shared/enums";
 
@@ -28,11 +29,13 @@ export default function CreateMapScreen() {
   const [defaultPinColor, setDefaultPinColor] = useState<PinColor | null>(null);
   const [defaultPinIcon, setDefaultPinIcon] = useState<PinIcon | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeable, setUpgradeable] = useState(false);
 
   if (!isSignedIn) return null;
 
   const onSubmit = async () => {
     setError(null);
+    setUpgradeable(false);
     try {
       const map = await createMap.mutateAsync({
         name: name.trim(),
@@ -45,6 +48,7 @@ export default function CreateMapScreen() {
       router.replace(`/map/${map.shareUrl}`);
     } catch (err: any) {
       setError(err?.message ?? "Couldn't create the map.");
+      setUpgradeable(isUpgradeableError(err));
     }
   };
 
@@ -121,14 +125,24 @@ export default function CreateMapScreen() {
                 testID="pin-style-locked-notice"
               >
                 <Ionicons name="lock-closed" size={14} color="#64748b" />
-                <Text className="flex-1 text-xs text-slate-500">
-                  Custom pin colors & icons are a Basic/Premium feature. Upgrade on the web app.
-                </Text>
+                <Text className="flex-1 text-xs text-slate-500">Custom pin colors & icons are a Basic/Premium feature.</Text>
+                <Link href="/pricing" className="text-xs font-medium text-primary">
+                  Upgrade
+                </Link>
               </View>
             ))}
         </View>
 
-        {error && <Text className="text-sm text-red-600">{error}</Text>}
+        {error && (
+          <View className="gap-1">
+            <Text className="text-sm text-red-600">{error}</Text>
+            {upgradeable && (
+              <Link href="/pricing" className="text-sm font-medium text-primary">
+                View plans
+              </Link>
+            )}
+          </View>
+        )}
         <Button onPress={onSubmit} loading={createMap.isPending} disabled={!name.trim()} testID="button-submit-create-map">
           Create map
         </Button>
