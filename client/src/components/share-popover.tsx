@@ -50,34 +50,53 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
     }
   };
 
-  const shareWithImage = async (platform: "instagram" | "twitter" | "whatsapp") => {
+  const PLATFORM_LABELS: Record<"instagram" | "twitter" | "whatsapp" | "facebook", string> = {
+    instagram: "Instagram",
+    twitter: "X",
+    whatsapp: "WhatsApp",
+    facebook: "Facebook",
+  };
+
+  const shareWithImage = async (platform: "instagram" | "twitter" | "whatsapp" | "facebook") => {
     setPendingPlatform(platform);
     try {
       const blob = await generateShareImage({ mapId, mapName, ownerName, pinCount });
       const file = new File([blob], "pintogather-map.png", { type: "image/png" });
 
+      // Copy the caption+link first, unconditionally — once an image is
+      // attached, most share targets (Instagram's share sheet especially)
+      // silently drop any pre-filled text/title passed alongside it, so the
+      // clipboard is the one guaranteed way the caption actually reaches
+      // the user no matter what the OS or destination app does with it.
+      await navigator.clipboard.writeText(caption).catch(() => {});
+
       const sharedNatively = await shareImageNatively(file, mapName, caption);
-      if (sharedNatively) return;
+      if (sharedNatively) {
+        toast({
+          title: "Share sheet opened",
+          description: "The caption and link are also copied — paste them in if they didn't carry over automatically.",
+        });
+        return;
+      }
 
       if (platform === "instagram") {
         // Instagram has no web share-intent URL at all — downloading the
-        // image and copying a caption is the only fallback when the native
-        // share sheet isn't available (e.g. on desktop).
+        // image is the only fallback when the native share sheet isn't
+        // available (e.g. on desktop).
         downloadBlob(blob, "pintogather-map.png");
-        await navigator.clipboard.writeText(caption).catch(() => {});
         toast({
           title: "Image saved, caption copied",
-          description: "Instagram doesn't support sharing directly from the web — open Instagram and post the image with the copied caption.",
+          description: "Instagram doesn't support sharing directly from the web — open Instagram, add the image, and paste the copied caption.",
         });
       } else {
-        // X/WhatsApp web intents accept text+link but not an attached
-        // image, so open the intent for the message and also hand over the
-        // image separately.
+        // X/WhatsApp/Facebook web intents accept prefilled text+link but not
+        // an attached image, so open the intent for the message and hand
+        // over the image separately to attach by hand.
         openLinkIntent(platform, fullShareUrl, caption);
         downloadBlob(blob, "pintogather-map.png");
         toast({
-          title: "Image downloaded",
-          description: `${platform === "twitter" ? "X" : "WhatsApp"}'s share link doesn't accept attachments — attach the downloaded image to your post manually for the full effect.`,
+          title: "Image downloaded, caption copied",
+          description: `${PLATFORM_LABELS[platform]}'s share link doesn't accept attachments — attach the downloaded image to your post (the caption is pre-filled there, and copied too just in case).`,
         });
       }
     } catch (error) {
@@ -146,15 +165,16 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
               variant="outline"
               size="icon"
               className="flex-1 text-[#1877F2] hover:text-[#1877F2]"
-              onClick={() => openLinkIntent("facebook", fullShareUrl, caption)}
+              onClick={() => shareWithImage("facebook")}
+              disabled={pendingPlatform !== null}
               title="Share to Facebook"
               data-testid="button-share-facebook"
             >
-              <Facebook className="h-4 w-4" />
+              {pendingPlatform === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Facebook className="h-4 w-4" />}
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground/80 leading-snug">
-            Generates a card with the map's title and owner — on mobile this opens your share sheet so you can post directly; on desktop the image downloads for you to attach.
+            Generates a card with the map's title and owner, and copies a caption with the link — on mobile this opens your share sheet so you can post directly; on desktop the image downloads for you to attach and paste the caption.
           </p>
         </div>
 
