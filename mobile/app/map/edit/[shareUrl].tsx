@@ -7,6 +7,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
+import { InviteSheet } from "@/components/InviteSheet";
 import { useDeleteMap, useMap, useUpdateMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -31,6 +32,7 @@ export default function EditMapScreen() {
   const [defaultPinColor, setDefaultPinColor] = useState<PinColor | null>(null);
   const [defaultPinIcon, setDefaultPinIcon] = useState<PinIcon | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
 
   useEffect(() => {
     if (!map) return;
@@ -160,11 +162,16 @@ export default function EditMapScreen() {
           <Button onPress={onSave} loading={updateMap.isPending} disabled={!name.trim()} testID="button-save-map">
             Save changes
           </Button>
+          <Button variant="outline" onPress={() => setInviteSheetVisible(true)} testID="button-open-invite-sheet">
+            Invite collaborators
+          </Button>
           <Button variant="destructive" onPress={onDelete} loading={deleteMap.isPending} testID="button-delete-map">
             Delete map
           </Button>
         </View>
       )}
+
+      {map && <InviteSheet visible={inviteSheetVisible} onClose={() => setInviteSheetVisible(false)} mapId={map.id} />}
     </Screen>
   );
 }
