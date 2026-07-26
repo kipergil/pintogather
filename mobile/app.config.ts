@@ -22,6 +22,10 @@ const config: ExpoConfig = {
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         "PinTogather uses your location to center the map and show your position relative to pins.",
+      // No custom/proprietary encryption beyond standard HTTPS/TLS, so this
+      // is exempt — set explicitly so App Store Connect doesn't ask at
+      // upload time. See https://developer.apple.com/documentation/bundleresources/information_property_list/itsappusesnonexemptencryption
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
