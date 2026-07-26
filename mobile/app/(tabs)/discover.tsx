@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,7 +22,19 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 export default function DiscoverScreen() {
   const [category, setCategory] = useState<CuratedCategory | null>(null);
   const [country, setCountry] = useState<CuratedCountry | null>(null);
-  const { data, isLoading } = useDiscover(category, country);
+  const [city, setCity] = useState<string | null>(null);
+  const { data, isLoading } = useDiscover(category, country, city);
+
+  const citiesForCountry = useMemo(() => {
+    if (!data) return [];
+    if (country === null) return Object.values(data.filters.citiesByCountry).flat();
+    return data.filters.citiesByCountry[country] ?? [];
+  }, [data, country]);
+
+  // Reset the city filter whenever the country changes and the current city no longer belongs to it.
+  useEffect(() => {
+    if (city !== null && !citiesForCountry.includes(city)) setCity(null);
+  }, [citiesForCountry, city]);
 
   return (
     <Screen>
@@ -46,6 +58,14 @@ export default function DiscoverScreen() {
               <Chip key={c} label={CURATED_COUNTRY_LABELS[c]} active={country === c} onPress={() => setCountry(c)} />
             ))}
           </ScrollView>
+          {citiesForCountry.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Chip label="All cities" active={city === null} onPress={() => setCity(null)} />
+              {citiesForCountry.map((c) => (
+                <Chip key={c} label={c} active={city === c} onPress={() => setCity(c)} />
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
 
@@ -101,7 +121,7 @@ export default function DiscoverScreen() {
         }}
         ListEmptyComponent={
           !isLoading ? (
-            <EmptyState icon="compass-outline" title="No curated maps match these filters yet" description="Try a different category or country, or check back soon." />
+            <EmptyState icon="compass-outline" title="No curated maps match these filters yet" description="Try a different category or city, or check back soon." />
           ) : null
         }
         ListFooterComponent={

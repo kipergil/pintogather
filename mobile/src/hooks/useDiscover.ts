@@ -29,10 +29,11 @@ interface DiscoverResponse {
   };
 }
 
-export function useDiscover(category: string | null, country: string | null) {
+export function useDiscover(category: string | null, country: string | null, city: string | null) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   if (country) params.set("country", country);
+  if (city) params.set("city", city);
   const qs = params.toString();
   const url = `/api/discover${qs ? `?${qs}` : ""}`;
 

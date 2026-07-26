@@ -53,14 +53,15 @@ panel ❌
 
 **Maps** — list (My Maps + archived) ✅ · create/edit/delete ✅ · default pin
 color/icon (tier-gated) ✅ · custom note label/prompt ✅ · show-on-profile
-toggle ✅ · archive/restore (tier-gated) ✅ · CSV export ✅ · fit-all-pins ✅ ·
-custom branding logo upload ❌
+toggle ✅ · public/private + default-permission editing ✅ · archive/restore
+(tier-gated) ✅ · CSV export ✅ · fit-all-pins ✅ · custom branding logo
+upload ❌
 
 **Pins** — native map with colored/iconed markers ✅ · tap-to-add (name,
 note, socials, per-pin color/icon) ✅ · venue search-to-add ✅ · anonymous/guest
-add ✅ · edit/delete ✅ · pending-approval indicator ✅ · Google Maps link ✅ ·
-bulk import via paste-list + tap-to-place ✅ · pin table/list view alongside
-the map ❌ · screenshot/AI-suggested import ❌
+add ✅ · edit/delete ✅ · bulk delete ✅ · pending-approval indicator ✅ ·
+Google Maps link ✅ · bulk import via paste-list + tap-to-place ✅ ·
+pin table/list view alongside the map ❌ · screenshot/AI-suggested import ❌
 
 **Sharing & collaboration** — native share sheet (copy link + OS share) ✅ ·
 invite by email with seat usage ✅ · accept-invitation deep link ✅ ·
@@ -70,12 +71,12 @@ public/guest map viewing (no forced sign-in wall) ✅
 check ✅ · public profile screen ✅ · follow/unfollow ✅ · like/unlike ✅ ·
 Feed tab ✅
 
-**Discovery** — Discover tab with category/country filters ✅ · city filter ❌
+**Discovery** — Discover tab with category/country/city filters ✅
 
 **Monetization** — Pricing screen, usage meters, Stripe Checkout/Billing
 Portal via in-app browser ✅ · upgrade CTAs on tier-limit errors ✅
 
-### Two implementation notes
+### Three implementation notes
 
 - **Deep-link return-to-auth**: every "Sign in" prompt (guest map banner,
   Follow/Like on someone else's content, accepting an invitation) builds its
@@ -95,6 +96,16 @@ Portal via in-app browser ✅ · upgrade CTAs on tier-limit errors ✅
   it from both the native map screen and its `.web.tsx` fallback (search
   doesn't need the map itself, so it works — and is testable — on web
   preview too, unlike tap-to-place).
+- **Map permissions & bulk pin delete**: `PUT /api/maps/:mapId/permissions`
+  and `POST /api/pins/bulk-delete` already existed server-side but had no
+  web UI to mirror (permissions) or a different one to loosely follow
+  (bulk delete, `client/src/components/pin-table.tsx`'s selection model).
+  Edit-map (`app/map/edit/[shareUrl].tsx`) gained a "Sharing & access"
+  section (public-map switch + view-only/anyone-can-edit chips, saved via
+  its own `useUpdateMapPermissions` mutation) and a "Manage pins" entry
+  point to a new `app/map/pins/[shareUrl].tsx` screen — a plain checkbox
+  list (owner or pin-creator only, matching `pin-table.tsx`'s
+  `canDeletePin`) with select-all and a confirmed bulk-delete action.
 
 ## Code sharing with the web app
 

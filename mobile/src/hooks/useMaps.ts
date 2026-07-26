@@ -71,6 +71,20 @@ export function useUpdateMap(mapId: string | undefined) {
   });
 }
 
+export function useUpdateMapPermissions(mapId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { isPublic: boolean; defaultPermission: "readonly" | "editable" }) => {
+      const res = await apiRequest("PUT", `/api/maps/${mapId}/permissions`, data);
+      return (await res.json()) as MapCollection;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${data.shareUrl}`] });
+    },
+  });
+}
+
 export function useDeleteMap() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -148,6 +162,20 @@ export function useDeletePin(shareUrl: string | undefined) {
   return useMutation({
     mutationFn: async (pinId: string) => {
       await apiRequest("DELETE", `/api/pins/${pinId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+  });
+}
+
+export function useBulkDeletePins(shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pinIds: string[]) => {
+      const res = await apiRequest("POST", "/api/pins/bulk-delete", { pinIds });
+      return (await res.json()) as { deletedCount: number; skippedCount: number };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
