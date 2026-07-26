@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ShareSheet } from "@/components/ShareSheet";
 import { useMap } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
@@ -23,21 +25,27 @@ export default function MapDetailWebFallback() {
   const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   return (
     <View className="flex-1 bg-slate-50 px-4">
       <Stack.Screen
         options={{
           title: map?.name ?? "Map",
-          headerRight: isOwner
-            ? () => (
+          headerRight: () => (
+            <View className="flex-row items-center gap-4">
+              <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
+                <Ionicons name="share-outline" size={22} color="#2563EB" />
+              </Pressable>
+              {isOwner && (
                 <Link href={`/map/edit/${shareUrl}`} asChild>
                   <Pressable hitSlop={8} testID="button-edit-map">
                     <Ionicons name="settings-outline" size={22} color="#2563EB" />
                   </Pressable>
                 </Link>
-              )
-            : undefined,
+              )}
+            </View>
+          ),
         }}
       />
       {isLoading ? (
@@ -90,6 +98,10 @@ export default function MapDetailWebFallback() {
             ListEmptyComponent={<EmptyState icon="location-outline" title="No pins yet" />}
           />
         </>
+      )}
+
+      {map && (
+        <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
       )}
     </View>
   );

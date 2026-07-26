@@ -7,6 +7,7 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
+import { ShareSheet } from "@/components/ShareSheet";
 import { useAddPin, useDeletePin, useMap } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
@@ -41,6 +42,7 @@ export default function MapDetailScreen() {
   const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   const initialRegion = useMemo(() => {
     const firstPin = map?.pins[0];
@@ -117,15 +119,20 @@ export default function MapDetailScreen() {
       <Stack.Screen
         options={{
           title: map?.name ?? "Map",
-          headerRight: isOwner
-            ? () => (
+          headerRight: () => (
+            <View className="flex-row items-center gap-4">
+              <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
+                <Ionicons name="share-outline" size={22} color="#2563EB" />
+              </Pressable>
+              {isOwner && (
                 <Link href={`/map/edit/${shareUrl}`} asChild>
                   <Pressable hitSlop={8} testID="button-edit-map">
                     <Ionicons name="settings-outline" size={22} color="#2563EB" />
                   </Pressable>
                 </Link>
-              )
-            : undefined,
+              )}
+            </View>
+          ),
         }}
       />
 
@@ -268,6 +275,10 @@ export default function MapDetailScreen() {
           </View>
         )}
       </Modal>
+
+      {map && (
+        <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
+      )}
     </View>
   );
 }
