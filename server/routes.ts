@@ -1529,6 +1529,41 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // --- Venue/place search (OpenStreetMap Nominatim) ---------------------------------
+  //
+  // The web app's venue search (client/src/components/places-search.tsx)
+  // calls the browser's google.maps.places JS SDK directly, client-side —
+  // there's no RN equivalent of that SDK, and no server proxy for Google
+  // Places existed before this route. Rather than add a native Places SDK
+  // dependency (its own API key, billing, and platform config) just for the
+  // mobile app, this reuses the same free, key-less Nominatim service the
+  // reverse-geocode route above already depends on, proxied server-side so
+  // the mobile app calls it exactly like every other endpoint.
+  app.get("/api/places/search", async (req, res) => {
+    try {
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      if (!q) return res.json({ results: [] });
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&namedetails=1&limit=8`,
+        { headers: { "User-Agent": "PinTogather Application" } },
+      );
+      if (!response.ok) throw new Error("Places search unavailable");
+
+      const data = await response.json();
+      const results = (Array.isArray(data) ? data : []).map((item: any) => ({
+        name: item.namedetails?.name || item.display_name.split(",")[0],
+        address: item.display_name as string,
+        latitude: item.lat as string,
+        longitude: item.lon as string,
+      }));
+
+      res.json({ results });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search places" });
+    }
+  });
+
   // --- Admin ------------------------------------------------------------------------
 
   // Lets admins jump straight to a record's own edit page in the Directus

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp();
-  const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,8 +39,8 @@ export default function SignUpScreen() {
     try {
       const attempt = await signUp.attemptEmailAddressVerification({ code: code.trim() });
       if (attempt.status === "complete") {
+        // No explicit navigation here — see app/(auth)/_layout.tsx.
         await setActive({ session: attempt.createdSessionId });
-        router.replace("/");
       } else {
         setError("Verification incomplete — double-check the code.");
       }
@@ -114,7 +114,10 @@ export default function SignUpScreen() {
 
         <View className="flex-row justify-center gap-1.5">
           <Text className="text-sm text-slate-500">Already have an account?</Text>
-          <Link href="/(auth)/sign-in" className="text-sm font-semibold text-primary">
+          <Link
+            href={returnTo ? `/(auth)/sign-in?returnTo=${encodeURIComponent(returnTo)}` : "/(auth)/sign-in"}
+            className="text-sm font-semibold text-primary"
+          >
             Sign in
           </Link>
         </View>

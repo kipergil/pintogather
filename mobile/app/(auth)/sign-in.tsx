@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useSignIn } from "@clerk/clerk-expo";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,8 +22,10 @@ export default function SignInScreen() {
     try {
       const attempt = await signIn.create({ identifier: email.trim(), password });
       if (attempt.status === "complete") {
+        // No explicit navigation here — app/(auth)/_layout.tsx reacts to
+        // isSignedIn flipping true and redirects to returnTo (or "/") itself,
+        // the one place that decides this for every sign-in path.
         await setActive({ session: attempt.createdSessionId });
-        router.replace("/");
       } else {
         setError("Additional verification is required — this isn't yet handled by this boilerplate.");
       }
@@ -70,7 +72,10 @@ export default function SignInScreen() {
 
         <View className="flex-row justify-center gap-1.5">
           <Text className="text-sm text-slate-500">Don't have an account?</Text>
-          <Link href="/(auth)/sign-up" className="text-sm font-semibold text-primary">
+          <Link
+            href={returnTo ? `/(auth)/sign-up?returnTo=${encodeURIComponent(returnTo)}` : "/(auth)/sign-up"}
+            className="text-sm font-semibold text-primary"
+          >
             Sign up
           </Link>
         </View>

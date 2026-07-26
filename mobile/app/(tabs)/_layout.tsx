@@ -1,10 +1,12 @@
 import { useAuth } from "@clerk/clerk-expo";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, View } from "react-native";
+import { signInHref } from "@/lib/authNav";
 
 export default function TabsLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const pathname = usePathname();
 
   if (!isLoaded) {
     return (
@@ -15,7 +17,7 @@ export default function TabsLayout() {
   }
 
   if (!isSignedIn) {
-    return <Redirect href="/(auth)/sign-in" />;
+    return <Redirect href={signInHref(pathname)} />;
   }
 
   return (

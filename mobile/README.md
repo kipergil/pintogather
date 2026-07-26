@@ -48,7 +48,7 @@ further wiring is needed.
 This app covers the full core product loop plus most of the web app's
 secondary features. Feature-parity summary (✅ implemented, ❌ not yet):
 
-**Auth** — sign in/up/out ✅ · deep-link return-to-map after auth ❌ · admin
+**Auth** — sign in/up/out ✅ · deep-link return-to-map after auth ✅ · admin
 panel ❌
 
 **Maps** — list (My Maps + archived) ✅ · create/edit/delete ✅ · default pin
@@ -57,10 +57,10 @@ toggle ✅ · archive/restore (tier-gated) ✅ · CSV export ✅ · fit-all-pins
 custom branding logo upload ❌
 
 **Pins** — native map with colored/iconed markers ✅ · tap-to-add (name,
-note, socials, per-pin color/icon) ✅ · anonymous/guest add ✅ · edit/delete ✅
-· pending-approval indicator ✅ · Google Maps link ✅ · bulk import via
-paste-list + tap-to-place ✅ · venue search/autocomplete ❌ · pin table/list
-view alongside the map ❌ · screenshot/AI-suggested import ❌
+note, socials, per-pin color/icon) ✅ · venue search-to-add ✅ · anonymous/guest
+add ✅ · edit/delete ✅ · pending-approval indicator ✅ · Google Maps link ✅ ·
+bulk import via paste-list + tap-to-place ✅ · pin table/list view alongside
+the map ❌ · screenshot/AI-suggested import ❌
 
 **Sharing & collaboration** — native share sheet (copy link + OS share) ✅ ·
 invite by email with seat usage ✅ · accept-invitation deep link ✅ ·
@@ -74,6 +74,27 @@ Feed tab ✅
 
 **Monetization** — Pricing screen, usage meters, Stripe Checkout/Billing
 Portal via in-app browser ✅ · upgrade CTAs on tier-limit errors ✅
+
+### Two implementation notes
+
+- **Deep-link return-to-auth**: every "Sign in" prompt (guest map banner,
+  Follow/Like on someone else's content, accepting an invitation) builds its
+  link with `signInHref()` (`src/lib/authNav.ts`), which appends the current
+  path as a `returnTo` query param. `app/(auth)/_layout.tsx` is the single
+  place that reads it back and redirects there once the session becomes
+  active — not the individual sign-in/sign-up screens — so there's no race
+  between a manual `router.replace` and the layout's own reactive redirect.
+- **Venue search**: the web app's "Add a venue" search
+  (`client/src/components/places-search.tsx`) calls the browser's
+  `google.maps.places` JS SDK directly, which has no React Native
+  equivalent and no server proxy existed for it. Rather than add a native
+  Places SDK dependency (its own API key, billing, platform config) just for
+  mobile, `GET /api/places/search` (new, in `server/routes.ts`) proxies the
+  same free, key-less OpenStreetMap Nominatim service the reverse-geocode
+  route next to it already uses. `VenueSearchSheet` + `usePlacesSearch` call
+  it from both the native map screen and its `.web.tsx` fallback (search
+  doesn't need the map itself, so it works — and is testable — on web
+  preview too, unlike tap-to-place).
 
 ## Code sharing with the web app
 
