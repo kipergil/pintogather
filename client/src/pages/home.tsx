@@ -241,6 +241,9 @@ export default function Home() {
           isOpen={deleteMapModal.isOpen}
           onClose={() => setDeleteMapModal({ isOpen: false, map: null })}
           mapCollection={deleteMapModal.map}
+          canArchive={hasMapArchiving}
+          onArchive={(mapId) => archiveMapsMutation.mutate([mapId])}
+          isArchiving={archiveMapsMutation.isPending}
         />
       )}
     </>

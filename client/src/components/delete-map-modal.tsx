@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,8 +11,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 
 interface DeleteMapModalProps {
@@ -27,10 +24,13 @@ interface DeleteMapModalProps {
     createdAt: string;
     pinCount?: number;
   };
+  /** Whether this account's tier includes map archiving — hides the "Archive instead" option otherwise. */
+  canArchive: boolean;
+  onArchive: (mapId: string) => void;
+  isArchiving: boolean;
 }
 
-export function DeleteMapModal({ isOpen, onClose, mapCollection }: DeleteMapModalProps) {
-  const [confirmText, setConfirmText] = useState('');
+export function DeleteMapModal({ isOpen, onClose, mapCollection, canArchive, onArchive, isArchiving }: DeleteMapModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -49,7 +49,6 @@ export function DeleteMapModal({ isOpen, onClose, mapCollection }: DeleteMapModa
         description: "Your map and all its pins have been permanently deleted."
       });
       onClose();
-      setConfirmText('');
     },
     onError: (error: any) => {
       toast({
@@ -60,65 +59,44 @@ export function DeleteMapModal({ isOpen, onClose, mapCollection }: DeleteMapModa
     }
   });
 
-  const handleDelete = () => {
-    if (confirmText === mapCollection.name) {
-      deleteMapMutation.mutate();
-    }
-  };
-
-  const handleClose = () => {
-    onClose();
-    setConfirmText('');
-  };
-
-  const isConfirmValid = confirmText === mapCollection.name;
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-red-600" />
-            <DialogTitle>Delete Map</DialogTitle>
+            <DialogTitle>Delete "{mapCollection.name}"?</DialogTitle>
           </div>
           <DialogDescription>
-            This action cannot be undone. This will permanently delete your map
-            "{mapCollection.name}" and remove all {mapCollection.pinCount || 0} pins.
+            This permanently deletes the map and its {mapCollection.pinCount || 0} pins. This can't be undone.
+            {canArchive && " If you just want it out of the way, archive it instead — nothing is lost and you can restore it anytime."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-800">
-              <strong>Warning:</strong> All data associated with this map will be permanently lost,
-              including pins, sharing permissions, and invitations.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirm">
-              Type the map name "<strong>{mapCollection.name}</strong>" to confirm deletion:
-            </Label>
-            <Input
-              id="confirm"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={mapCollection.name}
-              className="font-mono"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="space-x-2">
-          <Button variant="outline" onClick={handleClose}>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
+          {canArchive && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onArchive(mapCollection.id);
+                onClose();
+              }}
+              disabled={isArchiving}
+              data-testid="button-archive-instead"
+            >
+              {isArchiving ? 'Archiving...' : 'Archive instead'}
+            </Button>
+          )}
           <Button
             variant="destructive"
-            onClick={handleDelete}
-            disabled={!isConfirmValid || deleteMapMutation.isPending}
+            onClick={() => deleteMapMutation.mutate()}
+            disabled={deleteMapMutation.isPending}
+            data-testid="button-confirm-delete-map"
           >
-            {deleteMapMutation.isPending ? 'Deleting...' : 'Delete Map'}
+            {deleteMapMutation.isPending ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogFooter>
       </DialogContent>
