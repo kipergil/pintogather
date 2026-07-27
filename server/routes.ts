@@ -21,6 +21,7 @@ import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
 import { sensitiveWriteRateLimiter } from "./lib/security.js";
+import { APP_NAME, CURATED_MAPS_SYSTEM_USERNAME } from "./lib/branding.js";
 
 // SVG deliberately excluded: it's an XML format that can carry <script>,
 // and this app has no server-side SVG sanitizer — an uploaded SVG would be
@@ -494,11 +495,11 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  // Recently added maps from accounts the viewer follows, plus the
-  // pintogather system account — a simple reverse-chronological feed, no
-  // ranking logic beyond recency. Only maps the owner has chosen to show on
-  // their profile (show_on_profile) are eligible, same visibility rule as
-  // the public profile page itself.
+  // Recently added maps from accounts the viewer follows, plus the curated-
+  // maps system account — a simple reverse-chronological feed, no ranking
+  // logic beyond recency. Only maps the owner has chosen to show on their
+  // profile (show_on_profile) are eligible, same visibility rule as the
+  // public profile page itself.
   app.get("/api/feed", isAuthenticated, async (req, res) => {
     try {
       const viewer = await getCurrentUser(req);
@@ -506,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const [followingIds, systemAccount] = await Promise.all([
         storage.getFollowingIds(viewer.id),
-        getUserByUsername("pintogather"),
+        getUserByUsername(CURATED_MAPS_SYSTEM_USERNAME),
       ]);
       const ownerIds = Array.from(new Set([...followingIds, ...(systemAccount ? [systemAccount.id] : [])]));
 
@@ -551,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // --- Discover (curated maps) -------------------------------------------------------
 
-  // Public, unauthenticated: PinTogather's editorially curated map collection.
+  // Public, unauthenticated: this app's editorially curated map collection.
   // Freemium/anonymous visitors get every curated map back (so the page can
   // show what exists as a teaser) but only the top curatedOrder maps
   // (TIER_LIMITS.maxCuratedMapsVisible) come with a shareUrl — the rest are
@@ -1535,7 +1536,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { "User-Agent": "PinTogather Application" } },
+        { headers: { "User-Agent": `${APP_NAME} Application` } },
       );
       if (!response.ok) throw new Error("Geocoding service unavailable");
 
@@ -1588,7 +1589,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&namedetails=1&limit=8`,
-        { headers: { "User-Agent": "PinTogather Application" } },
+        { headers: { "User-Agent": `${APP_NAME} Application` } },
       );
       if (!response.ok) throw new Error("Places search unavailable");
 

@@ -15,50 +15,58 @@ export interface PricingTier {
  * needs updating in one place. Actual limit numbers (maps/pins/AI
  * generations per day) are enforced server-side elsewhere — this is just
  * the marketing-facing feature list.
+ *
+ * A function rather than a static array because one line of copy names the
+ * app itself ("<App> branding on public maps") — `shared/` can't read any
+ * platform's env vars (Vite's `import.meta.env`, Expo's `process.env.EXPO_PUBLIC_*`,
+ * and Node's `process.env` all resolve differently), so each caller passes
+ * in its own already-resolved app name instead.
  */
-export const PRICING_TIERS: PricingTier[] = [
-  {
-    id: "freemium",
-    name: "Free",
-    priceLabel: "Free",
-    features: [
-      "3 maps",
-      "Up to 50 pins per map",
-      "3 AI venue suggestions per day",
-      "Up to 2 collaborators per map",
-      "PinTogather branding on public maps",
-    ],
-  },
-  {
-    id: "basic",
-    name: "Basic",
-    priceLabel: "£4.99/mo",
-    checkoutTier: "basic",
-    features: [
-      "10 maps",
-      "Up to 200 pins per map",
-      "15 AI venue suggestions per day",
-      "Up to 8 collaborators per map",
-      "PinTogather branding on public maps",
-      "Screenshot-based AI venue import",
-      "Archive & restore maps",
-      "Custom pin colors & icons",
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    priceLabel: "£9.99/mo",
-    checkoutTier: "premium",
-    features: [
-      "Unlimited maps",
-      "Unlimited pins per map",
-      "200 AI venue suggestions per day",
-      "Unlimited collaborators per map",
-      "Your own branding on public maps",
-      "Screenshot-based AI venue import",
-      "Archive & restore maps",
-      "Custom pin colors & icons",
-    ],
-  },
-];
+export function getPricingTiers(appName: string): PricingTier[] {
+  return [
+    {
+      id: "freemium",
+      name: "Free",
+      priceLabel: "Free",
+      features: [
+        "3 maps",
+        "Up to 50 pins per map",
+        "3 AI venue suggestions per day",
+        "Up to 2 collaborators per map",
+        `${appName} branding on public maps`,
+      ],
+    },
+    {
+      id: "basic",
+      name: "Basic",
+      priceLabel: "£4.99/mo",
+      checkoutTier: "basic",
+      features: [
+        "10 maps",
+        "Up to 200 pins per map",
+        "15 AI venue suggestions per day",
+        "Up to 8 collaborators per map",
+        `${appName} branding on public maps`,
+        "Screenshot-based AI venue import",
+        "Archive & restore maps",
+        "Custom pin colors & icons",
+      ],
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      priceLabel: "£9.99/mo",
+      checkoutTier: "premium",
+      features: [
+        "Unlimited maps",
+        "Unlimited pins per map",
+        "200 AI venue suggestions per day",
+        "Unlimited collaborators per map",
+        "Your own branding on public maps",
+        "Screenshot-based AI venue import",
+        "Archive & restore maps",
+        "Custom pin colors & icons",
+      ],
+    },
+  ];
+}

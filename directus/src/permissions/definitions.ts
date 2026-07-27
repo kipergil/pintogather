@@ -1,3 +1,4 @@
+import { env } from "../lib/env.js";
 import type { PolicyDefinition } from "./types.js";
 
 /**
@@ -9,16 +10,19 @@ import type { PolicyDefinition } from "./types.js";
  * access, no permission to delete users — defence in depth, not the
  * primary authorization boundary.
  *
- * Named distinctly ("PinTogather Service", not just "Service") because this
+ * Named distinctly ("<APP_NAME> Service", not just "Service") because this
  * schema/permissions tooling may run against a Directus instance shared
  * with other projects (e.g. BucketBoard) that already have their own
  * generically-named "Service" policy/role — reusing that name would find
- * and overwrite their permissions instead of creating ours.
+ * and overwrite their permissions instead of creating ours. If APP_NAME
+ * changes, re-running `permissions:apply` creates a NEW policy/role under
+ * the new name rather than renaming the old one in place — see the warning
+ * in apply.ts's ensureServiceAccount.
  */
 export const servicePolicy: PolicyDefinition = {
-  name: "PinTogather Service",
+  name: `${env.APP_NAME} Service`,
   icon: "dns",
-  description: "PinTogather's Express server's server-only token. Never exposed to the browser.",
+  description: `${env.APP_NAME}'s Express server's server-only token. Never exposed to the browser.`,
   adminAccess: false,
   appAccess: false,
   role: { icon: "dns" },

@@ -10,6 +10,7 @@ export interface VenueResult {
 }
 
 import { searchVenues as googleSearchVenues, loadGoogleMaps } from './google-maps';
+import { APP_NAME } from './branding';
 
 export async function searchVenues(
   query: string,
@@ -47,7 +48,10 @@ export async function searchVenues(
         `https://nominatim.openstreetmap.org/search?${params.toString()}`,
         {
           headers: {
-            'User-Agent': 'PinTogather/1.0'
+            // Browsers forbid scripts from setting User-Agent on fetch/XHR
+            // (it's silently ignored) — kept for documentation/consistency
+            // with the server-side Nominatim calls, which do apply it.
+            'User-Agent': `${APP_NAME}/1.0`
           }
         }
       );

@@ -5,8 +5,8 @@ import rateLimit from "express-rate-limit";
  * Clerk publishable keys encode their Frontend API host as
  * base64(`<host>$`) after the `pk_test_`/`pk_live_` prefix — decoding it
  * (rather than hardcoding `*.clerk.accounts.dev`) means the CSP stays
- * correct if this project ever moves to a custom Clerk domain
- * (`clerk.pintogather.app`) without anyone remembering to update it here.
+ * correct if this project ever moves to a custom Clerk domain (e.g.
+ * `clerk.<yourdomain>`) without anyone remembering to update it here.
  */
 function clerkFrontendApiHost(): string | null {
   const key = process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY;

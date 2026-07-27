@@ -9,7 +9,7 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
  * differ per platform.
  */
 export interface ApiClientConfig {
-  /** Prepended to every request path — "" for the web app (relative, same-origin), or an absolute origin like "https://pintogather.app" for the mobile app. */
+  /** Prepended to every request path — "" for the web app (relative, same-origin), or an absolute origin (e.g. EXPO_PUBLIC_API_URL) for the mobile app. */
   baseUrl: string;
   /** Resolves the current auth token (a Clerk session JWT), or null when signed out. */
   getToken: () => Promise<string | null>;

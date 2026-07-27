@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Screen } from "@/components/ui/Screen";
 import { useDiscover } from "@/hooks/useDiscover";
 import { CURATED_CATEGORY_COLOR, CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS } from "@/lib/curated-maps";
+import { APP_NAME } from "@/lib/config";
 import type { CuratedCategory, CuratedCountry } from "../../../shared/enums";
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -41,7 +42,7 @@ export default function DiscoverScreen() {
       <View className="gap-1 pb-3 pt-2">
         <Text className="text-xs font-semibold uppercase tracking-wide text-primary">Discover</Text>
         <Text className="text-xl font-bold text-slate-900">Curated maps, ready to explore</Text>
-        <Text className="text-sm text-slate-500">Hand-picked collections from the PinTogather team and the community.</Text>
+        <Text className="text-sm text-slate-500">Hand-picked collections from the {APP_NAME} team and the community.</Text>
       </View>
 
       {data && (

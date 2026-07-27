@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { generateShareImage } from "@/lib/share-image";
 import { downloadBlob, openLinkIntent, shareImageNatively } from "@/lib/share-actions";
+import { APP_NAME, APP_SLUG } from "@/lib/branding";
 import { Check, Copy, Facebook, Instagram, Loader2, Mail, Share2, Twitter } from "lucide-react";
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -37,7 +38,7 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
   const [pendingPlatform, setPendingPlatform] = useState<string | null>(null);
 
   const fullShareUrl = `${window.location.origin}/map/${shareUrl}`;
-  const caption = `Check out "${mapName}" on PinTogather — ${fullShareUrl}`;
+  const caption = `Check out "${mapName}" on ${APP_NAME} — ${fullShareUrl}`;
 
   const copyLink = async () => {
     try {
@@ -61,7 +62,7 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
     setPendingPlatform(platform);
     try {
       const blob = await generateShareImage({ mapId, mapName, ownerName, pinCount });
-      const file = new File([blob], "pintogather-map.png", { type: "image/png" });
+      const file = new File([blob], `${APP_SLUG}-map.png`, { type: "image/png" });
 
       // Copy the caption+link first, unconditionally — once an image is
       // attached, most share targets (Instagram's share sheet especially)
@@ -83,7 +84,7 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
         // Instagram has no web share-intent URL at all — downloading the
         // image is the only fallback when the native share sheet isn't
         // available (e.g. on desktop).
-        downloadBlob(blob, "pintogather-map.png");
+        downloadBlob(blob, `${APP_SLUG}-map.png`);
         toast({
           title: "Image saved, caption copied",
           description: "Instagram doesn't support sharing directly from the web — open Instagram, add the image, and paste the copied caption.",
@@ -93,7 +94,7 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
         // an attached image, so open the intent for the message and hand
         // over the image separately to attach by hand.
         openLinkIntent(platform, fullShareUrl, caption);
-        downloadBlob(blob, "pintogather-map.png");
+        downloadBlob(blob, `${APP_SLUG}-map.png`);
         toast({
           title: "Image downloaded, caption copied",
           description: `${PLATFORM_LABELS[platform]}'s share link doesn't accept attachments — attach the downloaded image to your post (the caption is pre-filled there, and copied too just in case).`,

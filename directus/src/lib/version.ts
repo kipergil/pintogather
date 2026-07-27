@@ -1,4 +1,5 @@
 import { serverInfo, type RestClient } from "@directus/sdk";
+import { env } from "./env.js";
 
 const MIN_MAJOR_VERSION = 11;
 
@@ -24,7 +25,7 @@ export async function assertMinimumDirectusVersion(client: {
 
   if (Number.isNaN(major) || major < MIN_MAJOR_VERSION) {
     throw new Error(
-      `This Directus instance reports version ${version ?? "unknown"}, but PinTogather's ` +
+      `This Directus instance reports version ${version ?? "unknown"}, but ${env.APP_NAME}'s ` +
         `permissions layer requires Directus >= ${MIN_MAJOR_VERSION}. Upgrade the instance, then re-run.`,
     );
   }

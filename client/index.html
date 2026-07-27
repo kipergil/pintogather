@@ -3,12 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>PinTogather - Pin Your People, Pin Your Favorite Places</title>
-    <meta name="description" content="Create a shared map with your community. Mark where everyone is, or search and add a specific venue — restaurants, cafes, landmarks, anywhere. One shared map, built together.">
+    <!-- Title/description come from VITE_APP_NAME/VITE_APP_TAGLINE/VITE_APP_DESCRIPTION
+         (root .env — see .env.example) via Vite's built-in %ENV_VAR% HTML
+         interpolation, so a rename doesn't require editing this file. -->
+    <title>%VITE_APP_NAME% - %VITE_APP_TAGLINE%</title>
+    <meta name="description" content="%VITE_APP_DESCRIPTION%">
 
     <!-- Open Graph tags -->
-    <meta property="og:title" content="PinTogather - Pin Your People, Pin Your Favorite Places">
-    <meta property="og:description" content="Create a shared map with your community. Mark where everyone is, or search and add a specific venue — one shared map, built together.">
+    <meta property="og:title" content="%VITE_APP_NAME% - %VITE_APP_TAGLINE%">
+    <meta property="og:description" content="%VITE_APP_DESCRIPTION%">
     <meta property="og:type" content="website">
     
     <!-- Leaflet CSS -->

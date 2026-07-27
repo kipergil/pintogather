@@ -1,5 +1,6 @@
 import { createFlow, createOperation, readFlows, updateFlow } from "@directus/sdk";
 import { getSchemaClient } from "../lib/client.js";
+import { env } from "../lib/env.js";
 import { allFlows, type FlowSpec } from "./definitions.js";
 
 async function ensureFlow(client: Awaited<ReturnType<typeof getSchemaClient>>, spec: FlowSpec) {
@@ -52,7 +53,7 @@ async function ensureFlow(client: Awaited<ReturnType<typeof getSchemaClient>>, s
 }
 
 async function main() {
-  console.log(`Applying PinTogather flows to ${process.env.DIRECTUS_URL ?? "http://localhost:8055"}...`);
+  console.log(`Applying ${env.APP_NAME} flows to ${env.DIRECTUS_URL}...`);
   const client = await getSchemaClient();
 
   for (const spec of allFlows) {

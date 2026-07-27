@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { APP_NAME } from "@/lib/branding";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -79,7 +80,7 @@ function HeaderContent() {
               <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/30">
                 <MapPinned className="w-4 h-4 text-primary-foreground" strokeWidth={2.25} />
               </div>
-              <span className="text-lg font-semibold tracking-tight text-foreground">PinTogather</span>
+              <span className="text-lg font-semibold tracking-tight text-foreground">{APP_NAME}</span>
             </button>
             <button
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -191,7 +192,7 @@ function HeaderContent() {
 function AppShell() {
   const [location] = useLocation();
   // Public branded map pages are meant to be shared standalone, with no
-  // PinTogather chrome at all — not even the header.
+  // app chrome at all — not even the header.
   const isBrandedView = location.startsWith("/p/");
 
   return (

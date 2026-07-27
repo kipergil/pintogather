@@ -15,7 +15,7 @@ export interface ShareImageOptions {
  * Renders a branded 1080x1080 share card — gradient background, a loose
  * scatter of decorative pin glyphs confined to top/bottom bands, and the
  * map's own title/owner/pin-count centered in the clear space between. No
- * PinTogather wordmark or URL — the card is about the map being shared, not
+ * app wordmark or URL — the card is about the map being shared, not
  * the app, so the color signature does the branding work instead of a logo.
  */
 export async function generateShareImage(options: ShareImageOptions): Promise<Blob> {

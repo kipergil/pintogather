@@ -16,6 +16,7 @@ import { Link } from "wouter";
 import { TIER_LIMITS } from "@shared/limits";
 import type { PinColor, PinIcon } from "@shared/enums";
 import { PinStylePicker } from "@/components/pin-style-picker";
+import { APP_NAME } from "@/lib/branding";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
 const LOGO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
@@ -306,7 +307,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-3 space-y-3">
           <p className="text-xs text-muted-foreground -mt-1">
-            Add your own logo and this map gets a clean, read-only public page with no PinTogather branding —
+            Add your own logo and this map gets a clean, read-only public page with no {APP_NAME} branding —
             just your logo, the description above, and the map.
           </p>
           {hasCustomBranding ? (
@@ -405,7 +406,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Share this link instead of the regular one to hide PinTogather branding entirely.
+                Share this link instead of the regular one to hide {APP_NAME} branding entirely.
               </p>
             </div>
           )}

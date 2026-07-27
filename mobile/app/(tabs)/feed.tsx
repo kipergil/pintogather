@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Screen } from "@/components/ui/Screen";
 import { LikeButton } from "@/components/LikeButton";
 import { FEED_QUERY_KEY, useFeed } from "@/hooks/useFeed";
+import { APP_NAME } from "@/lib/config";
 import type { FeedMapItem } from "../../../shared/schema";
 
 function FeedCard({ map }: { map: FeedMapItem }) {
@@ -83,7 +84,7 @@ export default function FeedScreen() {
           <View className="gap-1 pb-4 pt-2">
             <Text className="text-xs font-semibold uppercase tracking-wide text-primary">Feed</Text>
             <Text className="text-xl font-bold text-slate-900">Recently added maps</Text>
-            <Text className="text-sm text-slate-500">From people you follow and PinTogather's curated collections.</Text>
+            <Text className="text-sm text-slate-500">From people you follow and {APP_NAME}'s curated collections.</Text>
           </View>
         }
         ListEmptyComponent={

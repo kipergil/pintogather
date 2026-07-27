@@ -50,7 +50,7 @@ interface MapCollection {
 
 /**
  * Read-only, branding-independent view of a map — meant to be shared as its
- * own standalone link. No PinTogather header, no sign-in, no editing: just
+ * own standalone link. No app header, no sign-in, no editing: just
  * the owner's optional logo, the map description, and the pins.
  */
 export default function PublicMap({ params }: PublicMapProps) {
