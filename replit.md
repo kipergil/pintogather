@@ -148,3 +148,19 @@ Changelog:
 - July 2026. Refactored backend from Supabase/Drizzle to Directus, and authentication from Replit Auth to Clerk.
 - December 11, 2025. Added Replit Auth integration with OpenID Connect for user authentication
 - June 26, 2025. Initial setup
+
+### User-facing changelog (map_pages, slug "changelog")
+Separate from the notes above: there's a public `/pages/changelog` page (a
+`map_pages` row, slug `changelog`, nav-linked as "Changelog") — a
+user-friendly, date-by-date history of every feature shipped, generated
+from real commit history. New entries always go at the *top* of its
+`content` field (most recent first). Whenever a feature ships, prepend a
+short "### Friendly title" + one-paragraph description under the
+appropriate "## Month Day, YYYY" date heading (add a new date heading if
+today doesn't have one yet), matching the tone of existing entries — write
+it for a user, not as a commit message. Fetch the page (`GET
+/api/pages/changelog`), edit its `content`, and push the update directly
+via the Directus API (`updateItem("map_pages", id, { content })`) — same
+one-off-script pattern used for other direct content edits in this repo,
+not the seed-pages.ts array (that script's "seed once" idempotency would
+overwrite this page's accumulated history on every re-run).
