@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import ClusteredMapView from "react-native-map-clustering";
 import { Callout, Marker, type LatLng } from "react-native-maps";
 import type MapView from "react-native-maps";
@@ -27,6 +27,7 @@ const EMPTY_PIN_FORM: PinFormValue = {
   instagramHandle: "",
   linkedinHandle: "",
   note: "",
+  photoUrl: null,
   pinColor: null,
   pinIcon: null,
 };
@@ -102,6 +103,7 @@ export default function MapDetailScreen() {
         twitterHandle: pinForm.twitterHandle.trim() || undefined,
         instagramHandle: pinForm.instagramHandle.trim() || undefined,
         linkedinHandle: pinForm.linkedinHandle.trim() || undefined,
+        photoUrl: pinForm.photoUrl,
         pinColor: map?.hasPinCustomization ? pinForm.pinColor : undefined,
         pinIcon: map?.hasPinCustomization ? pinForm.pinIcon : undefined,
       });
@@ -190,6 +192,9 @@ export default function MapDetailScreen() {
                   </View>
                   <Callout>
                     <View className="max-w-[220px] gap-1 p-1">
+                      {pin.photoUrl && (
+                        <Image source={{ uri: pin.photoUrl }} className="mb-1 h-24 w-full rounded-md" resizeMode="cover" />
+                      )}
                       <Text className="font-semibold text-slate-900">{pin.userName}</Text>
                       {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
                       {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
@@ -289,6 +294,9 @@ export default function MapDetailScreen() {
         {selectedPin && (
           <View className="flex-1 justify-end bg-black/40">
             <View className="gap-3 rounded-t-3xl bg-white p-6">
+              {selectedPin.photoUrl && (
+                <Image source={{ uri: selectedPin.photoUrl }} className="h-40 w-full rounded-xl" resizeMode="cover" />
+              )}
               <Text className="text-lg font-bold text-slate-900">{selectedPin.userName}</Text>
               {!selectedPin.approved && <Text className="text-sm font-medium text-amber-600">Pending the owner's approval</Text>}
               {selectedPin.note && <Text className="text-sm text-slate-600">{selectedPin.note}</Text>}

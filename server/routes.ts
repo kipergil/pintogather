@@ -60,6 +60,18 @@ const logoUpload = multer({
   },
 });
 
+const pinPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB, same allowance as a map logo
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_LOGO_MIME_TYPES.has(file.mimetype)) {
+      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, or GIF image."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 const screenshotUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // 4MB — leaves headroom under Anthropic's ~5MB base64 image limit
@@ -644,6 +656,28 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error: any) {
       console.error("Logo upload error:", error);
       res.status(400).json({ message: error.message || "Failed to upload logo" });
+    }
+  });
+
+  // Per-pin photos. Not gated behind isAuthenticated — pin creation itself
+  // allows anonymous contributors on public/editable maps (see the anonymous
+  // pin-add route below), so requiring an account just to attach a photo
+  // would break that flow; sensitiveWriteRateLimiter is the abuse guard instead.
+  app.post("/api/uploads/pin-photo", sensitiveWriteRateLimiter, (req, res, next) => {
+    pinPhotoUpload.single("file")(req, res, (error: unknown) => {
+      if (error) return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid upload" });
+      next();
+    });
+  }, async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+      const user = await getCurrentUser(req);
+      const fileId = await storage.uploadPinPhoto(user?.id ?? null, req.file);
+      res.status(201).json({ url: `/api/uploads/${fileId}` });
+    } catch (error: any) {
+      console.error("Pin photo upload error:", error);
+      res.status(400).json({ message: error.message || "Failed to upload photo" });
     }
   });
 

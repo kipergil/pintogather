@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlacesSearch } from "./places-search";
@@ -21,7 +21,13 @@ import {
   AtSign,
   ChevronDown,
   Link2,
+  ImageIcon,
+  Loader2,
+  X,
 } from "lucide-react";
+
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
+const PHOTO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 interface AddPinModalProps {
   isOpen: boolean;
@@ -59,6 +65,7 @@ interface PinFormData {
   instagramHandle: string;
   linkedinHandle: string;
   note: string;
+  photoUrl: string | null;
   pinColor: PinColor | null;
   pinIcon: PinIcon | null;
 }
@@ -81,6 +88,7 @@ const emptyForm: PinFormData = {
   instagramHandle: "",
   linkedinHandle: "",
   note: "",
+  photoUrl: null,
   pinColor: null,
   pinIcon: null,
 };
@@ -99,6 +107,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const [fillMySocials, setFillMySocials] = useState(false);
   const [showPinStyle, setShowPinStyle] = useState(false);
   const hasPinCustomization = mapCollection.hasPinCustomization ?? false;
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<PinFormData>(emptyForm);
 
@@ -212,6 +222,36 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     setFormData((prev) => ({ ...prev, userName: place.name }));
   };
 
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.size > PHOTO_MAX_BYTES) {
+      toast({
+        title: "File too large",
+        description: "Please choose an image under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const response = await apiUpload("/api/uploads/pin-photo", file);
+      const { url } = await response.json();
+      setFormData((prev) => ({ ...prev, photoUrl: url }));
+    } catch (error: any) {
+      toast({
+        title: "Couldn't upload photo",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const searchAgain = () => {
     setSelectedLocation(null);
     setSelectedPlace(null);
@@ -279,6 +319,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       instagramHandle: formData.instagramHandle.trim() || null,
       linkedinHandle: formData.linkedinHandle.trim() || null,
       note: formData.note.trim() || null,
+      photoUrl: formData.photoUrl,
       pinColor: formData.pinColor,
       pinIcon: formData.pinIcon,
     };
@@ -391,6 +432,55 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Photo (optional)</Label>
+                {formData.photoUrl ? (
+                  <div className="relative w-fit">
+                    <img
+                      src={formData.photoUrl}
+                      alt="Pin preview"
+                      className="h-24 w-24 rounded-lg object-cover border border-border"
+                      data-testid="img-pin-photo-preview"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, photoUrl: null })}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+                      aria-label="Remove photo"
+                      data-testid="button-remove-photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={photoFileInputRef}
+                      type="file"
+                      accept={PHOTO_ACCEPT}
+                      onChange={handlePhotoFileChange}
+                      className="hidden"
+                      data-testid="input-photo-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => photoFileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
+                      data-testid="button-upload-photo"
+                    >
+                      {isUploadingPhoto ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+                    </Button>
+                  </>
+                )}
+              </div>
+
               <Collapsible open={showSocialLinks} onOpenChange={setShowSocialLinks}>
                 <CollapsibleTrigger asChild>
                   <button
@@ -501,7 +591,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
             <Button
               type="submit"
               className="flex-1"
-              disabled={createPinMutation.isPending || isLoadingLocation}
+              disabled={createPinMutation.isPending || isLoadingLocation || isUploadingPhoto}
               data-testid="button-add-pin"
             >
               <Plus className="h-4 w-4 mr-2" />

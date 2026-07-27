@@ -19,6 +19,7 @@ const EMPTY_PIN_FORM: PinFormValue = {
   instagramHandle: "",
   linkedinHandle: "",
   note: "",
+  photoUrl: null,
   pinColor: null,
   pinIcon: null,
 };
@@ -75,6 +76,7 @@ export default function MapDetailWebFallback() {
         twitterHandle: pinForm.twitterHandle.trim() || undefined,
         instagramHandle: pinForm.instagramHandle.trim() || undefined,
         linkedinHandle: pinForm.linkedinHandle.trim() || undefined,
+        photoUrl: pinForm.photoUrl,
         pinColor: map?.hasPinCustomization ? pinForm.pinColor : undefined,
         pinIcon: map?.hasPinCustomization ? pinForm.pinIcon : undefined,
       });

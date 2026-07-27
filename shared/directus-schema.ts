@@ -88,6 +88,7 @@ export interface Pin {
   linkedin_handle: string | null;
   note: string | null;
   google_maps_url: string | null;
+  photo_url: string | null;
   approved: boolean;
   pin_color: PinColor | null;
   pin_icon: PinIcon | null;

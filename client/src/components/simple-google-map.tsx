@@ -88,6 +88,7 @@ interface Pin {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  photoUrl?: string | null;
   approved?: boolean;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
@@ -284,6 +285,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
         content: `
           <div style="position: relative; padding: 4px 22px 4px 4px; min-width: 130px; max-width: 220px; font-family: inherit;">
             <button type="button" id="${closeButtonId}" aria-label="Close" style="position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; border: 0; background: none; color: #6b7280; cursor: pointer; display: flex; align-items: center; justify-content: center;">${ICONS.x}</button>
+            ${pin.photoUrl ? `<img src="${escapeHtml(pin.photoUrl)}" alt="" style="display: block; width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px; margin-bottom: 6px;" />` : ''}
             <div style="font-weight: 600; font-size: 13px; line-height: 1.3; color: #111827;">${escapeHtml(pin.userName)}</div>
             ${pin.approved === false ? `<div style="margin-top: 2px; color: #B45309; font-size: 11px; font-weight: 600;">Pending approval</div>` : ''}
             ${locationText ? `<div style="margin-top: 2px; color: #666; font-size: 11px;">${escapeHtml(locationText)}</div>` : ''}

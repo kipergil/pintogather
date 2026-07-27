@@ -243,6 +243,7 @@ export interface Pin {
   linkedinHandle: string | null;
   note: string | null;
   googleMapsUrl: string | null;
+  photoUrl: string | null;
   approved: boolean;
   /** Per-pin marker color override (Basic/Premium map owners only) — overrides the map's defaultPinColor when set. */
   pinColor: (typeof PIN_COLOR)[number] | null;
@@ -269,6 +270,7 @@ export const insertPinSchema = z.object({
   linkedinHandle: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
+  photoUrl: z.string().trim().max(500).nullable().optional(),
   approved: z.boolean().optional(),
   pinColor: z.enum(PIN_COLOR).nullable().optional(),
   pinIcon: z.enum(PIN_ICON).nullable().optional(),
