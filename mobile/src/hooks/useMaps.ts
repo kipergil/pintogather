@@ -184,6 +184,18 @@ export function useBulkDeletePins(shareUrl: string | undefined) {
   });
 }
 
+export function useReorderPins(shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pinIds: string[]) => {
+      await apiRequest("PUT", `/api/maps/${shareUrl}/pins/reorder`, { pinIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
+    },
+  });
+}
+
 export function useBulkImportPins(shareUrl: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({

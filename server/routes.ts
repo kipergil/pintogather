@@ -1274,6 +1274,38 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Route/itinerary reordering — owner-only, unlike most pin edits (which
+  // a contributor can also make on their own pin), since this rearranges
+  // every pin on the map at once, not just one contributor's own entry.
+  app.put("/api/maps/:shareUrl/pins/reorder", isAuthenticated, async (req, res) => {
+    try {
+      const { shareUrl } = req.params;
+      const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+      const user = await getCurrentUser(req);
+      if (!user || user.id !== mapCollection.ownerId) {
+        return res.status(403).json({ message: "Only the map owner can reorder its route" });
+      }
+
+      const { pinIds } = z.object({ pinIds: z.array(z.string()).min(1).max(500) }).parse(req.body);
+
+      const existingIds = new Set((await storage.getPinsByMapId(mapCollection.id)).map((pin) => pin.id));
+      if (!pinIds.every((id) => existingIds.has(id))) {
+        return res.status(400).json({ message: "pinIds must all belong to this map" });
+      }
+
+      await storage.reorderPins(pinIds);
+      res.json({ reordered: pinIds.length });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error reordering pins:", error);
+      res.status(500).json({ message: "Failed to reorder pins" });
+    }
+  });
+
   // AI-assisted import: turns a free-text theme ("best ramen spots in
   // Tokyo") into up to 15 candidate venue names, which the client then runs
   // through the exact same search/review/import pipeline as a pasted list.

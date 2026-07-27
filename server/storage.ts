@@ -87,6 +87,7 @@ const PIN_FIELDS = [
   "approved",
   "pin_color",
   "pin_icon",
+  "sequence",
   "date_created",
 ] as const;
 
@@ -180,6 +181,7 @@ function toPin(row: DirectusPin): Pin {
     approved: row.approved,
     pinColor: row.pin_color,
     pinIcon: row.pin_icon,
+    sequence: row.sequence,
     createdAt: new Date(row.date_created),
   };
 }
@@ -305,6 +307,8 @@ export interface IStorage {
   getPinsByMapId(mapId: string): Promise<Pin[]>;
   getPinById(id: string): Promise<Pin | undefined>;
   updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined>;
+  /** Sets each pin's `sequence` to its index in the given order — powers the route/itinerary view's drag-to-reorder. */
+  reorderPins(orderedPinIds: string[]): Promise<void>;
   deletePin(id: string, userId?: string): Promise<boolean>;
 
   // Admin & profile
@@ -770,6 +774,20 @@ class DirectusStorage implements IStorage {
       console.error("Error updating pin:", error);
       return undefined;
     }
+  }
+
+  /**
+   * Sets `sequence` = array index for each pin id, in the order given —
+   * the route/itinerary order. Directus has no bulk "different value per
+   * row" update, so this is one request per pin; the caller (routes.ts)
+   * has already verified every id belongs to the target map.
+   */
+  async reorderPins(orderedPinIds: string[]): Promise<void> {
+    await Promise.all(
+      orderedPinIds.map((id, index) =>
+        this.client.request(updateItem("pins", id, { sequence: index }, { fields: ["id"] })),
+      ),
+    );
   }
 
   async deletePin(id: string, userId?: string): Promise<boolean> {

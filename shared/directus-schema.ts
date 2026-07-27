@@ -90,6 +90,7 @@ export interface Pin {
   google_maps_url: string | null;
   photo_url: string | null;
   approved: boolean;
+  sequence: number | null;
   pin_color: PinColor | null;
   pin_icon: PinIcon | null;
   date_created: string;
