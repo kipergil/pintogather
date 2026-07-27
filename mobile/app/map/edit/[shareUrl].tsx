@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Switch, Text, View } from "react-native";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
 import { InviteSheet } from "@/components/InviteSheet";
-import { useArchiveMaps, useDeleteMap, useMap, useUpdateMap } from "@/hooks/useMaps";
+import { useArchiveMaps, useDeleteMap, useMap, useUpdateMap, useUpdateMapPermissions } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { sharePinsCsv } from "@/lib/csv-export";
@@ -22,6 +22,7 @@ export default function EditMapScreen() {
   const { data: map, isLoading } = useMap(shareUrl);
   const { data: currentUser } = useCurrentUser();
   const updateMap = useUpdateMap(map?.id);
+  const updatePermissions = useUpdateMapPermissions(map?.id);
   const deleteMap = useDeleteMap();
   const archiveMaps = useArchiveMaps();
   const hasPinCustomization = TIER_LIMITS[currentUser?.userGroup ?? "freemium"].pinCustomization;
@@ -34,7 +35,10 @@ export default function EditMapScreen() {
   const [showOnProfile, setShowOnProfile] = useState(false);
   const [defaultPinColor, setDefaultPinColor] = useState<PinColor | null>(null);
   const [defaultPinIcon, setDefaultPinIcon] = useState<PinIcon | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [defaultPermission, setDefaultPermission] = useState<"readonly" | "editable">("readonly");
   const [error, setError] = useState<string | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
 
   useEffect(() => {
@@ -46,6 +50,8 @@ export default function EditMapScreen() {
     setShowOnProfile(map.showOnProfile);
     setDefaultPinColor(map.defaultPinColor);
     setDefaultPinIcon(map.defaultPinIcon);
+    setIsPublic(map.isPublic);
+    setDefaultPermission(map.defaultPermission);
   }, [map]);
 
   if (!isSignedIn) return null;
@@ -68,6 +74,16 @@ export default function EditMapScreen() {
       router.back();
     } catch (err: any) {
       setError(err?.message ?? "Couldn't save changes.");
+    }
+  };
+
+  const onSavePermissions = async () => {
+    if (!map) return;
+    setPermissionsError(null);
+    try {
+      await updatePermissions.mutateAsync({ isPublic, defaultPermission });
+    } catch (err: any) {
+      setPermissionsError(err?.message ?? "Couldn't save access settings.");
     }
   };
 
@@ -193,12 +209,71 @@ export default function EditMapScreen() {
           <Button onPress={onSave} loading={updateMap.isPending} disabled={!name.trim()} testID="button-save-map">
             Save changes
           </Button>
+
+          <View className="gap-3 rounded-xl border border-slate-200 p-3.5">
+            <Text className="text-sm font-medium text-slate-700">Sharing & access</Text>
+
+            <View className="flex-row items-center justify-between gap-3">
+              <View className="flex-1 gap-0.5">
+                <Text className="text-sm text-slate-700">Public map</Text>
+                <Text className="text-xs text-slate-500">Marks this map as open to the public via its share link.</Text>
+              </View>
+              <Switch value={isPublic} onValueChange={setIsPublic} testID="switch-map-public" />
+            </View>
+
+            <View className="gap-1.5">
+              <Text className="text-sm text-slate-700">Access for people without an account</Text>
+              <Text className="text-xs text-slate-500">
+                Controls whether pins added anonymously through the share link can later be edited by other visitors, not just their
+                creator.
+              </Text>
+              <View className="flex-row gap-2">
+                <Pressable
+                  onPress={() => setDefaultPermission("readonly")}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 ${defaultPermission === "readonly" ? "border-primary bg-primary/10" : "border-slate-300"}`}
+                  testID="button-default-permission-readonly"
+                >
+                  <Ionicons name="lock-closed-outline" size={14} color={defaultPermission === "readonly" ? "#2563EB" : "#64748b"} />
+                  <Text className={`text-sm ${defaultPermission === "readonly" ? "font-medium text-primary" : "text-slate-600"}`}>
+                    View only
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setDefaultPermission("editable")}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 ${defaultPermission === "editable" ? "border-primary bg-primary/10" : "border-slate-300"}`}
+                  testID="button-default-permission-editable"
+                >
+                  <Ionicons name="shield-outline" size={14} color={defaultPermission === "editable" ? "#2563EB" : "#64748b"} />
+                  <Text className={`text-sm ${defaultPermission === "editable" ? "font-medium text-primary" : "text-slate-600"}`}>
+                    Anyone can edit
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {permissionsError && <Text className="text-sm text-red-600">{permissionsError}</Text>}
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={onSavePermissions}
+              loading={updatePermissions.isPending}
+              testID="button-save-permissions"
+            >
+              Save access settings
+            </Button>
+          </View>
+
           <Button variant="outline" onPress={() => setInviteSheetVisible(true)} testID="button-open-invite-sheet">
             Invite collaborators
           </Button>
           <Link href={`/map/import/${shareUrl}`} asChild>
             <Button variant="outline" testID="button-open-import">
               Import pins from a list
+            </Button>
+          </Link>
+          <Link href={`/map/pins/${shareUrl}`} asChild>
+            <Button variant="outline" testID="button-manage-pins">
+              Manage pins
             </Button>
           </Link>
           <Button variant="outline" onPress={onExportCsv} testID="button-export-csv">

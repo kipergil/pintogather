@@ -1,13 +1,27 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 import { ShareSheet } from "@/components/ShareSheet";
-import { useMap } from "@/hooks/useMaps";
+import { PinForm, type PinFormValue } from "@/components/PinForm";
+import { VenueSearchSheet, type VenueResult } from "@/components/VenueSearchSheet";
+import { useAddPin, useMap } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
+import { signInHref } from "@/lib/authNav";
+
+const EMPTY_PIN_FORM: PinFormValue = {
+  userName: "",
+  twitterHandle: "",
+  instagramHandle: "",
+  linkedinHandle: "",
+  note: "",
+  pinColor: null,
+  pinIcon: null,
+};
 
 /**
  * react-native-maps has no web implementation (it registers a native Fabric
@@ -24,8 +38,54 @@ export default function MapDetailWebFallback() {
   const { shareUrl } = useLocalSearchParams<{ shareUrl: string }>();
   const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
+  const addPin = useAddPin(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [venueSearchVisible, setVenueSearchVisible] = useState(false);
+  const [pendingPlace, setPendingPlace] = useState<VenueResult | null>(null);
+  const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const onVenueSelected = (place: VenueResult) => {
+    setVenueSearchVisible(false);
+    setPendingPlace(place);
+    setPinForm({ ...EMPTY_PIN_FORM, userName: place.name });
+    setSubmitError(null);
+  };
+
+  const closeAddPinModal = () => {
+    setPendingPlace(null);
+    setSubmitError(null);
+  };
+
+  const onSubmitPin = async () => {
+    if (!pendingPlace) return;
+    if (!pinForm.userName.trim()) {
+      setSubmitError("Please enter your name.");
+      return;
+    }
+    setSubmitError(null);
+    try {
+      const pin = await addPin.mutateAsync({
+        userName: pinForm.userName.trim(),
+        latitude: pendingPlace.latitude,
+        longitude: pendingPlace.longitude,
+        address: pendingPlace.address,
+        note: pinForm.note.trim() || undefined,
+        twitterHandle: pinForm.twitterHandle.trim() || undefined,
+        instagramHandle: pinForm.instagramHandle.trim() || undefined,
+        linkedinHandle: pinForm.linkedinHandle.trim() || undefined,
+        pinColor: map?.hasPinCustomization ? pinForm.pinColor : undefined,
+        pinIcon: map?.hasPinCustomization ? pinForm.pinIcon : undefined,
+      });
+      closeAddPinModal();
+      if (!pin.approved) {
+        Alert.alert("Pin added", "Your pin is pending the map owner's approval before it's visible to others.");
+      }
+    } catch (err: any) {
+      setSubmitError(err?.message ?? "Couldn't add that pin.");
+    }
+  };
 
   return (
     <View className="flex-1 bg-slate-50 px-4">
@@ -64,10 +124,16 @@ export default function MapDetailWebFallback() {
             </Text>
             {!isSignedIn && (
               <Text className="text-xs text-amber-700" testID="guest-notice">
-                Viewing as a guest. <Link href="/(auth)/sign-in" className="font-semibold underline">Sign in</Link> to manage your own
-                maps.
+                Viewing as a guest.{" "}
+                <Link href={signInHref(`/map/${shareUrl}`)} className="font-semibold underline">
+                  Sign in
+                </Link>{" "}
+                to manage your own maps.
               </Text>
             )}
+            <Button variant="outline" size="sm" onPress={() => setVenueSearchVisible(true)} testID="button-search-venue">
+              Search for a venue to add
+            </Button>
           </View>
           <FlatList
             data={map.pins}
@@ -103,6 +169,44 @@ export default function MapDetailWebFallback() {
       {map && (
         <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
       )}
+
+      <VenueSearchSheet visible={venueSearchVisible} onClose={() => setVenueSearchVisible(false)} onSelect={onVenueSelected} />
+
+      <Modal visible={!!pendingPlace} animationType="slide" transparent onRequestClose={closeAddPinModal}>
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="max-h-[85%] rounded-t-3xl bg-white p-6">
+            <Text className="text-lg font-bold text-slate-900">Add a pin</Text>
+            {pendingPlace && <Text className="mb-4 mt-0.5 text-xs text-slate-500">{pendingPlace.address}</Text>}
+            <ScrollView>
+              <PinForm
+                value={pinForm}
+                onChange={setPinForm}
+                noteLabel={map?.noteLabel || "Note"}
+                notePrompt={map?.notePrompt ?? null}
+                hasPinCustomization={!!map?.hasPinCustomization}
+                profileSocials={
+                  currentUser
+                    ? {
+                        twitterHandle: currentUser.twitterHandle ?? "",
+                        instagramHandle: currentUser.instagramHandle ?? "",
+                        linkedinHandle: currentUser.linkedinHandle ?? "",
+                      }
+                    : undefined
+                }
+              />
+            </ScrollView>
+            {submitError && <Text className="mt-3 text-sm text-red-600">{submitError}</Text>}
+            <View className="mt-4 flex-row gap-3">
+              <Button variant="outline" className="flex-1" onPress={closeAddPinModal}>
+                Cancel
+              </Button>
+              <Button className="flex-1" loading={addPin.isPending} onPress={onSubmitPin} testID="button-submit-pin">
+                Drop pin
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -20,8 +20,13 @@ import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
+import { sensitiveWriteRateLimiter } from "./lib/security.js";
 
-const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"]);
+// SVG deliberately excluded: it's an XML format that can carry <script>,
+// and this app has no server-side SVG sanitizer — an uploaded SVG would be
+// served back byte-for-byte at /api/uploads/:fileId (unauthenticated, so
+// anyone can open it directly) and execute in this origin as a stored XSS.
+const ALLOWED_LOGO_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 // Anthropic's vision API only accepts these four raster formats (no SVG).
 const ALLOWED_SCREENSHOT_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
@@ -47,7 +52,7 @@ const logoUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_LOGO_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, GIF, or SVG image."));
+      cb(new Error("Unsupported file type — please upload a PNG, JPEG, WebP, or GIF image."));
       return;
     }
     cb(null, true);
@@ -138,6 +143,21 @@ async function isPinModifiable(pin: Pin, user: User | null): Promise<boolean> {
 
   const map = await storage.getMapCollectionById(pin.mapId);
   return map?.defaultPermission === "editable";
+}
+
+/**
+ * A non-public map (isPublic: false) is only viewable/contributable by its
+ * owner or an invited collaborator (a row in map_viewers) — everyone else,
+ * signed in or not, gets treated as if the map doesn't exist. A public map
+ * (the default — see the `isPublic ?? true` fallback in storage.ts's
+ * createMapCollection) keeps the original "anyone with the link" behavior.
+ */
+async function canAccessMap(map: MapCollection, user: User | null): Promise<boolean> {
+  if (map.isPublic) return true;
+  if (!user) return false;
+  if (user.id === map.ownerId) return true;
+  const access = await storage.getUserMapAccess(user.id, map.id);
+  return !!access;
 }
 
 export async function registerRoutes(app: Express): Promise<void> {
@@ -639,6 +659,11 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       res.setHeader("Content-Type", assetResponse.headers.get("content-type") || "application/octet-stream");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      // Defense-in-depth: even though the upload allow-list already excludes
+      // SVG (the one image type that can carry <script>), this blocks any
+      // script from executing if a file here is ever opened as a top-level
+      // navigation — belt-and-suspenders in case the allow-list is loosened later.
+      res.setHeader("Content-Security-Policy", "script-src 'none'; sandbox");
       res.send(Buffer.from(await assetResponse.arrayBuffer()));
     } catch (error) {
       console.error("Error fetching uploaded asset:", error);
@@ -887,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // --- Invitations ----------------------------------------------------------------
 
-  app.post("/api/maps/:mapId/invitations", isAuthenticated, async (req, res) => {
+  app.post("/api/maps/:mapId/invitations", sensitiveWriteRateLimiter, isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
@@ -1050,6 +1075,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
       const user = await getCurrentUser(req);
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
       const isOwner = !!user && user.id === mapCollection.ownerId;
 
       const allPins = await storage.getPinsByMapId(mapCollection.id);
@@ -1125,11 +1153,16 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
-  app.post("/api/maps/:shareUrl/pins", async (req, res) => {
+  app.post("/api/maps/:shareUrl/pins", sensitiveWriteRateLimiter, async (req, res) => {
     try {
       const { shareUrl } = req.params;
       const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
+
+      const user = await getCurrentUser(req);
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
 
       const maxPins = await getMapOwnerMaxPins(mapCollection);
       const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
@@ -1139,7 +1172,6 @@ export async function registerRoutes(app: Express): Promise<void> {
         });
       }
 
-      const user = await getCurrentUser(req);
       const isOwner = !!user && user.id === mapCollection.ownerId;
       const data = insertPinSchema.parse({
         ...req.body,
@@ -1178,6 +1210,9 @@ export async function registerRoutes(app: Express): Promise<void> {
 
       const user = await getCurrentUser(req);
       if (!user) return res.status(401).json({ message: "Unauthorized" });
+      if (!(await canAccessMap(mapCollection, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
       const isOwner = user.id === mapCollection.ownerId;
 
       // Unlike the single-pin route below, a bulk request can be entirely
@@ -1369,6 +1404,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       const { id } = req.params;
       const pin = await storage.getPinById(id);
       if (!pin) return res.status(404).json({ message: "Pin not found" });
+
+      const map = await storage.getMapCollectionById(pin.mapId);
+      const user = await getCurrentUser(req);
+      if (!map || !(await canAccessMap(map, user))) {
+        return res.status(404).json({ message: "Pin not found" });
+      }
+
       res.json(pin);
     } catch (error: any) {
       console.error("Error fetching pin:", error);
@@ -1526,6 +1568,41 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch location data" });
+    }
+  });
+
+  // --- Venue/place search (OpenStreetMap Nominatim) ---------------------------------
+  //
+  // The web app's venue search (client/src/components/places-search.tsx)
+  // calls the browser's google.maps.places JS SDK directly, client-side —
+  // there's no RN equivalent of that SDK, and no server proxy for Google
+  // Places existed before this route. Rather than add a native Places SDK
+  // dependency (its own API key, billing, and platform config) just for the
+  // mobile app, this reuses the same free, key-less Nominatim service the
+  // reverse-geocode route above already depends on, proxied server-side so
+  // the mobile app calls it exactly like every other endpoint.
+  app.get("/api/places/search", async (req, res) => {
+    try {
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      if (!q) return res.json({ results: [] });
+
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&addressdetails=1&namedetails=1&limit=8`,
+        { headers: { "User-Agent": "PinTogather Application" } },
+      );
+      if (!response.ok) throw new Error("Places search unavailable");
+
+      const data = await response.json();
+      const results = (Array.isArray(data) ? data : []).map((item: any) => ({
+        name: item.namedetails?.name || item.display_name.split(",")[0],
+        address: item.display_name as string,
+        latitude: item.lat as string,
+        longitude: item.lon as string,
+      }));
+
+      res.json({ results });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search places" });
     }
   });
 

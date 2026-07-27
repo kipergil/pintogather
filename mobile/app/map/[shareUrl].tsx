@@ -11,6 +11,8 @@ import { ShareSheet } from "@/components/ShareSheet";
 import { useAddPin, useDeletePin, useMap } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
+import { signInHref } from "@/lib/authNav";
+import { VenueSearchSheet, type VenueResult } from "@/components/VenueSearchSheet";
 import type { Pin } from "../../../shared/schema";
 
 // Central London — same fallback the web app's map component uses when a
@@ -39,10 +41,12 @@ export default function MapDetailScreen() {
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
 
   const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [venueSearchVisible, setVenueSearchVisible] = useState(false);
   const mapRef = useRef<MapView>(null);
 
   const initialRegion = useMemo(() => {
@@ -55,6 +59,7 @@ export default function MapDetailScreen() {
 
   const openAddPinModal = (coordinate: LatLng) => {
     setPendingCoordinate(coordinate);
+    setPendingAddress(null);
     setPinForm({
       ...EMPTY_PIN_FORM,
       userName: user?.fullName || user?.primaryEmailAddress?.emailAddress || "",
@@ -62,8 +67,19 @@ export default function MapDetailScreen() {
     setSubmitError(null);
   };
 
+  const onVenueSelected = (place: VenueResult) => {
+    setVenueSearchVisible(false);
+    setPendingCoordinate({ latitude: Number(place.latitude), longitude: Number(place.longitude) });
+    setPendingAddress(place.address);
+    // Name the pin after the venue so search-built maps read as a list of
+    // places, mirroring client/src/components/add-pin-modal.tsx's handlePlaceSelect.
+    setPinForm({ ...EMPTY_PIN_FORM, userName: place.name });
+    setSubmitError(null);
+  };
+
   const closeAddPinModal = () => {
     setPendingCoordinate(null);
+    setPendingAddress(null);
     setSubmitError(null);
   };
 
@@ -79,6 +95,7 @@ export default function MapDetailScreen() {
         userName: pinForm.userName.trim(),
         latitude: String(pendingCoordinate.latitude),
         longitude: String(pendingCoordinate.longitude),
+        address: pendingAddress || undefined,
         note: pinForm.note.trim() || undefined,
         twitterHandle: pinForm.twitterHandle.trim() || undefined,
         instagramHandle: pinForm.instagramHandle.trim() || undefined,
@@ -185,8 +202,11 @@ export default function MapDetailScreen() {
           {!isSignedIn && (
             <View className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5" testID="guest-notice">
               <Text className="text-xs text-amber-800">
-                Viewing as a guest — pins save anonymously. <Link href="/(auth)/sign-in" className="font-semibold underline">Sign in</Link> to
-                manage your own maps.
+                Viewing as a guest — pins save anonymously.{" "}
+                <Link href={signInHref(`/map/${shareUrl}`)} className="font-semibold underline">
+                  Sign in
+                </Link>{" "}
+                to manage your own maps.
               </Text>
             </View>
           )}
@@ -206,6 +226,14 @@ export default function MapDetailScreen() {
             </Pressable>
           )}
 
+          <Pressable
+            onPress={() => setVenueSearchVisible(true)}
+            className="absolute bottom-24 left-4 h-11 w-11 items-center justify-center rounded-full bg-white shadow"
+            testID="button-search-venue"
+          >
+            <Ionicons name="search-outline" size={20} color="#2563EB" />
+          </Pressable>
+
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
             <View className="flex-row items-center gap-1.5">
               <Ionicons name="location" size={16} color="#2563EB" />
@@ -213,7 +241,7 @@ export default function MapDetailScreen() {
                 {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
               </Text>
             </View>
-            <Text className="text-xs text-slate-400">Tap the map to add a pin</Text>
+            <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
           </View>
         </>
       )}
@@ -221,8 +249,9 @@ export default function MapDetailScreen() {
       <Modal visible={!!pendingCoordinate} animationType="slide" transparent onRequestClose={closeAddPinModal}>
         <View className="flex-1 justify-end bg-black/40">
           <View className="max-h-[85%] rounded-t-3xl bg-white p-6">
-            <Text className="mb-4 text-lg font-bold text-slate-900">Add a pin</Text>
-            <ScrollView>
+            <Text className="text-lg font-bold text-slate-900">Add a pin</Text>
+            {pendingAddress && <Text className="mb-4 mt-0.5 text-xs text-slate-500">{pendingAddress}</Text>}
+            <ScrollView className={pendingAddress ? "" : "mt-4"}>
               <PinForm
                 value={pinForm}
                 onChange={setPinForm}
@@ -296,6 +325,8 @@ export default function MapDetailScreen() {
       {map && (
         <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
       )}
+
+      <VenueSearchSheet visible={venueSearchVisible} onClose={() => setVenueSearchVisible(false)} onSelect={onVenueSelected} />
     </View>
   );
 }

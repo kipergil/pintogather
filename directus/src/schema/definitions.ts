@@ -84,7 +84,11 @@ export const mapCollectionsCollection: CollectionDefinition = {
     textField("name", { required: true, unique: true }),
     richTextField("description", { nullable: true }),
     textField("share_url", { required: true, unique: true }),
-    booleanField("is_public", false),
+    // Note: ensureBaseFields (apply.ts) only creates fields that don't
+    // already exist — this default only takes effect on a fresh Directus
+    // instance. An already-provisioned instance's column default and
+    // existing rows are updated by backfill-is-public.ts instead.
+    booleanField("is_public", true),
     selectField("default_permission", PERMISSION, { defaultValue: "readonly", nullable: false }),
     textField("note_label", {
       nullable: true,

@@ -364,7 +364,11 @@ class DirectusStorage implements IStorage {
           description: data.description ?? null,
           share_url: shareUrl,
           owner: data.ownerId ?? null,
-          is_public: data.isPublic ?? false,
+          // Defaults to true: this app's core flow is "share the link,
+          // anyone can view/contribute" — isPublic:false is an explicit
+          // opt-in an owner makes afterward (see PUT /api/maps/:mapId/permissions),
+          // not something a brand-new map should start locked behind.
+          is_public: data.isPublic ?? true,
           default_permission: data.defaultPermission ?? "readonly",
           note_label: data.noteLabel ?? null,
           note_prompt: data.notePrompt ?? null,

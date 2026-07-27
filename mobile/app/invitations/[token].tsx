@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { useAcceptInvitation, useInvitationPreview } from "@/hooks/useInvitations";
+import { signInHref } from "@/lib/authNav";
 
 export default function AcceptInvitationScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -58,7 +59,7 @@ export default function AcceptInvitationScreen() {
               Accept invitation
             </Button>
           ) : (
-            <Button onPress={() => router.push("/(auth)/sign-in")} testID="button-signin-to-accept">
+            <Button onPress={() => router.push(signInHref(`/invitations/${token}`))} testID="button-signin-to-accept">
               Sign in to accept
             </Button>
           )}

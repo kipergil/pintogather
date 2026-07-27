@@ -1,8 +1,9 @@
 import { GestureResponderEvent, Pressable, Text } from "react-native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useLike } from "@/hooks/useSocial";
+import { signInHref } from "@/lib/authNav";
 
 interface LikeButtonProps {
   mapId: string;
@@ -14,6 +15,7 @@ interface LikeButtonProps {
 export function LikeButton({ mapId, liked, likeCount, invalidateKeys = [] }: LikeButtonProps) {
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const { optimistic, toggle, isPending } = useLike(mapId, invalidateKeys);
   const display = optimistic ?? { liked, count: likeCount };
 
@@ -25,7 +27,7 @@ export function LikeButton({ mapId, liked, likeCount, invalidateKeys = [] }: Lik
     e.stopPropagation();
     e.preventDefault();
     if (!isSignedIn) {
-      router.push("/(auth)/sign-in");
+      router.push(signInHref(pathname));
       return;
     }
     toggle(display.liked, display.count);
