@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Milestone, List, GitFork } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, GitFork } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MapActionsMenu } from "@/components/map-actions-menu";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
-import { RouteView } from "@/components/route-view";
 import { ShareModal } from "@/components/share-modal";
 import { SharePopover } from "@/components/share-popover";
 import { LikeButton } from "@/components/like-button";
@@ -91,7 +90,6 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
-  const [view, setView] = useState<"map" | "route">("map");
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -348,15 +346,14 @@ export default function MapDetail({ params }: MapDetailProps) {
       </Card>
 
       {/* Map View */}
-      <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} showRoute={view === "route"} />
+      <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} />
 
       {/* Pins management */}
       <Card className="border-border">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
-              {view === "map" ? "Pins" : "Route"}{" "}
-              <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+              Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
               {isOwner && pendingCount > 0 && (
                 <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
                   <Clock className="h-3 w-3" />
@@ -364,40 +361,14 @@ export default function MapDetail({ params }: MapDetailProps) {
                 </Badge>
               )}
             </h2>
-            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-              <Button
-                variant={view === "map" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() => setView("map")}
-                data-testid="button-view-pins"
-              >
-                <List className="h-3.5 w-3.5 mr-1.5" />
-                Pins
-              </Button>
-              <Button
-                variant={view === "route" ? "secondary" : "ghost"}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() => setView("route")}
-                data-testid="button-view-route"
-              >
-                <Milestone className="h-3.5 w-3.5 mr-1.5" />
-                Route
-              </Button>
-            </div>
           </div>
-          {view === "map" ? (
-            <PinTable
-              pins={mapCollection.pins}
-              mapOwnerId={mapCollection.ownerId}
-              shareUrl={mapCollection.shareUrl}
-              noteLabel={mapCollection.noteLabel}
-              onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
-            />
-          ) : (
-            <RouteView shareUrl={mapCollection.shareUrl} pins={mapCollection.pins} isOwner={isOwner} />
-          )}
+          <PinTable
+            pins={mapCollection.pins}
+            mapOwnerId={mapCollection.ownerId}
+            shareUrl={mapCollection.shareUrl}
+            noteLabel={mapCollection.noteLabel}
+            onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
+          />
         </CardContent>
       </Card>
 
