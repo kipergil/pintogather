@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { MapPin, Users, GitFork } from "lucide-react";
+import { MapPin, Users } from "lucide-react";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
+import { ForkedFromBadge } from "@/components/forked-from-badge";
 import { countDistinctContributors } from "@/lib/map-utils";
 import type { PinColor, PinIcon } from "@shared/enums";
 
@@ -109,25 +109,12 @@ export default function PublicMap({ params }: PublicMapProps) {
           </div>
 
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
+              {!!mapCollection.forkedFromMapId && <ForkedFromBadge forkedFrom={mapCollection.forkedFrom ?? null} />}
+            </div>
             {mapCollection.description && (
               <p className="text-muted-foreground mt-1.5">{mapCollection.description}</p>
-            )}
-            {!!mapCollection.forkedFromMapId && (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <GitFork className="h-3.5 w-3.5" />
-                {mapCollection.forkedFrom ? (
-                  <>
-                    Forked from{" "}
-                    <Link href={`/map/${mapCollection.forkedFrom.shareUrl}`} className="font-medium text-primary hover:underline" data-testid="link-forked-from">
-                      {mapCollection.forkedFrom.name}
-                    </Link>
-                    {mapCollection.forkedFrom.ownerName && ` by ${mapCollection.forkedFrom.ownerName}`}
-                  </>
-                ) : (
-                  "Forked from a map that's no longer available"
-                )}
-              </p>
             )}
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
               <span className="inline-flex items-center gap-1.5">
