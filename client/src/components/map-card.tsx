@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MapActionsMenu } from "@/components/map-actions-menu";
 import { ShareModal } from "@/components/share-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
+import type { Folder } from "@shared/schema";
 
 export interface MapCollectionSummary {
   id: string;
@@ -16,6 +17,8 @@ export interface MapCollectionSummary {
   createdAt: string;
   pinCount: number;
   showOnProfile?: boolean;
+  /** Private, owner-only organization folder — never shown to anyone but the owner. Null/undefined means unfiled. */
+  folderId?: string | null;
 }
 
 function formatRelativeDate(dateString: string) {
@@ -43,6 +46,9 @@ interface MapCardProps {
   selectable?: boolean;
   selected?: boolean;
   onToggleSelected?: (map: MapCollectionSummary) => void;
+  /** This account's folders, for the "Move to folder" menu — omitted (or empty) hides that action entirely. */
+  folders?: Folder[];
+  onMoveToFolder?: (map: MapCollectionSummary, folderId: string | null) => void;
 }
 
 export function MapCard({
@@ -56,6 +62,8 @@ export function MapCard({
   selectable = false,
   selected = false,
   onToggleSelected,
+  folders,
+  onMoveToFolder,
 }: MapCardProps) {
   const [, setLocation] = useLocation();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -148,6 +156,9 @@ export function MapCard({
             directusUrl={directusUrl}
             testIdSuffix={map.id}
             triggerClassName="h-8 w-8 shrink-0 ml-auto"
+            folders={folders}
+            currentFolderId={map.folderId}
+            onMoveToFolder={onMoveToFolder ? (folderId) => onMoveToFolder(map, folderId) : undefined}
           />
         )}
       </div>

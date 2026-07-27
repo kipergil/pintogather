@@ -173,6 +173,8 @@ export interface MapCollection {
    * map wasn't cloned from another, or its original has since been deleted.
    */
   forkedFromMapId: string | null;
+  /** Private, owner-only organization folder this map is filed under. Never shown to anyone but the owner, on any public page or response. Null means unfiled (shows at the root level). */
+  folderId: string | null;
   createdAt: Date;
 }
 
@@ -200,6 +202,8 @@ export const updateMapDetailsSchema = z.object({
   defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
   defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
   showOnProfile: z.boolean().optional(),
+  /** Move this map into a folder (or back to the root level with null). Ownership of the target folder is checked server-side. */
+  folderId: z.string().nullable().optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
 
@@ -329,6 +333,32 @@ export const insertMapInvitationSchema = z.object({
   expiresAt: z.date(),
 });
 export type InsertMapInvitation = z.infer<typeof insertMapInvitationSchema>;
+
+/**
+ * A private, owner-only folder for organizing one's own maps — purely
+ * personal map management, never shown to anyone but the owner on any
+ * public page or API response. Nested: parentFolderId is self-referencing,
+ * to arbitrary depth.
+ */
+export interface Folder {
+  id: string;
+  name: string;
+  ownerId: string;
+  parentFolderId: string | null;
+  createdAt: Date;
+}
+
+export const insertFolderSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  parentFolderId: z.string().nullable().optional(),
+});
+export type InsertFolder = z.infer<typeof insertFolderSchema>;
+
+export const updateFolderSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  parentFolderId: z.string().nullable().optional(),
+});
+export type UpdateFolder = z.infer<typeof updateFolderSchema>;
 
 /** A CMS page — a static marketing page or (later) a blog post, rendered by slug. Authored in the Directus admin panel; the app only ever reads published pages. */
 export interface Page {

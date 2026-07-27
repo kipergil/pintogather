@@ -3,13 +3,15 @@ import { storage } from "./storage.js";
 import {
   bulkInsertPinsSchema,
   curateMapSchema,
+  insertFolderSchema,
   insertMapCollectionSchema,
   insertPinSchema,
+  updateFolderSchema,
   updateMapDetailsSchema,
   updateProfileSchema,
   USERNAME_PATTERN,
 } from "../shared/schema.js";
-import type { MapCollection, Pin, PublicProfile, User } from "../shared/schema.js";
+import type { Folder, MapCollection, Pin, PublicProfile, User } from "../shared/schema.js";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import multer from "multer";
@@ -942,6 +944,13 @@ export async function registerRoutes(app: Express): Promise<void> {
         }
       }
 
+      if (data.folderId) {
+        const targetFolder = await storage.getFolderById(data.folderId);
+        if (!targetFolder || targetFolder.ownerId !== user.id) {
+          return res.status(404).json({ message: "Folder not found" });
+        }
+      }
+
       const updatedMap = await storage.updateMapDetails(mapId, data);
       if (!updatedMap) return res.status(404).json({ message: "Map not found" });
 
@@ -971,6 +980,121 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error deleting map:", error);
       res.status(500).json({ message: "Failed to delete map" });
+    }
+  });
+
+  // --- Folders (private, owner-only map organization) -----------------------------
+
+  // Whether moving `folderId` to become a child of `newParentId` would create
+  // a cycle — either newParentId is folderId itself, or folderId is already
+  // an ancestor of newParentId (walking newParentId's own parent chain
+  // reaches folderId). Folders are never deep enough to make the walk costly.
+  function wouldCreateFolderCycle(folders: Folder[], folderId: string, newParentId: string): boolean {
+    if (folderId === newParentId) return true;
+    const parentById = new Map(folders.map((f) => [f.id, f.parentFolderId]));
+    let current: string | null = newParentId;
+    while (current) {
+      if (current === folderId) return true;
+      current = parentById.get(current) ?? null;
+    }
+    return false;
+  }
+
+  app.get("/api/folders", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const folders = await storage.getFoldersByOwner(user.id);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching folders:", error);
+      res.status(500).json({ message: "Failed to fetch folders" });
+    }
+  });
+
+  app.post("/api/folders", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const data = insertFolderSchema.parse(req.body);
+
+      if (data.parentFolderId) {
+        const parent = await storage.getFolderById(data.parentFolderId);
+        if (!parent || parent.ownerId !== user.id) {
+          return res.status(404).json({ message: "Parent folder not found" });
+        }
+      }
+
+      const folder = await storage.createFolder({ ...data, ownerId: user.id });
+      res.status(201).json(folder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        console.error("Error creating folder:", error);
+        res.status(500).json({ message: "Failed to create folder" });
+      }
+    }
+  });
+
+  app.put("/api/folders/:folderId", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { folderId } = req.params;
+      const folder = await storage.getFolderById(folderId);
+      if (!folder || folder.ownerId !== user.id) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+
+      const data = updateFolderSchema.parse(req.body);
+
+      if (data.parentFolderId) {
+        const parent = await storage.getFolderById(data.parentFolderId);
+        if (!parent || parent.ownerId !== user.id) {
+          return res.status(404).json({ message: "Parent folder not found" });
+        }
+        const allFolders = await storage.getFoldersByOwner(user.id);
+        if (wouldCreateFolderCycle(allFolders, folderId, data.parentFolderId)) {
+          return res.status(400).json({ message: "Can't move a folder into itself or one of its own subfolders" });
+        }
+      }
+
+      const updated = await storage.updateFolder(folderId, data);
+      if (!updated) return res.status(404).json({ message: "Folder not found" });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        console.error("Error updating folder:", error);
+        res.status(500).json({ message: "Failed to update folder" });
+      }
+    }
+  });
+
+  app.delete("/api/folders/:folderId", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const { folderId } = req.params;
+      const folder = await storage.getFolderById(folderId);
+      if (!folder || folder.ownerId !== user.id) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+
+      // Subfolders and maps filed under this folder are promoted back to the
+      // root level (SET NULL at the DB level) rather than deleted.
+      await storage.deleteFolder(folderId);
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      res.status(500).json({ message: "Failed to delete folder" });
     }
   });
 

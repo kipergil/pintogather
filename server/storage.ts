@@ -14,6 +14,7 @@ import {
 import { nanoid } from "nanoid";
 import type { UserGroup } from "../shared/enums.js";
 import type {
+  Folder,
   MapCollection,
   MapInvitation,
   MapLike,
@@ -21,16 +22,19 @@ import type {
   Page,
   Pin,
   CurateMap,
+  InsertFolder,
   InsertMapCollection,
   InsertMapInvitation,
   InsertMapViewer,
   InsertPin,
+  UpdateFolder,
   UpdateMapDetails,
   UpdateProfile,
   User,
   UserFollow,
 } from "../shared/schema.js";
 import type {
+  Folder as DirectusFolder,
   MapCollection as DirectusMapCollection,
   MapInvitation as DirectusMapInvitation,
   MapLike as DirectusMapLike,
@@ -64,6 +68,7 @@ const MAP_FIELDS = [
   "curated_order",
   "curated_tagline",
   "forked_from_map",
+  "folder",
   "date_created",
 ] as const;
 
@@ -169,6 +174,19 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     curatedOrder: row.curated_order,
     curatedTagline: row.curated_tagline,
     forkedFromMapId: row.forked_from_map,
+    folderId: row.folder,
+    createdAt: new Date(row.date_created),
+  };
+}
+
+const FOLDER_FIELDS = ["id", "name", "owner", "parent_folder", "date_created"] as const;
+
+function toFolder(row: DirectusFolder): Folder {
+  return {
+    id: row.id,
+    name: row.name,
+    ownerId: row.owner,
+    parentFolderId: row.parent_folder,
     createdAt: new Date(row.date_created),
   };
 }
@@ -385,6 +403,15 @@ export interface IStorage {
   getPublishedPages(): Promise<Page[]>;
   /** A single published page by slug, or undefined if it doesn't exist or isn't published. */
   getPublishedPageBySlug(slug: string): Promise<Page | undefined>;
+
+  // Folders (private, owner-only map organization)
+  createFolder(data: InsertFolder & { ownerId: string }): Promise<Folder>;
+  getFolderById(id: string): Promise<Folder | undefined>;
+  /** Every folder this user owns, flat (unordered by nesting) — the client assembles the tree from parentFolderId. */
+  getFoldersByOwner(ownerId: string): Promise<Folder[]>;
+  updateFolder(id: string, data: UpdateFolder): Promise<Folder | undefined>;
+  /** Deleting a folder promotes its subfolders and maps back to the root level (SET NULL), rather than deleting them. */
+  deleteFolder(id: string): Promise<boolean>;
 }
 
 export interface UploadableFile {
@@ -605,6 +632,7 @@ class DirectusStorage implements IStorage {
       if (data.showOnProfile !== undefined) payload.show_on_profile = data.showOnProfile;
       if (data.defaultPinColor !== undefined) payload.default_pin_color = data.defaultPinColor;
       if (data.defaultPinIcon !== undefined) payload.default_pin_icon = data.defaultPinIcon;
+      if (data.folderId !== undefined) payload.folder = data.folderId;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
@@ -1332,6 +1360,56 @@ class DirectusStorage implements IStorage {
     );
     const row = rows[0] as DirectusPage | undefined;
     return row ? toPage(row) : undefined;
+  }
+
+  async createFolder(data: InsertFolder & { ownerId: string }): Promise<Folder> {
+    const created = await this.client.request(
+      createItem(
+        "map_folders",
+        { name: data.name, owner: data.ownerId, parent_folder: data.parentFolderId ?? null },
+        { fields: FOLDER_FIELDS },
+      ),
+    );
+    return toFolder(created as unknown as DirectusFolder);
+  }
+
+  async getFolderById(id: string): Promise<Folder | undefined> {
+    const rows = await this.client.request(
+      readItems("map_folders", { filter: { id: { _eq: id } }, fields: FOLDER_FIELDS, limit: 1 }),
+    );
+    const row = rows[0] as DirectusFolder | undefined;
+    return row ? toFolder(row) : undefined;
+  }
+
+  async getFoldersByOwner(ownerId: string): Promise<Folder[]> {
+    const rows = await this.client.request(
+      readItems("map_folders", { filter: { owner: { _eq: ownerId } }, fields: FOLDER_FIELDS, sort: ["name"], limit: -1 }),
+    );
+    return (rows as DirectusFolder[]).map(toFolder);
+  }
+
+  async updateFolder(id: string, data: UpdateFolder): Promise<Folder | undefined> {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (data.name !== undefined) payload.name = data.name;
+      if (data.parentFolderId !== undefined) payload.parent_folder = data.parentFolderId;
+
+      const updated = await this.client.request(updateItem("map_folders", id, payload, { fields: FOLDER_FIELDS }));
+      return toFolder(updated as unknown as DirectusFolder);
+    } catch (error) {
+      console.error("Error updating folder:", error);
+      return undefined;
+    }
+  }
+
+  async deleteFolder(id: string): Promise<boolean> {
+    try {
+      await this.client.request(deleteItem("map_folders", id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      return false;
+    }
   }
 }
 

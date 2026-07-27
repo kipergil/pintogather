@@ -88,6 +88,16 @@ const mapForkedFrom = m2o("map_collections", "forked_from_map", "map_collections
   onDelete: "SET NULL",
 });
 
+// Private, owner-only organization — see mapFoldersCollection below. SET
+// NULL (not CASCADE) so deleting a folder unfiles its maps back to the root
+// rather than deleting them.
+const mapFolder = m2o("map_collections", "folder", "map_folders", {
+  nullable: true,
+  template: "{{name}}",
+  oneField: "maps",
+  onDelete: "SET NULL",
+});
+
 export const mapCollectionsCollection: CollectionDefinition = {
   collection: "map_collections",
   icon: "map",
@@ -163,7 +173,39 @@ export const mapCollectionsCollection: CollectionDefinition = {
     }),
     dateCreatedField(),
   ],
-  relationFields: [mapOwner, mapForkedFrom],
+  relationFields: [mapOwner, mapForkedFrom, mapFolder],
+};
+
+const folderOwner = m2o("map_folders", "owner", "directus_users", {
+  required: true,
+  nullable: false,
+  template: "{{first_name}} {{last_name}}",
+  oneField: "map_folders",
+  onDelete: "CASCADE",
+});
+// Self-referencing, nested to arbitrary depth. SET NULL (not CASCADE) so
+// deleting a folder promotes its subfolders to root level instead of
+// destroying the organization structure underneath it.
+const folderParent = m2o("map_folders", "parent_folder", "map_folders", {
+  nullable: true,
+  template: "{{name}}",
+  oneField: "subfolders",
+  onDelete: "SET NULL",
+});
+
+/**
+ * Purely personal map organization — never shown to anyone but the owner,
+ * on any public-facing page or API response. Distinct from map_collections'
+ * own sharing/permission model, which governs who can view/edit a map's
+ * pins; folders only ever narrow what the owner sees in their own map list.
+ */
+export const mapFoldersCollection: CollectionDefinition = {
+  collection: "map_folders",
+  icon: "folder",
+  note: "A private, owner-only folder for organizing one's own maps into a nested structure.",
+  displayTemplate: "{{name}}",
+  fields: [idField(), textField("name", { required: true }), dateCreatedField()],
+  relationFields: [folderOwner, folderParent],
 };
 
 const pinMap = m2o("pins", "map", "map_collections", {
@@ -390,4 +432,5 @@ export const allCollections: CollectionDefinition[] = [
   userFollowsCollection,
   mapLikesCollection,
   pagesCollection,
+  mapFoldersCollection,
 ];

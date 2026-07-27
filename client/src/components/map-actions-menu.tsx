@@ -1,13 +1,18 @@
-import { Settings, Upload, Share2, Download, Database, Trash2, Menu } from "lucide-react";
+import { Settings, Upload, Share2, Download, Database, Trash2, Menu, FolderInput, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildDirectusAdminUrl } from "@/lib/directusAdmin";
+import { buildFolderTree, flattenFolderTree } from "@/lib/folder-tree";
+import type { Folder } from "@shared/schema";
 
 export interface MapActionsMenuProps {
   /** Real DB id of the map, needed for the "Open in Directus" link. */
@@ -24,6 +29,10 @@ export interface MapActionsMenuProps {
   /** Distinguishes data-testid values when several menus render in a list (e.g. one per map card). */
   testIdSuffix?: string;
   triggerClassName?: string;
+  /** This account's folders, for the "Move to folder" submenu — omitted (or empty) hides that item entirely. */
+  folders?: Folder[];
+  currentFolderId?: string | null;
+  onMoveToFolder?: (folderId: string | null) => void;
 }
 
 /**
@@ -42,8 +51,12 @@ export function MapActionsMenu({
   directusUrl,
   testIdSuffix,
   triggerClassName,
+  folders,
+  currentFolderId,
+  onMoveToFolder,
 }: MapActionsMenuProps) {
   const suffix = testIdSuffix ? `-${testIdSuffix}` : "";
+  const flatFolders = folders && folders.length > 0 ? flattenFolderTree(buildFolderTree(folders)) : [];
 
   return (
     <DropdownMenu>
@@ -74,6 +87,32 @@ export function MapActionsMenu({
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </DropdownMenuItem>
+        )}
+        {isOwner && onMoveToFolder && flatFolders.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger data-testid={`menu-item-move-to-folder${suffix}`}>
+              <FolderInput className="h-4 w-4 mr-2" />
+              Move to folder
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => onMoveToFolder(null)} data-testid={`menu-item-move-to-unfiled${suffix}`}>
+                {currentFolderId == null && <Check className="h-3.5 w-3.5 mr-2" />}
+                <span className={currentFolderId == null ? "" : "ml-[22px]"}>Unfiled</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {flatFolders.map((folder) => (
+                <DropdownMenuItem
+                  key={folder.id}
+                  onClick={() => onMoveToFolder(folder.id)}
+                  style={{ paddingLeft: `${12 + folder.depth * 14}px` }}
+                  data-testid={`menu-item-move-to-folder-${folder.id}${suffix}`}
+                >
+                  {currentFolderId === folder.id && <Check className="h-3.5 w-3.5 mr-2" />}
+                  <span className={currentFolderId === folder.id ? "" : "ml-[22px]"}>{folder.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         )}
         {isOwner && directusUrl && (
           <DropdownMenuItem asChild data-testid={`menu-item-open-directus${suffix}`}>
