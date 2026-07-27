@@ -360,6 +360,14 @@ export interface IStorage {
   /** Every curated map (curated=true), sorted by curatedOrder, optionally narrowed by category/country/city — powers /discover. Unfiltered by viewer/tier; that gating happens in the route. */
   getCuratedMapCollections(filters?: { category?: string; country?: string; city?: string }): Promise<MapCollection[]>;
   getContributedMaps(userId: string): Promise<MapCollection[]>;
+  /** Every non-archived public map's id, system-wide — the "anyone can find this" half of search's access scope. */
+  getPublicMapIds(): Promise<string[]>;
+  /** Every map id this user has been granted viewer/contributor access to (an accepted invitation) — the other half of search's access scope, alongside owned and public maps. */
+  getViewerMapIds(userId: string): Promise<string[]>;
+  /** Maps matching query (name/description) restricted to accessibleMapIds — the caller computes accessibility (public ∪ owned ∪ viewer) via getPublicMapIds/getViewerMapIds. Powers /search. */
+  searchMapCollections(query: string, accessibleMapIds: string[]): Promise<MapCollection[]>;
+  /** Pins matching query (name/note/address/city). ownedMapIds get every pin (including pending); otherMapIds (public or invited, not owned) only return approved pins. Powers /search. */
+  searchPins(query: string, ownedMapIds: string[], otherMapIds: string[]): Promise<Pin[]>;
   /** Bulk-sets `archived` on maps this user owns; silently ignores any requested id the user doesn't own. Returns the ids actually updated. */
   setMapsArchived(mapIds: string[], userId: string, archived: boolean): Promise<string[]>;
   updateMapPermissions(
@@ -638,6 +646,74 @@ class DirectusStorage implements IStorage {
     return (rows as DirectusMapCollection[])
       .map(toMapCollection)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getPublicMapIds(): Promise<string[]> {
+    const rows = await this.client.request(
+      readItems("map_collections", {
+        filter: { is_public: { _eq: true }, archived: { _eq: false } },
+        fields: ["id"],
+        limit: -1,
+      }),
+    );
+    return (rows as Array<{ id: string }>).map((r) => r.id);
+  }
+
+  async getViewerMapIds(userId: string): Promise<string[]> {
+    const rows = await this.client.request(
+      readItems("map_viewers", { filter: { user: { _eq: userId } }, fields: ["map"], limit: -1 }),
+    );
+    return Array.from(new Set((rows as Array<{ map: string }>).map((r) => r.map)));
+  }
+
+  async searchMapCollections(query: string, accessibleMapIds: string[]): Promise<MapCollection[]> {
+    if (accessibleMapIds.length === 0) return [];
+    const rows = await this.client.request(
+      readItems("map_collections", {
+        filter: {
+          id: { _in: accessibleMapIds },
+          archived: { _eq: false },
+          _or: [{ name: { _icontains: query } }, { description: { _icontains: query } }],
+        },
+        fields: MAP_FIELDS,
+        sort: ["-date_created"],
+        limit: 20,
+      }),
+    );
+    return (rows as DirectusMapCollection[]).map(toMapCollection);
+  }
+
+  async searchPins(query: string, ownedMapIds: string[], otherMapIds: string[]): Promise<Pin[]> {
+    const textOr = [
+      { user_name: { _icontains: query } },
+      { note: { _icontains: query } },
+      { address: { _icontains: query } },
+      { city: { _icontains: query } },
+    ];
+    const results: DirectusPin[] = [];
+    if (ownedMapIds.length > 0) {
+      const rows = await this.client.request(
+        readItems("pins", {
+          filter: { map: { _in: ownedMapIds }, _or: textOr },
+          fields: PIN_FIELDS,
+          sort: ["-date_created"],
+          limit: 20,
+        }),
+      );
+      results.push(...(rows as DirectusPin[]));
+    }
+    if (otherMapIds.length > 0) {
+      const rows = await this.client.request(
+        readItems("pins", {
+          filter: { map: { _in: otherMapIds }, approved: { _eq: true }, _or: textOr },
+          fields: PIN_FIELDS,
+          sort: ["-date_created"],
+          limit: 20,
+        }),
+      );
+      results.push(...(rows as DirectusPin[]));
+    }
+    return results.slice(0, 20).map(toPin);
   }
 
   async updateMapPermissions(

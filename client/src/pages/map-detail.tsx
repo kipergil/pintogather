@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, GitFork } from "lucide-react";
-import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,6 +92,7 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
   const directusUrl = useDirectusAdminUrl();
   const queryClient = useQueryClient();
@@ -99,6 +100,19 @@ export default function MapDetail({ params }: MapDetailProps) {
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${params.shareUrl}`],
   });
+
+  // Deep link from search results (?pin=<id>) — focuses that pin once the
+  // map's data has loaded. Consumed only once so it doesn't re-fire on every
+  // background refetch of mapCollection.
+  const consumedPinParamRef = useRef(false);
+  useEffect(() => {
+    if (consumedPinParamRef.current || !mapCollection) return;
+    const pinId = new URLSearchParams(search).get("pin");
+    if (pinId) {
+      consumedPinParamRef.current = true;
+      setFocusRequest({ pinId, nonce: Date.now() });
+    }
+  }, [mapCollection, search]);
 
   const restoreMapMutation = useMutation({
     mutationFn: async (mapId: string) => {

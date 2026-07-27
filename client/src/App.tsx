@@ -25,6 +25,7 @@ import Profile from "@/pages/profile";
 import Pricing from "@/pages/pricing";
 import Discover from "@/pages/discover";
 import Feed from "@/pages/feed";
+import SearchPage from "@/pages/search";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
@@ -35,7 +36,7 @@ import AdminCurateMap from "@/pages/admin-curate-map";
 import CmsPage from "@/pages/cms-page";
 import NotFound from "@/pages/not-found";
 import { SiteFooter } from "@/components/site-footer";
-import { Compass, LogIn, MapPinned, Rss, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
+import { Compass, LogIn, MapPinned, Rss, Search, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
 function Router() {
   return (
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/discover" component={Discover} />
       <Route path="/feed" component={Feed} />
+      <Route path="/search" component={SearchPage} />
       <Route path="/profile" component={Profile} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/how-it-works"><CmsPage slug="how-it-works" /></Route>
@@ -96,6 +98,14 @@ function HeaderContent() {
             >
               <Compass className="h-4 w-4" />
               <span className="hidden sm:inline">Discover</span>
+            </button>
+            <button
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setLocation("/search")}
+              data-testid="button-nav-search"
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">Search</span>
             </button>
             {!loading && user && (
               <button
