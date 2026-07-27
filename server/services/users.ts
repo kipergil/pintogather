@@ -88,6 +88,27 @@ export async function getUserByUsername(username: string): Promise<User | undefi
   return row ? toDomainUser(row) : undefined;
 }
 
+/**
+ * Public profile search by username or display name, for /search. Same
+ * discoverability bar as GET /api/profile/:username (a claimed username is
+ * the only gate — see that route's `!user.username` check) — anyone
+ * findable by direct profile link is equally findable here.
+ */
+export async function searchUsers(query: string): Promise<User[]> {
+  const client = getServiceDirectusClient();
+  const rows = await client.request(
+    readUsers({
+      filter: {
+        username: { _nnull: true },
+        _or: [{ username: { _icontains: query } }, { full_name: { _icontains: query } }],
+      },
+      fields: USER_FIELDS,
+      limit: 20,
+    }),
+  );
+  return (rows as DirectusUser[]).map(toDomainUser);
+}
+
 export async function getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
   const client = getServiceDirectusClient();
   const rows = await client.request(

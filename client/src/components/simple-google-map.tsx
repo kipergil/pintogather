@@ -210,7 +210,14 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
           gestureHandling: 'greedy', // Enable single-finger dragging
           zoomControl: true, // Show zoom buttons
           streetViewControl: false, // Hide street view icon
-          mapTypeControl: false // Hide map/satellite view options
+          mapTypeControl: false, // Hide map/satellite view options
+          // Without this, clicking a POI icon (a restaurant, landmark, etc.)
+          // opens Google's own default info window on top of ours, which
+          // visually blocks the "Drop a pin here?" confirm bubble and makes
+          // it look like the click did nothing. The map still fires its
+          // normal 'click' event with the clicked lat/lng either way, so
+          // click-to-add-pin behaves the same everywhere on the map.
+          clickableIcons: false,
         });
 
         mapInstanceRef.current = map;
@@ -253,21 +260,43 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
   }, [mapCollection.pins]);
 
   useEffect(() => {
-    if (!focusRequest || !mapInstanceRef.current) return;
-    const marker = markersByPinIdRef.current.get(focusRequest.pinId);
-    const position = marker?.getPosition();
-    if (!marker || !position) return;
+    if (!focusRequest) return;
+    let cancelled = false;
+    let attempts = 0;
 
-    mapInstanceRef.current.panTo(position);
-    if ((mapInstanceRef.current.getZoom() ?? 0) < 16) {
-      mapInstanceRef.current.setZoom(16);
-    }
-    // Wait for the map to settle before clicking — at this zoom the marker
-    // should have declustered, but the clusterer only re-renders on 'idle',
-    // so clicking immediately can hit a marker that's still hidden inside a cluster.
-    google.maps.event.addListenerOnce(mapInstanceRef.current, 'idle', () => {
-      google.maps.event.trigger(marker, 'click');
-    });
+    // A pin-table row click (the original trigger for this) only fires once
+    // the map is already fully loaded and interactive, so the map/marker
+    // refs are always ready on the first check. A URL-driven deep link (see
+    // map-detail.tsx's ?pin= handling) can set focusRequest before the map
+    // has finished initializing, so this retries briefly instead of just
+    // giving up — resolves immediately in the already-loaded case.
+    const tryFocus = () => {
+      if (cancelled) return;
+      const map = mapInstanceRef.current;
+      const marker = focusRequest && map ? markersByPinIdRef.current.get(focusRequest.pinId) : undefined;
+      const position = marker?.getPosition();
+      if (map && marker && position) {
+        map.panTo(position);
+        if ((map.getZoom() ?? 0) < 16) {
+          map.setZoom(16);
+        }
+        // Wait for the map to settle before clicking — at this zoom the
+        // marker should have declustered, but the clusterer only re-renders
+        // on 'idle', so clicking immediately can hit a marker still hidden
+        // inside a cluster.
+        google.maps.event.addListenerOnce(map, 'idle', () => {
+          google.maps.event.trigger(marker, 'click');
+        });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 25) setTimeout(tryFocus, 200); // up to ~5s while the map finishes loading
+    };
+    tryFocus();
+
+    return () => {
+      cancelled = true;
+    };
   }, [focusRequest]);
 
   // Removes the pending-location marker and its confirm/cancel bubble, if any.

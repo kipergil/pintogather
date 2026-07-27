@@ -17,7 +17,7 @@ import { nanoid } from "nanoid";
 import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
-import { getUserByUsername } from "./services/users.js";
+import { getUserByUsername, searchUsers } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
@@ -648,6 +648,85 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error fetching discover maps:", error);
       res.status(500).json({ message: "Failed to fetch curated maps" });
+    }
+  });
+
+  // --- Search -------------------------------------------------------------------------
+  // Global search across maps, pins, and users — GET /search on the client.
+  // Public (works signed-out), but scoped per viewer: signed-out or someone
+  // else's private maps/pins never appear, only public ones do; a signed-in
+  // user additionally sees their own private maps/pins and ones they've been
+  // invited to, matching the same access rule canAccessMap() enforces
+  // per-map elsewhere.
+  app.get("/api/search", async (req, res) => {
+    try {
+      const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      if (query.length < 2) {
+        return res.json({ maps: [], pins: [], users: [] });
+      }
+
+      const user = await getCurrentUser(req);
+
+      const [publicMapIds, ownedMaps, viewerMapIds] = await Promise.all([
+        storage.getPublicMapIds(),
+        user ? storage.getMapCollectionsByUserId(user.id) : Promise.resolve([]),
+        user ? storage.getViewerMapIds(user.id) : Promise.resolve([]),
+      ]);
+      const ownedMapIds = ownedMaps.map((m) => m.id);
+      const accessibleMapIds = Array.from(new Set([...publicMapIds, ...ownedMapIds, ...viewerMapIds]));
+      const otherMapIds = accessibleMapIds.filter((id) => !ownedMapIds.includes(id));
+
+      const [matchedMaps, matchedPins, matchedUsers] = await Promise.all([
+        storage.searchMapCollections(query, accessibleMapIds),
+        storage.searchPins(query, ownedMapIds, otherMapIds),
+        searchUsers(query),
+      ]);
+
+      const maps = await Promise.all(
+        matchedMaps.map(async (map) => ({
+          id: map.id,
+          name: map.name,
+          description: map.description,
+          shareUrl: map.shareUrl,
+          isPublic: map.isPublic,
+          ownerName: await getMapOwnerName(map),
+        })),
+      );
+
+      const pinMapIds = Array.from(new Set(matchedPins.map((pin) => pin.mapId)));
+      const pinMaps =
+        pinMapIds.length > 0
+          ? await Promise.all(pinMapIds.map((id) => storage.getMapCollectionById(id)))
+          : [];
+      const pinMapById = new Map(pinMaps.filter((m): m is MapCollection => !!m).map((m) => [m.id, m]));
+      const pins = matchedPins
+        .map((pin) => {
+          const map = pinMapById.get(pin.mapId);
+          if (!map) return null;
+          return {
+            id: pin.id,
+            userName: pin.userName,
+            note: pin.note,
+            address: pin.address,
+            city: pin.city,
+            mapShareUrl: map.shareUrl,
+            mapName: map.name,
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => !!p);
+
+      const users = matchedUsers.map((u) => ({
+        id: u.id,
+        username: u.username,
+        fullName: u.fullName,
+        bio: u.bio,
+        profileImageUrl: u.profileImageUrl,
+      }));
+
+      res.json({ maps, pins, users });
+    } catch (error) {
+      console.error("Error searching:", error);
+      res.status(500).json({ message: "Search failed" });
     }
   });
 
