@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import MapView, { Callout, Marker, type LatLng } from "react-native-maps";
+import ClusteredMapView from "react-native-map-clustering";
+import { Callout, Marker, type LatLng } from "react-native-maps";
+import type MapView from "react-native-maps";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth, useUser } from "@clerk/clerk-expo";
@@ -162,11 +164,12 @@ export default function MapDetailScreen() {
         <EmptyState icon="alert-circle-outline" title="Couldn't load this map" description="Check your connection and try again." />
       ) : (
         <>
-          <MapView
+          <ClusteredMapView
             ref={mapRef}
             className="flex-1"
             initialRegion={initialRegion}
             onPress={(e) => openAddPinModal(e.nativeEvent.coordinate)}
+            clusterColor="#2563EB"
           >
             {map.pins.map((pin) => {
               const style = resolvePinStyle(pin, map);
@@ -197,7 +200,7 @@ export default function MapDetailScreen() {
                 </Marker>
               );
             })}
-          </MapView>
+          </ClusteredMapView>
 
           {!isSignedIn && (
             <View className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5" testID="guest-notice">
