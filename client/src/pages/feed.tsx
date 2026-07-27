@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LikeButton } from "@/components/like-button";
 import { getInitials } from "@/lib/map-utils";
+import { APP_NAME } from "@/lib/branding";
 import { Compass, MapPin, Rss } from "lucide-react";
 import type { FeedMapItem } from "@shared/schema";
 
@@ -77,7 +78,7 @@ function FeedCard({ map }: { map: FeedMapItem }) {
 
 export default function Feed() {
   useEffect(() => {
-    document.title = "Feed — PinTogather";
+    document.title = `Feed — ${APP_NAME}`;
   }, []);
 
   const { data, isLoading } = useQuery<FeedResponse>({ queryKey: [FEED_QUERY_KEY] });
@@ -90,7 +91,7 @@ export default function Feed() {
           <span className="text-sm font-semibold uppercase tracking-wide">Feed</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Recently added maps</h1>
-        <p className="text-muted-foreground">From people you follow and PinTogather's own curated collections.</p>
+        <p className="text-muted-foreground">From people you follow and {APP_NAME}'s own curated collections.</p>
       </div>
 
       {isLoading ? (

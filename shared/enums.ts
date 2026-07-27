@@ -1,4 +1,4 @@
-/** Central registry of enums used across the PinTogather data model. */
+/** Central registry of enums used across this app's data model. */
 
 export const USER_GROUP = ["freemium", "basic", "premium"] as const;
 export type UserGroup = (typeof USER_GROUP)[number];
@@ -50,7 +50,7 @@ export const CURATED_CATEGORY = [
 ] as const;
 export type CuratedCategory = (typeof CURATED_CATEGORY)[number];
 
-/** Countries PinTogather curates maps for — a closed set rather than free text, so curated content stays geographically organized as it grows. */
+/** Countries this app curates maps for — a closed set rather than free text, so curated content stays geographically organized as it grows. */
 export const CURATED_COUNTRY = ["turkey", "uk", "usa", "scotland", "spain", "greece", "italy", "france"] as const;
 export type CuratedCountry = (typeof CURATED_COUNTRY)[number];
 

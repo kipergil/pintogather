@@ -3,7 +3,7 @@ import { Modal, Pressable, Share, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/ui/Button";
-import { WEB_APP_URL } from "@/lib/config";
+import { APP_NAME, WEB_APP_URL } from "@/lib/config";
 
 interface ShareSheetProps {
   visible: boolean;
@@ -23,7 +23,7 @@ interface ShareSheetProps {
 export function ShareSheet({ visible, onClose, mapName, shareUrl }: ShareSheetProps) {
   const [copied, setCopied] = useState(false);
   const webUrl = `${WEB_APP_URL}/map/${shareUrl}`;
-  const caption = `Check out "${mapName}" on PinTogather — ${webUrl}`;
+  const caption = `Check out "${mapName}" on ${APP_NAME} — ${webUrl}`;
 
   const copyLink = async () => {
     await Clipboard.setStringAsync(webUrl);

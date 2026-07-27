@@ -7,6 +7,7 @@ import {
   readRelation,
 } from "@directus/sdk";
 import { getSchemaClient } from "../lib/client.js";
+import { env } from "../lib/env.js";
 import { applyConstraints } from "./constraints.js";
 import { allCollections, directusUsersCustomFields } from "./definitions.js";
 import type { CollectionDefinition, FieldDefinition } from "./types.js";
@@ -147,7 +148,7 @@ async function ensureRelationFields(
 }
 
 async function main() {
-  console.log(`Applying PinTogather schema to ${process.env.DIRECTUS_URL ?? "http://localhost:8055"}...`);
+  console.log(`Applying ${env.APP_NAME} schema to ${env.DIRECTUS_URL}...`);
   const client = await getSchemaClient();
 
   const existingCollections = new Set((await client.request(readCollections())).map((c) => c.collection));

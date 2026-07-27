@@ -14,10 +14,9 @@ import {
 } from "@directus/sdk";
 import { getSchemaClient } from "../lib/client.js";
 import { assertMinimumDirectusVersion } from "../lib/version.js";
+import { env } from "../lib/env.js";
 import { allPolicies } from "./definitions.js";
 import type { PolicyDefinition } from "./types.js";
-
-const SERVICE_ACCOUNT_EMAIL = "service@pintogather.dev";
 
 type Client = Awaited<ReturnType<typeof getSchemaClient>>;
 
@@ -129,18 +128,25 @@ async function ensurePolicy(client: Client, def: PolicyDefinition): Promise<void
  * The Express server authenticates to Directus with one long-lived static
  * token, not a login/refresh flow. That token has to live on some
  * directus_users row — this provisions a dedicated, non-human
- * "PinTogather Service" account and prints its token so it can be pasted
+ * "<APP_NAME> Service" account and prints its token so it can be pasted
  * into directus/.env and the app's root .env as DIRECTUS_SERVICE_TOKEN.
  * Re-running this script never rotates an existing token.
+ *
+ * Changing APP_NAME after this has already run once creates a brand-new
+ * role/account (matched by name/email), not a rename of the existing one
+ * — you'd end up with two service accounts and need to move
+ * DIRECTUS_SERVICE_TOKEN to the new one. Simplest path for a rename: also
+ * update SERVICE_ACCOUNT_EMAIL, or just keep using the existing service
+ * account/token (its name/email are internal plumbing, not user-facing).
  */
 async function ensureServiceAccount(client: Client): Promise<void> {
-  const serviceRoleId = await findRoleByName(client, "PinTogather Service");
+  const serviceRoleId = await findRoleByName(client, `${env.APP_NAME} Service`);
   if (!serviceRoleId) {
-    throw new Error("PinTogather Service role missing — ensurePolicy should have created it.");
+    throw new Error(`${env.APP_NAME} Service role missing — ensurePolicy should have created it.`);
   }
 
   const existing = await client.request(
-    readUsers({ filter: { email: { _eq: SERVICE_ACCOUNT_EMAIL } }, fields: ["id", "token"], limit: 1 }),
+    readUsers({ filter: { email: { _eq: env.SERVICE_ACCOUNT_EMAIL } }, fields: ["id", "token"], limit: 1 }),
   );
 
   if (existing[0]) {
@@ -158,8 +164,8 @@ async function ensureServiceAccount(client: Client): Promise<void> {
   await client.request(
     createUser(
       {
-        email: SERVICE_ACCOUNT_EMAIL,
-        first_name: "PinTogather",
+        email: env.SERVICE_ACCOUNT_EMAIL,
+        first_name: env.APP_NAME,
         last_name: "Service Account",
         role: serviceRoleId,
         status: "active",
@@ -174,7 +180,7 @@ async function ensureServiceAccount(client: Client): Promise<void> {
 }
 
 async function main() {
-  console.log("Applying PinTogather permissions...");
+  console.log(`Applying ${env.APP_NAME} permissions...`);
   const client = await getSchemaClient();
   await assertMinimumDirectusVersion(client);
 

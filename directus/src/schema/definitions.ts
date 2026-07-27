@@ -22,6 +22,7 @@ import {
   selectField,
   textField,
 } from "./presets.js";
+import { env } from "../lib/env.js";
 import type { CollectionDefinition, FieldDefinition } from "./types.js";
 
 /**
@@ -102,7 +103,7 @@ export const mapCollectionsCollection: CollectionDefinition = {
     textField("branding_logo_url", {
       nullable: true,
       maxLength: 500,
-      note: "Optional custom logo shown instead of PinTogather branding on this map's public /p/:shareUrl page.",
+      note: `Optional custom logo shown instead of ${env.APP_NAME} branding on this map's public /p/:shareUrl page.`,
     }),
     booleanField(
       "show_on_profile",

@@ -10,10 +10,19 @@
  * for this instance's own transactional email, so routing through Flows
  * sidesteps the network problem entirely — the app server just writes the
  * row that triggers each flow, same as any other write.
+ *
+ * Flow `name` fields below are fixed literal strings, not built from
+ * APP_NAME (unlike the email copy they send) — apply.ts's ensureFlow
+ * matches existing flows by exact name to stay idempotent, so changing a
+ * name here (whether to a different literal or a dynamic one) creates a
+ * brand-new duplicate flow on the next `flows:apply` run instead of
+ * updating the one already provisioned. Leave these alone even across a
+ * rename; they're an internal admin-panel label, never seen by end users.
  */
+import { env } from "../lib/env.js";
 
-/** Update if the app's production domain changes. */
-export const APP_BASE_URL = "https://pintogather.vercel.app";
+/** The app's actual public origin — read from APP_BASE_URL (directus/.env), not hardcoded, since links in these emails need to point somewhere real. */
+export const APP_BASE_URL = env.APP_BASE_URL;
 
 /** A single node in a Flow's operation chain, in execution order. `resolve` linking to the next operation is wired up by apply.ts. */
 export interface OperationSpec {
@@ -79,7 +88,7 @@ const MAP_INVITATION_MAIL_BODY = `
     <h2 style="font-size: 18px; margin-bottom: 4px;">You've been invited to collaborate</h2>
     <p style="color: #555; line-height: 1.5;">
       <strong>{{read_inviter.first_name}} {{read_inviter.last_name}}</strong> invited you to collaborate on
-      <strong>"{{read_map.name}}"</strong> on PinTogather.
+      <strong>"{{read_map.name}}"</strong> on ${env.APP_NAME}.
     </p>
     <p style="margin: 24px 0;">
       <a href="${APP_BASE_URL}/invitations/{{$trigger.payload.token}}"
@@ -121,7 +130,7 @@ export const mapInvitationFlow: FlowSpec = {
       type: "mail",
       options: {
         to: ["{{$trigger.payload.email}}"],
-        subject: '{{read_inviter.first_name}} invited you to collaborate on "{{read_map.name}}" on PinTogather',
+        subject: `{{read_inviter.first_name}} invited you to collaborate on "{{read_map.name}}" on ${env.APP_NAME}`,
         type: "wysiwyg",
         body: MAP_INVITATION_MAIL_BODY,
       },
@@ -135,7 +144,7 @@ const NEW_USER_MAIL_BODY = `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
     <h2 style="font-size: 18px; margin-bottom: 4px;">New signup</h2>
     <p style="color: #555; line-height: 1.5;">
-      <strong>{{$trigger.payload.full_name}}</strong> ({{$trigger.payload.email}}) just signed up for PinTogather.
+      <strong>{{$trigger.payload.full_name}}</strong> ({{$trigger.payload.email}}) just signed up for ${env.APP_NAME}.
     </p>
   </div>
 `;
@@ -153,7 +162,7 @@ export const newUserFlow: FlowSpec = {
       type: "mail",
       options: {
         to: "{{admin_emails.list}}",
-        subject: "New PinTogather signup: {{$trigger.payload.full_name}}",
+        subject: `New ${env.APP_NAME} signup: {{$trigger.payload.full_name}}`,
         type: "wysiwyg",
         body: NEW_USER_MAIL_BODY,
       },

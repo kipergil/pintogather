@@ -7,8 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { PRICING_TIERS } from "@shared/pricing";
+import { getPricingTiers } from "@shared/pricing";
+import { APP_NAME } from "@/lib/branding";
 import { Check, Loader2 } from "lucide-react";
+
+const PRICING_TIERS = getPricingTiers(APP_NAME);
 
 export default function Pricing() {
   const { user, loading: authLoading } = useAuth();

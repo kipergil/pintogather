@@ -4,7 +4,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/ui/Button";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useBillingPortal, useCheckout } from "@/hooks/useBilling";
-import { PRICING_TIERS } from "../../../shared/pricing";
+import { getPricingTiers } from "../../../shared/pricing";
+import { APP_NAME } from "@/lib/config";
+
+const PRICING_TIERS = getPricingTiers(APP_NAME);
 
 export default function PricingScreen() {
   const { data: user, isLoading } = useCurrentUser();

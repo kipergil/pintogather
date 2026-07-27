@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_NAME } from "@/lib/branding";
 import { LogIn } from "lucide-react";
 
 interface AuthModalProps {
@@ -20,7 +21,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md z-[9999]">
         <DialogHeader>
-          <DialogTitle>Welcome to PinTogather</DialogTitle>
+          <DialogTitle>Welcome to {APP_NAME}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

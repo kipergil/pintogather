@@ -27,7 +27,14 @@ The web app's API server must be running and reachable at `EXPO_PUBLIC_API_URL`
 
 Copy `.env.example` to `.env` and fill in:
 
-- `EXPO_PUBLIC_API_URL` — base URL of the PinTogather API (e.g.
+- `EXPO_PUBLIC_APP_NAME` — display name shown in-app and as the installed
+  app's name. Optional, defaults to "PinTogather". Set `VITE_APP_NAME` to
+  the same value in the root `.env` so the web app agrees.
+- `APP_SLUG` / `APP_SCHEME` — project identifiers read at build time, safe
+  to change any time. `IOS_BUNDLE_IDENTIFIER` / `ANDROID_PACKAGE` are also
+  configurable here but **not** safe to change after publishing to the App
+  Store/Play Store — see the warning comment in `app.config.ts`.
+- `EXPO_PUBLIC_API_URL` — base URL of the API (e.g.
   `http://localhost:5000` for local dev, or your deployed API's origin).
 - `EXPO_PUBLIC_WEB_APP_URL` — base URL for shareable web links (e.g.
   `/map/:shareUrl`). Optional — defaults to `EXPO_PUBLIC_API_URL`, which is

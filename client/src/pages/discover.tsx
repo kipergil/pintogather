@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Compass, Lock, MapPin, X } from "lucide-react";
 import { generateDiscoverCoverUrl } from "@/lib/discover-cover";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS, isCuratedCategory, isCuratedCountry } from "@/lib/curated-maps";
+import { APP_NAME } from "@/lib/branding";
 import type { CuratedCategory, CuratedCountry } from "@shared/enums";
 
 interface DiscoverMap {
@@ -114,7 +115,7 @@ export default function Discover() {
   const [city, setCity] = useState<string>(ALL);
 
   useEffect(() => {
-    document.title = "Discover curated maps — PinTogather";
+    document.title = `Discover curated maps — ${APP_NAME}`;
   }, []);
 
   const queryUrl = useMemo(() => {
@@ -155,7 +156,7 @@ export default function Discover() {
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Curated maps, ready to explore</h1>
         <p className="text-muted-foreground">
-          Hand-picked collections from the PinTogather team and the community — real venues, organized by theme and city.
+          Hand-picked collections from the {APP_NAME} team and the community — real venues, organized by theme and city.
         </p>
       </div>
 
