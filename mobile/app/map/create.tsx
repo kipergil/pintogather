@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { isUpgradeableError } from "@/lib/upgradeError";
 import { TIER_LIMITS } from "../../../shared/limits";
 import type { PinColor, PinIcon } from "../../../shared/enums";
-import type { MapTemplate } from "../../../shared/templates";
+import type { MapTemplate } from "../../../shared/schema";
 
 export default function CreateMapScreen() {
   const { isSignedIn } = useRequireAuth();
@@ -42,9 +42,9 @@ export default function CreateMapScreen() {
     setTemplate(chosen);
     if (chosen) {
       setName(chosen.suggestedName);
-      setDescription(chosen.suggestedDescription);
-      setNoteLabel(chosen.noteLabel);
-      setNotePrompt(chosen.notePrompt);
+      setDescription(chosen.suggestedDescription ?? "");
+      setNoteLabel(chosen.noteLabel ?? "");
+      setNotePrompt(chosen.notePrompt ?? "");
       setShowNoteCustomization(true);
       // A template can only suggest pin styling if this user's plan actually supports it —
       // otherwise the picker isn't shown but the value would still be submitted and rejected.

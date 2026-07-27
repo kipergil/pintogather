@@ -676,6 +676,21 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // --- Map templates (create-map picker) ---------------------------------------------
+  // Starter presets, authored directly in the Directus admin panel — read-only
+  // from the app's side. See directus/src/content/seed-map-templates.ts for
+  // the original migrated set.
+
+  app.get("/api/map-templates", async (_req, res) => {
+    try {
+      const templates = await storage.getPublishedMapTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching map templates:", error);
+      res.status(500).json({ message: "Failed to fetch map templates" });
+    }
+  });
+
   // --- Uploads --------------------------------------------------------------------
   // Map branding logos. Uploaded files live in Directus under a per-user
   // subfolder (map-logos/<userId>/), but the browser never talks to Directus

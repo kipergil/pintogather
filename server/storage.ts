@@ -18,6 +18,7 @@ import type {
   MapCollection,
   MapInvitation,
   MapLike,
+  MapTemplate,
   MapViewer,
   Page,
   Pin,
@@ -38,6 +39,7 @@ import type {
   MapCollection as DirectusMapCollection,
   MapInvitation as DirectusMapInvitation,
   MapLike as DirectusMapLike,
+  MapTemplate as DirectusMapTemplate,
   MapViewer as DirectusMapViewer,
   Page as DirectusPage,
   Pin as DirectusPin,
@@ -125,6 +127,24 @@ const PAGE_FIELDS = [
   "content",
   "published",
   "nav_order",
+  "date_created",
+  "date_updated",
+] as const;
+
+const MAP_TEMPLATE_FIELDS = [
+  "id",
+  "key",
+  "icon",
+  "label",
+  "tagline",
+  "suggested_name",
+  "suggested_description",
+  "note_label",
+  "note_prompt",
+  "default_pin_color",
+  "default_pin_icon",
+  "published",
+  "sort_order",
   "date_created",
   "date_updated",
 ] as const;
@@ -288,6 +308,22 @@ function toPage(row: DirectusPage): Page {
   };
 }
 
+function toMapTemplate(row: DirectusMapTemplate): MapTemplate {
+  return {
+    id: row.id,
+    key: row.key,
+    icon: row.icon,
+    label: row.label,
+    tagline: row.tagline,
+    suggestedName: row.suggested_name,
+    suggestedDescription: row.suggested_description,
+    noteLabel: row.note_label,
+    notePrompt: row.note_prompt,
+    defaultPinColor: row.default_pin_color,
+    defaultPinIcon: row.default_pin_icon,
+  };
+}
+
 function toMapInvitation(row: DirectusMapInvitation): MapInvitation {
   return {
     id: row.id,
@@ -403,6 +439,10 @@ export interface IStorage {
   getPublishedPages(): Promise<Page[]>;
   /** A single published page by slug, or undefined if it doesn't exist or isn't published. */
   getPublishedPageBySlug(slug: string): Promise<Page | undefined>;
+
+  // Map templates (create-map picker)
+  /** Published templates only, sorted by sortOrder (nulls last) then label — powers the create-map "What are you mapping?" picker. */
+  getPublishedMapTemplates(): Promise<MapTemplate[]>;
 
   // Folders (private, owner-only map organization)
   createFolder(data: InsertFolder & { ownerId: string }): Promise<Folder>;
@@ -1360,6 +1400,18 @@ class DirectusStorage implements IStorage {
     );
     const row = rows[0] as DirectusPage | undefined;
     return row ? toPage(row) : undefined;
+  }
+
+  async getPublishedMapTemplates(): Promise<MapTemplate[]> {
+    const rows = await this.client.request(
+      readItems("pintogather_map_templates", {
+        filter: { published: { _eq: true } },
+        fields: MAP_TEMPLATE_FIELDS,
+        sort: ["sort_order", "label"],
+        limit: -1,
+      }),
+    );
+    return (rows as DirectusMapTemplate[]).map(toMapTemplate);
   }
 
   async createFolder(data: InsertFolder & { ownerId: string }): Promise<Folder> {
