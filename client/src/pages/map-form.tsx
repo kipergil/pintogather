@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateMapForm } from "@/components/create-map-form";
+import { TemplatePicker } from "@/components/template-picker";
 import { useAuth } from "@/contexts/AuthContext";
+import { TIER_LIMITS } from "@shared/limits";
 import type { PinColor, PinIcon } from "@shared/enums";
+import type { MapTemplate } from "@shared/templates";
 
 interface MapFormProps {
   params?: {
@@ -32,6 +36,9 @@ export default function MapForm({ params }: MapFormProps) {
   const { user, loading: authLoading } = useAuth();
   const shareUrl = params?.shareUrl;
   const isEditing = !!shareUrl;
+  // undefined = not chosen yet (show the picker), null = "start from scratch", otherwise the picked template.
+  const [template, setTemplate] = useState<MapTemplate | null | undefined>(undefined);
+  const hasPinCustomization = TIER_LIMITS[user?.userGroup ?? "freemium"].pinCustomization;
 
   const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${shareUrl}`],
@@ -140,31 +147,60 @@ export default function MapForm({ params }: MapFormProps) {
         </Button>
       </div>
 
-      <Card className="border-border">
-        <CardContent className="p-6">
-          <CreateMapForm
-            mapId={mapCollection?.id}
-            initialValues={
-              isEditing && mapCollection
-                ? {
-                    name: mapCollection.name,
-                    description: mapCollection.description ?? "",
-                    noteLabel: mapCollection.noteLabel ?? "",
-                    notePrompt: mapCollection.notePrompt ?? "",
-                    brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
-                    showOnProfile: mapCollection.showOnProfile ?? false,
-                    defaultPinColor: mapCollection.defaultPinColor ?? null,
-                    defaultPinIcon: mapCollection.defaultPinIcon ?? null,
-                    shareUrl: mapCollection.shareUrl,
-                  }
-                : undefined
-            }
-            onCreated={() => {
-              if (isEditing) setLocation(backHref);
-            }}
-          />
-        </CardContent>
-      </Card>
+      {!isEditing && template === undefined ? (
+        <Card className="border-border">
+          <CardContent className="p-6">
+            <TemplatePicker onSelect={setTemplate} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-border">
+          <CardContent className="p-6 space-y-4">
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setTemplate(undefined)}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="button-change-template"
+              >
+                ← Choose a different template
+              </button>
+            )}
+            <CreateMapForm
+              mapId={mapCollection?.id}
+              initialValues={
+                isEditing && mapCollection
+                  ? {
+                      name: mapCollection.name,
+                      description: mapCollection.description ?? "",
+                      noteLabel: mapCollection.noteLabel ?? "",
+                      notePrompt: mapCollection.notePrompt ?? "",
+                      brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
+                      showOnProfile: mapCollection.showOnProfile ?? false,
+                      defaultPinColor: mapCollection.defaultPinColor ?? null,
+                      defaultPinIcon: mapCollection.defaultPinIcon ?? null,
+                      shareUrl: mapCollection.shareUrl,
+                    }
+                  : template
+                    ? {
+                        name: template.suggestedName,
+                        description: template.suggestedDescription,
+                        noteLabel: template.noteLabel,
+                        notePrompt: template.notePrompt,
+                        // A template can only suggest pin styling if this user's plan actually supports it —
+                        // otherwise the picker isn't shown but the value would still be submitted and rejected.
+                        defaultPinColor: hasPinCustomization ? template.defaultPinColor : null,
+                        defaultPinIcon: hasPinCustomization ? template.defaultPinIcon : null,
+                      }
+                    : undefined
+              }
+              onCreated={() => {
+                if (isEditing) setLocation(backHref);
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
