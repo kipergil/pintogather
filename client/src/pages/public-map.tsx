@@ -25,6 +25,8 @@ interface MapCollection {
   pinCount: number;
   defaultPinColor?: PinColor | null;
   defaultPinIcon?: PinIcon | null;
+  /** Non-null iff this map is a clone of another. Used to gate the credit banner below — forkedFrom alone can't tell "never forked" apart from "forked but original deleted" since both resolve to null. */
+  forkedFromMapId?: string | null;
   forkedFrom?: { name: string; shareUrl: string; ownerName: string | null } | null;
   pins: Array<{
     id: string;
@@ -111,7 +113,7 @@ export default function PublicMap({ params }: PublicMapProps) {
             {mapCollection.description && (
               <p className="text-muted-foreground mt-1.5">{mapCollection.description}</p>
             )}
-            {mapCollection.forkedFrom !== undefined && (
+            {!!mapCollection.forkedFromMapId && (
               <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <GitFork className="h-3.5 w-3.5" />
                 {mapCollection.forkedFrom ? (

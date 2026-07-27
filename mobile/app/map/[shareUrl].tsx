@@ -46,6 +46,11 @@ export default function MapDetailScreen() {
   const cloneMap = useCloneMap(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
 
+  // Set the instant the map is tapped, before the user has committed to a pin
+  // there — shows a temporary marker + a "Drop a pin here?" confirm/cancel
+  // bar instead of opening the full Add Pin sheet right away, so a mis-tap
+  // doesn't fall straight into the form. Tapping elsewhere just moves it.
+  const [pendingConfirmCoordinate, setPendingConfirmCoordinate] = useState<LatLng | null>(null);
   const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
   const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
@@ -215,7 +220,7 @@ export default function MapDetailScreen() {
             ref={mapRef}
             className="flex-1"
             initialRegion={initialRegion}
-            onPress={(e) => openAddPinModal(e.nativeEvent.coordinate)}
+            onPress={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
             clusterColor="#2563EB"
           >
             {map.pins.map((pin) => {
@@ -253,6 +258,11 @@ export default function MapDetailScreen() {
             {routeMode && routeCoordinates.length > 1 && (
               <Polyline coordinates={routeCoordinates} strokeColor="#2563EB" strokeWidth={3} />
             )}
+            {pendingConfirmCoordinate && (
+              <Marker coordinate={pendingConfirmCoordinate} anchor={{ x: 0.5, y: 0.5 }} tappable={false}>
+                <View className="h-[22px] w-[22px] rounded-full border-2 border-white bg-primary" />
+              </Marker>
+            )}
           </ClusteredMapView>
 
           {!isSignedIn && (
@@ -283,7 +293,10 @@ export default function MapDetailScreen() {
           )}
 
           <Pressable
-            onPress={() => setVenueSearchVisible(true)}
+            onPress={() => {
+              setPendingConfirmCoordinate(null);
+              setVenueSearchVisible(true);
+            }}
             className="absolute bottom-24 left-4 h-11 w-11 items-center justify-center rounded-full bg-white shadow"
             testID="button-search-venue"
           >
@@ -291,22 +304,49 @@ export default function MapDetailScreen() {
           </Pressable>
 
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
-            <View className="flex-row items-center gap-1.5">
-              <Ionicons name="location" size={16} color="#2563EB" />
-              <Text className="text-sm font-medium text-slate-700">
-                {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
-              </Text>
-            </View>
-            {map.forkedFrom ? (
-              <Link href={`/map/${map.forkedFrom.shareUrl}`} testID="link-forked-from">
-                <Text className="text-xs text-primary" numberOfLines={1}>
-                  Forked from {map.forkedFrom.name}
-                </Text>
-              </Link>
-            ) : map.forkedFromMapId !== null ? (
-              <Text className="text-xs text-slate-400">Forked map no longer available</Text>
+            {pendingConfirmCoordinate ? (
+              <>
+                <Text className="text-sm font-medium text-slate-700">Drop a pin here?</Text>
+                <View className="flex-row gap-2">
+                  <Pressable
+                    onPress={() => setPendingConfirmCoordinate(null)}
+                    className="rounded-full bg-slate-100 px-3.5 py-1.5"
+                    testID="button-cancel-pending-pin"
+                  >
+                    <Text className="text-xs font-semibold text-slate-600">Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      openAddPinModal(pendingConfirmCoordinate);
+                      setPendingConfirmCoordinate(null);
+                    }}
+                    className="rounded-full bg-primary px-3.5 py-1.5"
+                    testID="button-confirm-pending-pin"
+                  >
+                    <Text className="text-xs font-semibold text-white">Confirm</Text>
+                  </Pressable>
+                </View>
+              </>
             ) : (
-              <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
+              <>
+                <View className="flex-row items-center gap-1.5">
+                  <Ionicons name="location" size={16} color="#2563EB" />
+                  <Text className="text-sm font-medium text-slate-700">
+                    {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+                  </Text>
+                </View>
+                {map.forkedFrom ? (
+                  <Link href={`/map/${map.forkedFrom.shareUrl}`} testID="link-forked-from">
+                    <Text className="text-xs text-primary" numberOfLines={1}>
+                      Forked from {map.forkedFrom.name}
+                    </Text>
+                  </Link>
+                ) : map.forkedFromMapId !== null ? (
+                  <Text className="text-xs text-slate-400">Forked map no longer available</Text>
+                ) : (
+                  <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
+                )}
+              </>
             )}
           </View>
         </>
