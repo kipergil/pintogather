@@ -6,12 +6,14 @@ import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
+import { TemplatePicker } from "@/components/TemplatePicker";
 import { useCreateMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { isUpgradeableError } from "@/lib/upgradeError";
 import { TIER_LIMITS } from "../../../shared/limits";
 import type { PinColor, PinIcon } from "../../../shared/enums";
+import type { MapTemplate } from "../../../shared/templates";
 
 export default function CreateMapScreen() {
   const { isSignedIn } = useRequireAuth();
@@ -19,6 +21,9 @@ export default function CreateMapScreen() {
   const createMap = useCreateMap();
   const { data: currentUser } = useCurrentUser();
   const hasPinCustomization = TIER_LIMITS[currentUser?.userGroup ?? "freemium"].pinCustomization;
+
+  // undefined = not chosen yet (show the picker), null = "start from scratch", otherwise the picked template.
+  const [template, setTemplate] = useState<MapTemplate | null | undefined>(undefined);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -32,6 +37,33 @@ export default function CreateMapScreen() {
   const [upgradeable, setUpgradeable] = useState(false);
 
   if (!isSignedIn) return null;
+
+  const onSelectTemplate = (chosen: MapTemplate | null) => {
+    setTemplate(chosen);
+    if (chosen) {
+      setName(chosen.suggestedName);
+      setDescription(chosen.suggestedDescription);
+      setNoteLabel(chosen.noteLabel);
+      setNotePrompt(chosen.notePrompt);
+      setShowNoteCustomization(true);
+      // A template can only suggest pin styling if this user's plan actually supports it —
+      // otherwise the picker isn't shown but the value would still be submitted and rejected.
+      if (hasPinCustomization) {
+        setDefaultPinColor(chosen.defaultPinColor);
+        setDefaultPinIcon(chosen.defaultPinIcon);
+        setShowPinStyle(true);
+      }
+    }
+  };
+
+  if (template === undefined) {
+    return (
+      <Screen scroll>
+        <Stack.Screen options={{ title: "New map", presentation: "modal" }} />
+        <TemplatePicker onSelect={onSelectTemplate} />
+      </Screen>
+    );
+  }
 
   const onSubmit = async () => {
     setError(null);
@@ -56,6 +88,15 @@ export default function CreateMapScreen() {
     <Screen scroll>
       <Stack.Screen options={{ title: "New map", presentation: "modal" }} />
       <View className="gap-4 py-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start px-0"
+          onPress={() => setTemplate(undefined)}
+          testID="button-change-template"
+        >
+          ← Choose a different template
+        </Button>
         <TextField label="Name" value={name} onChangeText={setName} placeholder="Best coffee in town" testID="input-map-name" />
         <TextField
           label="Description (optional)"
