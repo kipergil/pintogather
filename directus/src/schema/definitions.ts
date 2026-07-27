@@ -76,6 +76,18 @@ const mapOwner = m2o("map_collections", "owner", "directus_users", {
   onDelete: "SET NULL",
 });
 
+// Self-referencing: set once, at clone time, by POST /api/maps/:shareUrl/clone
+// — never exposed through any edit-map route, so a clone can't quietly
+// disown its original once created (the "give credit to the maintainer"
+// requirement). SET NULL (not CASCADE) so deleting the original leaves the
+// clone intact; the UI shows a "no longer available" fallback when null.
+const mapForkedFrom = m2o("map_collections", "forked_from_map", "map_collections", {
+  nullable: true,
+  template: "{{name}}",
+  oneField: "forks",
+  onDelete: "SET NULL",
+});
+
 export const mapCollectionsCollection: CollectionDefinition = {
   collection: "map_collections",
   icon: "map",
@@ -151,7 +163,7 @@ export const mapCollectionsCollection: CollectionDefinition = {
     }),
     dateCreatedField(),
   ],
-  relationFields: [mapOwner],
+  relationFields: [mapOwner, mapForkedFrom],
 };
 
 const pinMap = m2o("pins", "map", "map_collections", {

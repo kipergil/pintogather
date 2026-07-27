@@ -113,6 +113,21 @@ async function getMapOwnerName(mapCollection: MapCollection): Promise<string | n
 }
 
 /**
+ * Resolves a clone's permanent "forked from" credit line — live, not a
+ * snapshot: if the original map's title changes, this reflects that; if the
+ * original was deleted, forked_from_map is already null (SET NULL) and this
+ * just returns null, which the client renders as "no longer available".
+ */
+async function getForkedFromSummary(
+  mapCollection: MapCollection,
+): Promise<{ name: string; shareUrl: string; ownerName: string | null } | null> {
+  if (!mapCollection.forkedFromMapId) return null;
+  const original = await storage.getMapCollectionById(mapCollection.forkedFromMapId);
+  if (!original) return null;
+  return { name: original.name, shareUrl: original.shareUrl, ownerName: await getMapOwnerName(original) };
+}
+
+/**
  * Whether a map's owner is currently on a tier that includes custom pin
  * colors/icons — checked at *display* time, same reasoning as custom
  * branding above, so a downgrade takes the perk away immediately.
@@ -813,6 +828,59 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Clone/fork — copies a map (and, respecting the cloner's own plan caps,
+  // its currently-visible pins) into a brand-new map owned by the caller,
+  // permanently linked back to the original via forked_from_map. Anyone who
+  // can currently view the source map can clone it; the clone is entirely
+  // independent afterward — editing it never touches the original.
+  app.post("/api/maps/:shareUrl/clone", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const source = await storage.getMapCollectionByShareUrl(req.params.shareUrl);
+      if (!source) return res.status(404).json({ message: "Map collection not found" });
+      if (!(await canAccessMap(source, user))) {
+        return res.status(404).json({ message: "Map collection not found" });
+      }
+
+      const maxMaps = TIER_LIMITS[user.userGroup].maxMaps;
+      const ownedMapCount = (await storage.getMapCollectionsByUserId(user.id, { archived: false })).length;
+      if (ownedMapCount >= maxMaps) {
+        return res.status(403).json({
+          message: `You've reached the ${maxMaps}-map limit for the ${user.userGroup} plan. Upgrade at /pricing for more.`,
+        });
+      }
+
+      // "Cloned: <title>" collides if you (or anyone) clone the same map
+      // twice — map names are globally unique — so fall back to "(2)", "(3)"
+      // etc. until a free one is found, same idea as a filesystem's "copy (2)".
+      let name = `Cloned: ${source.name}`;
+      for (let attempt = 2; await storage.getMapCollectionByName(name); attempt++) {
+        name = `Cloned: ${source.name} (${attempt})`;
+      }
+
+      const isSourceOwner = user.id === source.ownerId;
+      const allSourcePins = await storage.getPinsByMapId(source.id);
+      // Anyone but the source's own owner only ever gets to clone what's
+      // actually visible to them — pending/unapproved pins aren't public yet.
+      const visiblePins = isSourceOwner ? allSourcePins : allSourcePins.filter((pin) => pin.approved);
+      const maxPins = TIER_LIMITS[user.userGroup].maxPinsPerMap;
+      const pinsToClone = visiblePins.slice(0, maxPins);
+
+      const { map, pins } = await storage.cloneMapCollection(source, pinsToClone, {
+        ownerId: user.id,
+        name,
+        includePinStyle: TIER_LIMITS[user.userGroup].pinCustomization,
+      });
+
+      res.status(201).json({ ...map, pins, skippedDueToLimit: visiblePins.length - pinsToClone.length });
+    } catch (error) {
+      console.error("Error cloning map collection:", error);
+      res.status(500).json({ message: "Failed to clone map" });
+    }
+  });
+
   app.put("/api/maps/:mapId/permissions", isAuthenticated, async (req, res) => {
     try {
       const user = await getCurrentUser(req);
@@ -1143,12 +1211,13 @@ export async function registerRoutes(app: Express): Promise<void> {
       const allPins = await storage.getPinsByMapId(mapCollection.id);
       const pins = isOwner ? allPins : allPins.filter((pin) => pin.approved);
 
-      const [hasCustomBranding, hasPinCustomization, maxPins, ownerName, likeCounts] = await Promise.all([
+      const [hasCustomBranding, hasPinCustomization, maxPins, ownerName, likeCounts, forkedFrom] = await Promise.all([
         getMapOwnerHasCustomBranding(mapCollection),
         getMapOwnerHasPinCustomization(mapCollection),
         getMapOwnerMaxPins(mapCollection),
         getMapOwnerName(mapCollection),
         storage.getMapLikeCounts([mapCollection.id]),
+        getForkedFromSummary(mapCollection),
       ]);
       const brandingLogoUrl = hasCustomBranding ? mapCollection.brandingLogoUrl : null;
       // Same reasoning as brandingLogoUrl above: a downgraded owner's
@@ -1171,6 +1240,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         maxPins,
         likeCount: likeCounts[mapCollection.id] ?? 0,
         likedByViewer,
+        forkedFrom,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch map collection" });

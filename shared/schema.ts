@@ -166,6 +166,13 @@ export interface MapCollection {
   curatedOrder: number | null;
   /** Short editorial blurb shown on the Discover card, distinct from the map's own owner-written description. */
   curatedTagline: string | null;
+  /**
+   * Set once, at clone time (POST /api/maps/:shareUrl/clone) — never
+   * accepted through insertMapCollectionSchema/updateMapDetailsSchema, so a
+   * clone can't quietly disown its original after creation. Null if this
+   * map wasn't cloned from another, or its original has since been deleted.
+   */
+  forkedFromMapId: string | null;
   createdAt: Date;
 }
 

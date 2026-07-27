@@ -63,6 +63,7 @@ const MAP_FIELDS = [
   "curated_city",
   "curated_order",
   "curated_tagline",
+  "forked_from_map",
   "date_created",
 ] as const;
 
@@ -167,6 +168,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     curatedCity: row.curated_city,
     curatedOrder: row.curated_order,
     curatedTagline: row.curated_tagline,
+    forkedFromMapId: row.forked_from_map,
     createdAt: new Date(row.date_created),
   };
 }
@@ -285,6 +287,12 @@ function toMapInvitation(row: DirectusMapInvitation): MapInvitation {
 export interface IStorage {
   // Map Collections
   createMapCollection(data: InsertMapCollection): Promise<MapCollection>;
+  /** Creates a new map owned by opts.ownerId, forked from `source`, with sourcePins copied in as fresh, independently-owned pins. */
+  cloneMapCollection(
+    source: MapCollection,
+    sourcePins: Pin[],
+    opts: { ownerId: string; name: string; includePinStyle: boolean },
+  ): Promise<{ map: MapCollection; pins: Pin[] }>;
   getMapCollectionByShareUrl(shareUrl: string): Promise<MapCollection | undefined>;
   getMapCollectionByName(name: string): Promise<MapCollection | undefined>;
   getMapCollectionById(mapId: string): Promise<MapCollection | undefined>;
@@ -426,6 +434,76 @@ class DirectusStorage implements IStorage {
       ),
     );
     return toMapCollection(created as unknown as DirectusMapCollection);
+  }
+
+  /**
+   * Creates a new map owned by `opts.ownerId`, permanently linked back to
+   * `source` via forked_from_map, then copies `sourcePins` into it as fresh,
+   * independently-owned pins (userId cleared — the original contributors
+   * never consented to their pin living on someone else's map; the new
+   * owner can already edit every pin in their own map regardless). Map
+   * settings that describe *how the map behaves* (note label/prompt,
+   * default permission, default pin color/icon) carry over; ones that are
+   * personal/administrative to the original owner (branding logo,
+   * show-on-profile, archived, curated) deliberately don't.
+   */
+  async cloneMapCollection(
+    source: MapCollection,
+    sourcePins: Pin[],
+    opts: { ownerId: string; name: string; includePinStyle: boolean },
+  ): Promise<{ map: MapCollection; pins: Pin[] }> {
+    const shareUrl = nanoid(12);
+    const createdMap = await this.client.request(
+      createItem(
+        "map_collections",
+        {
+          name: opts.name,
+          description: source.description ?? null,
+          share_url: shareUrl,
+          owner: opts.ownerId,
+          is_public: true,
+          default_permission: source.defaultPermission,
+          note_label: source.noteLabel,
+          note_prompt: source.notePrompt,
+          branding_logo_url: null,
+          show_on_profile: false,
+          default_pin_color: source.defaultPinColor,
+          default_pin_icon: source.defaultPinIcon,
+          forked_from_map: source.id,
+        },
+        { fields: MAP_FIELDS },
+      ),
+    );
+    const map = toMapCollection(createdMap as unknown as DirectusMapCollection);
+
+    if (sourcePins.length === 0) return { map, pins: [] };
+
+    const pinPayloads = sourcePins.map((pin) => ({
+      map: map.id,
+      user: null,
+      user_name: pin.userName,
+      latitude: pin.latitude,
+      longitude: pin.longitude,
+      address: pin.address,
+      city: pin.city,
+      state: pin.state,
+      town: pin.town,
+      borough: pin.borough,
+      postcode: pin.postcode,
+      country: pin.country,
+      twitter_handle: pin.twitterHandle,
+      instagram_handle: pin.instagramHandle,
+      linkedin_handle: pin.linkedinHandle,
+      note: pin.note,
+      google_maps_url: pin.googleMapsUrl,
+      photo_url: pin.photoUrl,
+      approved: true,
+      pin_color: opts.includePinStyle ? pin.pinColor : null,
+      pin_icon: opts.includePinStyle ? pin.pinIcon : null,
+      sequence: pin.sequence,
+    }));
+    const createdPins = await this.client.request(createItems("pins", pinPayloads, { fields: PIN_FIELDS }));
+    return { map, pins: (createdPins as unknown as DirectusPin[]).map(toPin) };
   }
 
   async getMapCollectionByShareUrl(shareUrl: string): Promise<MapCollection | undefined> {

@@ -66,6 +66,8 @@ export interface MapCollection {
   curated_city: string | null;
   curated_order: number | null;
   curated_tagline: string | null;
+  /** Set once at clone time (POST /api/maps/:shareUrl/clone); never editable afterward. Null if this map wasn't cloned, or its original was deleted. */
+  forked_from_map: string | null;
   date_created: string;
 }
 

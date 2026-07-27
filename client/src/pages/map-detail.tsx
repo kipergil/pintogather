@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Milestone, List } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Milestone, List, GitFork } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,8 @@ interface MapCollection {
   curatedCategory?: CuratedCategory | null;
   likeCount: number;
   likedByViewer: boolean;
+  /** Set when this map is a clone of another — permanent credit to the original, never editable. Null if the original was deleted. */
+  forkedFrom?: { name: string; shareUrl: string; ownerName: string | null } | null;
   createdAt: string;
   pinCount: number;
   /** Owner-tier pin cap for this map — Infinity on premium. Used for the proactive "X / Y pins" nudge. */
@@ -116,6 +119,26 @@ export default function MapDetail({ params }: MapDetailProps) {
     },
     onError: (error: any) => {
       toast({ title: "Couldn't restore map", description: error.message || "Please try again", variant: "destructive" });
+    },
+  });
+
+  const cloneMapMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/maps/${params.shareUrl}/clone`);
+      return response.json() as Promise<{ shareUrl: string }>;
+    },
+    onSuccess: (clonedMap) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+      toast({ title: "Map cloned", description: "It's now in your own maps, ready to edit.", variant: "success" });
+      setLocation(`/map/${clonedMap.shareUrl}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't clone map",
+        description: error.message || "Please try again",
+        variant: "destructive",
+        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
+      });
     },
   });
 
@@ -224,6 +247,22 @@ export default function MapDetail({ params }: MapDetailProps) {
               {mapCollection.description && (
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
+              {mapCollection.forkedFrom !== undefined && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <GitFork className="h-3.5 w-3.5" />
+                  {mapCollection.forkedFrom ? (
+                    <>
+                      Forked from{" "}
+                      <Link href={`/map/${mapCollection.forkedFrom.shareUrl}`} className="font-medium text-primary hover:underline" data-testid="link-forked-from">
+                        {mapCollection.forkedFrom.name}
+                      </Link>
+                      {mapCollection.forkedFrom.ownerName && ` by ${mapCollection.forkedFrom.ownerName}`}
+                    </>
+                  ) : (
+                    "Forked from a map that's no longer available"
+                  )}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
               {isOwner && mapCollection.archived && (
@@ -267,6 +306,22 @@ export default function MapDetail({ params }: MapDetailProps) {
                 isOwner={isOwner}
                 onInvite={() => setIsShareModalOpen(true)}
               />
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cloneMapMutation.mutate()}
+                  disabled={cloneMapMutation.isPending}
+                  data-testid="button-clone-map"
+                >
+                  {cloneMapMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <GitFork className="h-4 w-4 mr-2" />
+                  )}
+                  Clone
+                </Button>
+              )}
               <MapActionsMenu
                 mapId={mapCollection.id}
                 isOwner={isOwner}
