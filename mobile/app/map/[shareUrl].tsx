@@ -22,6 +22,15 @@ import type { Pin } from "../../../shared/schema";
 // map has no pins yet to derive a center from (client/src/components/simple-google-map.tsx).
 const DEFAULT_REGION = { latitude: 51.5074, longitude: -0.1278 };
 
+// Clustering logic (mirrors client/src/components/simple-google-map.tsx):
+// below this many pins, clustering isn't worth the overhead — every pin
+// just shows individually, at every zoom level. At or above it, pins group
+// into clusters when zoomed out (or just crowded together), but still fall
+// back to individual markers once zoomed in past CLUSTER_MAX_ZOOM.
+const CLUSTER_MIN_PIN_COUNT = 12;
+const CLUSTER_MAX_ZOOM = 15;
+const CLUSTER_RADIUS = 60;
+
 const EMPTY_PIN_FORM: PinFormValue = {
   userName: "",
   twitterHandle: "",
@@ -235,6 +244,9 @@ export default function MapDetailScreen() {
             initialRegion={initialRegion}
             onPress={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
             clusterColor="#2563EB"
+            clusteringEnabled={map.pins.length >= CLUSTER_MIN_PIN_COUNT}
+            radius={CLUSTER_RADIUS}
+            maxZoom={CLUSTER_MAX_ZOOM}
           >
             {map.pins.map((pin) => {
               const style = resolvePinStyle(pin, map);
