@@ -173,7 +173,7 @@ async function main() {
 
   for (const page of pages) {
     const existing = (await client.request(
-      readItems("pintogather_pages", { filter: { slug: { _eq: page.slug } }, fields: ["id"], limit: 1 }),
+      readItems("map_pages", { filter: { slug: { _eq: page.slug } }, fields: ["id"], limit: 1 }),
     )) as { id: string }[];
 
     const payload = {
@@ -185,10 +185,10 @@ async function main() {
     };
 
     if (existing[0]) {
-      await client.request(updateItem("pintogather_pages", existing[0].id, payload));
+      await client.request(updateItem("map_pages", existing[0].id, payload));
       console.log(`= updated page "${page.slug}"`);
     } else {
-      await client.request(createItem("pintogather_pages", { slug: page.slug, ...payload }));
+      await client.request(createItem("map_pages", { slug: page.slug, ...payload }));
       console.log(`+ created page "${page.slug}"`);
     }
   }

@@ -7,7 +7,7 @@ import { usePage } from "@/hooks/usePages";
 /**
  * Renders any published CMS page by slug — mirrors
  * client/src/pages/cms-page.tsx. A new page in Directus's
- * pintogather_pages collection is reachable here at /pages/:slug with no
+ * map_pages collection is reachable here at /pages/:slug with no
  * app changes; it only needs a link added somewhere (see the About list in
  * the Profile tab) to be discoverable.
  */

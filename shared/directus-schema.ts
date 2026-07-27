@@ -197,7 +197,7 @@ export interface PinTogatherSchema {
   map_invitations: MapInvitation[];
   user_follows: UserFollow[];
   map_likes: MapLike[];
-  pintogather_pages: Page[];
+  map_pages: Page[];
   map_folders: Folder[];
-  pintogather_map_templates: MapTemplate[];
+  map_templates: MapTemplate[];
 }

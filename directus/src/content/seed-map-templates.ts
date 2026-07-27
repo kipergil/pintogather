@@ -97,7 +97,7 @@ async function main() {
 
   for (const template of templates) {
     const existing = (await client.request(
-      readItems("pintogather_map_templates", { filter: { key: { _eq: template.key } }, fields: ["id"], limit: 1 }),
+      readItems("map_templates", { filter: { key: { _eq: template.key } }, fields: ["id"], limit: 1 }),
     )) as { id: string }[];
 
     const payload = {
@@ -115,10 +115,10 @@ async function main() {
     };
 
     if (existing[0]) {
-      await client.request(updateItem("pintogather_map_templates", existing[0].id, payload));
+      await client.request(updateItem("map_templates", existing[0].id, payload));
       console.log(`= updated template "${template.key}"`);
     } else {
-      await client.request(createItem("pintogather_map_templates", { key: template.key, ...payload }));
+      await client.request(createItem("map_templates", { key: template.key, ...payload }));
       console.log(`+ created template "${template.key}"`);
     }
   }
