@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
+import { sortPinsForRoute } from '@shared/geo';
 import { buildSocialUrl } from '../lib/social-links';
 import { useToast } from '../hooks/use-toast';
 import { buildPinMarkerIcon, resolvePinStyle } from '../lib/pin-styles';
@@ -92,6 +93,7 @@ interface Pin {
   approved?: boolean;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
+  sequence?: number | null;
   createdAt: string;
 }
 
@@ -111,9 +113,11 @@ interface SimpleMapProps {
   readOnly?: boolean;
   /** Bumped by the parent (e.g. a pin-table row click) to pan/zoom to and open a specific pin. */
   focusRequest?: { pinId: string; nonce: number } | null;
+  /** Draws a route line through the pins in their route/itinerary order (see route-view.tsx) — a driving route where possible, falling back to a straight line. */
+  showRoute?: boolean;
 }
 
-export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest }: SimpleMapProps) {
+export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest, showRoute = false }: SimpleMapProps) {
   console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
 
   const mapRef = useRef<HTMLDivElement>(null);
@@ -122,6 +126,8 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
   const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const clustererRef = useRef<MarkerClusterer | null>(null);
   const activeInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -319,7 +325,76 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
     }
 
     fitToAllPins();
+    drawOrClearRoute();
   };
+
+  // Draws a line through the pins in their route/itinerary order (see
+  // route-view.tsx / shared/geo.ts's sortPinsForRoute) — a real driving
+  // route via DirectionsService where possible, falling back to a straight
+  // polyline for routes DirectionsService can't handle (over its 25-stop
+  // waypoint cap, or no drivable path between stops, e.g. overseas legs).
+  const drawOrClearRoute = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const orderedPins = sortPinsForRoute(mapCollection.pins);
+    if (!showRoute || orderedPins.length < 2) {
+      directionsRendererRef.current?.setMap(null);
+      routePolylineRef.current?.setMap(null);
+      return;
+    }
+
+    const points = orderedPins.map(pin => ({ lat: parseFloat(pin.latitude), lng: parseFloat(pin.longitude) }));
+
+    const drawStraightPolyline = () => {
+      directionsRendererRef.current?.setMap(null);
+      if (!routePolylineRef.current) {
+        routePolylineRef.current = new google.maps.Polyline({
+          map,
+          path: points,
+          strokeColor: '#2563EB',
+          strokeWeight: 3,
+          strokeOpacity: 0.8,
+        });
+      } else {
+        routePolylineRef.current.setPath(points);
+        routePolylineRef.current.setMap(map);
+      }
+    };
+
+    // Directions API's waypoints (excluding origin/destination) cap out at 23.
+    if (points.length > 25) {
+      drawStraightPolyline();
+      return;
+    }
+
+    if (!directionsRendererRef.current) {
+      directionsRendererRef.current = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
+    }
+    directionsRendererRef.current.setMap(map);
+    routePolylineRef.current?.setMap(null);
+
+    new google.maps.DirectionsService().route(
+      {
+        origin: points[0],
+        destination: points[points.length - 1],
+        waypoints: points.slice(1, -1).map(location => ({ location, stopover: true })),
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          directionsRendererRef.current?.setDirections(result);
+        } else {
+          drawStraightPolyline();
+        }
+      },
+    );
+  };
+
+  useEffect(() => {
+    if (mapInstanceRef.current) drawOrClearRoute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRoute]);
 
   // Re-centers/zooms the map to frame every pin — used both right after
   // markers are (re)built and by the "Reset view" button.

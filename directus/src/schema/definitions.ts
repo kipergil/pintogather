@@ -207,6 +207,10 @@ export const pinsCollection: CollectionDefinition = {
       nullable: true,
       note: "Per-pin marker icon glyph override (Basic/Premium map owners only). Overrides the map's default_pin_icon when set.",
     }),
+    integerField("sequence", {
+      nullable: true,
+      note: "Position in this map's route/itinerary order (set via the reorder endpoint). Ties (including the default 0) fall back to date_created order.",
+    }),
     dateCreatedField(),
   ],
   relationFields: [pinMap, pinUser],

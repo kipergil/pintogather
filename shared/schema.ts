@@ -249,6 +249,8 @@ export interface Pin {
   pinColor: (typeof PIN_COLOR)[number] | null;
   /** Per-pin marker icon glyph override (Basic/Premium map owners only) — overrides the map's defaultPinIcon when set. */
   pinIcon: (typeof PIN_ICON)[number] | null;
+  /** Position in this map's route/itinerary order — see the reorder endpoint. Ties fall back to createdAt order. */
+  sequence: number | null;
   createdAt: Date;
 }
 

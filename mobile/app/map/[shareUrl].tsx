@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import ClusteredMapView from "react-native-map-clustering";
-import { Callout, Marker, type LatLng } from "react-native-maps";
+import { Callout, Marker, Polyline, type LatLng } from "react-native-maps";
 import type MapView from "react-native-maps";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,11 +10,12 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
 import { ShareSheet } from "@/components/ShareSheet";
-import { useAddPin, useDeletePin, useMap } from "@/hooks/useMaps";
+import { useAddPin, useDeletePin, useMap, useReorderPins } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
 import { signInHref } from "@/lib/authNav";
 import { VenueSearchSheet, type VenueResult } from "@/components/VenueSearchSheet";
+import { haversineDistanceKm, sortPinsForRoute, totalRouteDistanceKm } from "../../../shared/geo";
 import type { Pin } from "../../../shared/schema";
 
 // Central London — same fallback the web app's map component uses when a
@@ -41,6 +42,7 @@ export default function MapDetailScreen() {
   const { data: map, isLoading, error } = useMap(shareUrl);
   const addPin = useAddPin(shareUrl);
   const deletePin = useDeletePin(shareUrl);
+  const reorderPins = useReorderPins(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
 
   const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
@@ -50,7 +52,24 @@ export default function MapDetailScreen() {
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [venueSearchVisible, setVenueSearchVisible] = useState(false);
+  const [routeMode, setRouteMode] = useState(false);
   const mapRef = useRef<MapView>(null);
+
+  const orderedPins = useMemo(() => (map ? sortPinsForRoute(map.pins) : []), [map]);
+  const routeCoordinates = useMemo(
+    () => orderedPins.map((pin) => ({ latitude: Number(pin.latitude), longitude: Number(pin.longitude) })),
+    [orderedPins],
+  );
+  const totalRouteKm = useMemo(() => totalRouteDistanceKm(orderedPins), [orderedPins]);
+
+  const moveStop = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= orderedPins.length) return;
+    const newOrder = orderedPins.map((pin) => pin.id);
+    const [moved] = newOrder.splice(index, 1);
+    newOrder.splice(newIndex, 0, moved);
+    reorderPins.mutate(newOrder);
+  };
 
   const initialRegion = useMemo(() => {
     const firstPin = map?.pins[0];
@@ -143,6 +162,9 @@ export default function MapDetailScreen() {
           title: map?.name ?? "Map",
           headerRight: () => (
             <View className="flex-row items-center gap-4">
+              <Pressable hitSlop={8} onPress={() => setRouteMode((v) => !v)} testID="button-toggle-route">
+                <Ionicons name="git-network-outline" size={22} color={routeMode ? "#2563EB" : "#64748b"} />
+              </Pressable>
               <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
                 <Ionicons name="share-outline" size={22} color="#2563EB" />
               </Pressable>
@@ -205,6 +227,9 @@ export default function MapDetailScreen() {
                 </Marker>
               );
             })}
+            {routeMode && routeCoordinates.length > 1 && (
+              <Polyline coordinates={routeCoordinates} strokeColor="#2563EB" strokeWidth={3} />
+            )}
           </ClusteredMapView>
 
           {!isSignedIn && (
@@ -253,6 +278,58 @@ export default function MapDetailScreen() {
           </View>
         </>
       )}
+
+      <Modal visible={routeMode} animationType="slide" transparent onRequestClose={() => setRouteMode(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="max-h-[75%] rounded-t-3xl bg-white p-6">
+            <View className="mb-4 flex-row items-center justify-between">
+              <View>
+                <Text className="text-lg font-bold text-slate-900">Route</Text>
+                <Text className="text-xs text-slate-500">{totalRouteKm.toFixed(1)} km total, as the crow flies</Text>
+              </View>
+              <Pressable onPress={() => setRouteMode(false)} hitSlop={8} testID="button-close-route">
+                <Ionicons name="close" size={22} color="#64748b" />
+              </Pressable>
+            </View>
+            <ScrollView>
+              {orderedPins.map((pin, index) => (
+                <View key={pin.id} className="mb-2 flex-row items-center gap-3 rounded-xl border border-slate-200 p-3" testID={`row-route-pin-${pin.id}`}>
+                  <View className="h-6 w-6 items-center justify-center rounded-full bg-primary/10">
+                    <Text className="text-xs font-semibold text-primary">{index + 1}</Text>
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.userName}</Text>
+                    {index > 0 && (
+                      <Text className="text-xs text-slate-400">{haversineDistanceKm(orderedPins[index - 1], pin).toFixed(1)} km from previous</Text>
+                    )}
+                  </View>
+                  {isOwner && (
+                    <View className="flex-row gap-1">
+                      <Pressable
+                        onPress={() => moveStop(index, -1)}
+                        disabled={index === 0}
+                        className={`h-8 w-8 items-center justify-center rounded-full ${index === 0 ? "opacity-30" : "bg-slate-100"}`}
+                        testID={`button-move-up-${pin.id}`}
+                      >
+                        <Ionicons name="chevron-up" size={16} color="#334155" />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => moveStop(index, 1)}
+                        disabled={index === orderedPins.length - 1}
+                        className={`h-8 w-8 items-center justify-center rounded-full ${index === orderedPins.length - 1 ? "opacity-30" : "bg-slate-100"}`}
+                        testID={`button-move-down-${pin.id}`}
+                      >
+                        <Ionicons name="chevron-down" size={16} color="#334155" />
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {orderedPins.length === 0 && <Text className="text-sm italic text-slate-400">No pins to route yet.</Text>}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!pendingCoordinate} animationType="slide" transparent onRequestClose={closeAddPinModal}>
         <View className="flex-1 justify-end bg-black/40">
