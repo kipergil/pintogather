@@ -12,6 +12,7 @@ import { RouteView } from "@/components/route-view";
 import { ShareModal } from "@/components/share-modal";
 import { SharePopover } from "@/components/share-popover";
 import { LikeButton } from "@/components/like-button";
+import { ForkedFromBadge } from "@/components/forked-from-badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
@@ -228,6 +229,7 @@ export default function MapDetail({ params }: MapDetailProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
+                {!!mapCollection.forkedFromMapId && <ForkedFromBadge forkedFrom={mapCollection.forkedFrom ?? null} />}
                 {isOwner && (
                   <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
                     <Crown className="h-3 w-3" />
@@ -248,22 +250,6 @@ export default function MapDetail({ params }: MapDetailProps) {
               </div>
               {mapCollection.description && (
                 <p className="text-muted-foreground">{mapCollection.description}</p>
-              )}
-              {!!mapCollection.forkedFromMapId && (
-                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <GitFork className="h-3.5 w-3.5" />
-                  {mapCollection.forkedFrom ? (
-                    <>
-                      Forked from{" "}
-                      <Link href={`/map/${mapCollection.forkedFrom.shareUrl}`} className="font-medium text-primary hover:underline" data-testid="link-forked-from">
-                        {mapCollection.forkedFrom.name}
-                      </Link>
-                      {mapCollection.forkedFrom.ownerName && ` by ${mapCollection.forkedFrom.ownerName}`}
-                    </>
-                  ) : (
-                    "Forked from a map that's no longer available"
-                  )}
-                </p>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap sm:shrink-0">

@@ -58,6 +58,7 @@ export default function MapDetailScreen() {
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [venueSearchVisible, setVenueSearchVisible] = useState(false);
+  const [forkedFromSheetVisible, setForkedFromSheetVisible] = useState(false);
   const [routeMode, setRouteMode] = useState(false);
   const mapRef = useRef<MapView>(null);
 
@@ -183,6 +184,18 @@ export default function MapDetailScreen() {
       <Stack.Screen
         options={{
           title: map?.name ?? "Map",
+          headerTitle: () => (
+            <View className="flex-row items-center gap-1.5" style={{ maxWidth: 200 }}>
+              <Text className="text-base font-semibold text-slate-900" numberOfLines={1}>
+                {map?.name ?? "Map"}
+              </Text>
+              {!!map?.forkedFromMapId && (
+                <Pressable onPress={() => setForkedFromSheetVisible(true)} hitSlop={8} testID="button-forked-from">
+                  <Ionicons name="git-branch-outline" size={16} color="#64748b" />
+                </Pressable>
+              )}
+            </View>
+          ),
           headerRight: () => (
             <View className="flex-row items-center gap-4">
               <Pressable hitSlop={8} onPress={() => setRouteMode((v) => !v)} testID="button-toggle-route">
@@ -335,17 +348,7 @@ export default function MapDetailScreen() {
                     {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
                   </Text>
                 </View>
-                {map.forkedFrom ? (
-                  <Link href={`/map/${map.forkedFrom.shareUrl}`} testID="link-forked-from">
-                    <Text className="text-xs text-primary" numberOfLines={1}>
-                      Forked from {map.forkedFrom.name}
-                    </Text>
-                  </Link>
-                ) : map.forkedFromMapId !== null ? (
-                  <Text className="text-xs text-slate-400">Forked map no longer available</Text>
-                ) : (
-                  <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
-                )}
+                <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
               </>
             )}
           </View>
@@ -488,6 +491,35 @@ export default function MapDetailScreen() {
       )}
 
       <VenueSearchSheet visible={venueSearchVisible} onClose={() => setVenueSearchVisible(false)} onSelect={onVenueSelected} />
+
+      <Modal
+        visible={forkedFromSheetVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setForkedFromSheetVisible(false)}
+      >
+        <Pressable className="flex-1 items-center justify-center bg-black/40 px-8" onPress={() => setForkedFromSheetVisible(false)}>
+          <Pressable className="w-full max-w-xs gap-2 rounded-2xl bg-white p-5" onPress={(e) => e.stopPropagation()}>
+            {map?.forkedFrom ? (
+              <>
+                <Text className="text-xs text-slate-500">Forked from</Text>
+                <Pressable
+                  onPress={() => {
+                    setForkedFromSheetVisible(false);
+                    router.push(`/map/${map.forkedFrom!.shareUrl}`);
+                  }}
+                  testID="link-forked-from"
+                >
+                  <Text className="text-base font-semibold text-primary">{map.forkedFrom.name}</Text>
+                </Pressable>
+                {map.forkedFrom.ownerName && <Text className="text-xs text-slate-500">by {map.forkedFrom.ownerName}</Text>}
+              </>
+            ) : (
+              <Text className="text-sm text-slate-500">Forked from a map that's no longer available.</Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
