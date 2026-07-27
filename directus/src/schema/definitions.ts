@@ -193,6 +193,11 @@ export const pinsCollection: CollectionDefinition = {
       maxLength: 2048,
       note: "Link to this venue on Google Maps, captured at import/creation time.",
     }),
+    textField("photo_url", {
+      nullable: true,
+      maxLength: 500,
+      note: "URL of a photo attached to this pin, served via /api/uploads/:fileId.",
+    }),
     booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
     selectField("pin_color", PIN_COLOR, {
       nullable: true,

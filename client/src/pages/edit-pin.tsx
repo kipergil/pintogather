@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,13 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, AtSign, ExternalLink, Link2, MapPin, MapPinned, Save, Loader2, ChevronDown } from "lucide-react";
+import { ArrowLeft, AtSign, ExternalLink, ImageIcon, Link2, MapPin, MapPinned, Save, Loader2, ChevronDown, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PinStylePicker } from "@/components/pin-style-picker";
 import type { PinColor, PinIcon } from "@shared/enums";
+
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
+const PHOTO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 interface EditPinProps {
   params: {
@@ -27,6 +30,7 @@ interface PinFormData {
   instagramHandle: string;
   linkedinHandle: string;
   note: string;
+  photoUrl: string | null;
   pinColor: PinColor | null;
   pinIcon: PinIcon | null;
 }
@@ -41,6 +45,7 @@ interface PinRecord {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  photoUrl?: string | null;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
 }
@@ -60,12 +65,15 @@ export default function EditPin({ params }: EditPinProps) {
 
   const [loading, setLoading] = useState(false);
   const [showPinStyle, setShowPinStyle] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<PinFormData>({
     userName: "",
     twitterHandle: "",
     instagramHandle: "",
     linkedinHandle: "",
     note: "",
+    photoUrl: null,
     pinColor: null,
     pinIcon: null,
   });
@@ -105,12 +113,43 @@ export default function EditPin({ params }: EditPinProps) {
         instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
         linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
         note: pin.note || "",
+        photoUrl: pin.photoUrl ?? null,
         pinColor: pin.pinColor ?? null,
         pinIcon: pin.pinIcon ?? null,
       });
       if (pin.pinColor || pin.pinIcon) setShowPinStyle(true);
     }
   }, [pin, user, shareUrl, setLocation, toast]);
+
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (file.size > PHOTO_MAX_BYTES) {
+      toast({
+        title: "File too large",
+        description: "Please choose an image under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const response = await apiUpload("/api/uploads/pin-photo", file);
+      const { url } = await response.json();
+      setFormData((prev) => ({ ...prev, photoUrl: url }));
+    } catch (error: any) {
+      toast({
+        title: "Couldn't upload photo",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const updatePinMutation = useMutation({
     mutationFn: async (data: PinFormData) => {
@@ -148,6 +187,7 @@ export default function EditPin({ params }: EditPinProps) {
         instagramHandle: formData.instagramHandle || "",
         linkedinHandle: formData.linkedinHandle || "",
         note: formData.note || "",
+        photoUrl: formData.photoUrl,
         pinColor: formData.pinColor,
         pinIcon: formData.pinIcon,
       });
@@ -288,6 +328,55 @@ export default function EditPin({ params }: EditPinProps) {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Photo (optional)</Label>
+                {formData.photoUrl ? (
+                  <div className="relative w-fit">
+                    <img
+                      src={formData.photoUrl}
+                      alt="Pin preview"
+                      className="h-24 w-24 rounded-lg object-cover border border-border"
+                      data-testid="img-pin-photo-preview"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, photoUrl: null })}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+                      aria-label="Remove photo"
+                      data-testid="button-remove-photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={photoFileInputRef}
+                      type="file"
+                      accept={PHOTO_ACCEPT}
+                      onChange={handlePhotoFileChange}
+                      className="hidden"
+                      data-testid="input-photo-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => photoFileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
+                      data-testid="button-upload-photo"
+                    >
+                      {isUploadingPhoto ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+                    </Button>
+                  </>
+                )}
+              </div>
+
               {hasPinCustomization && (
                 <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
                   <CollapsibleTrigger asChild>
@@ -327,7 +416,7 @@ export default function EditPin({ params }: EditPinProps) {
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={loading || updatePinMutation.isPending || !formData.userName.trim()}
+                  disabled={loading || updatePinMutation.isPending || isUploadingPhoto || !formData.userName.trim()}
                   data-testid="button-update-pin"
                 >
                   <Save className="h-4 w-4 mr-2" />

@@ -140,7 +140,7 @@ export function usePin(pinId: string | undefined) {
 
 type PinEditableFields = Pick<
   InsertPin,
-  "userName" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "pinColor" | "pinIcon"
+  "userName" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "photoUrl" | "pinColor" | "pinIcon"
 >;
 
 export function useUpdatePin(pinId: string | undefined, shareUrl: string | undefined) {

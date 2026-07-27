@@ -15,6 +15,7 @@ const EMPTY_PIN_FORM: PinFormValue = {
   instagramHandle: "",
   linkedinHandle: "",
   note: "",
+  photoUrl: null,
   pinColor: null,
   pinIcon: null,
 };
@@ -40,6 +41,7 @@ export default function EditPinScreen() {
       instagramHandle: pin.instagramHandle ?? "",
       linkedinHandle: pin.linkedinHandle ?? "",
       note: pin.note ?? "",
+      photoUrl: pin.photoUrl ?? null,
       pinColor: pin.pinColor ?? null,
       pinIcon: pin.pinIcon ?? null,
     });
@@ -62,6 +64,7 @@ export default function EditPinScreen() {
         instagramHandle: form.instagramHandle.trim() || null,
         linkedinHandle: form.linkedinHandle.trim() || null,
         note: form.note.trim() || null,
+        photoUrl: form.photoUrl,
         pinColor: map?.hasPinCustomization ? form.pinColor : pin?.pinColor ?? null,
         pinIcon: map?.hasPinCustomization ? form.pinIcon : pin?.pinIcon ?? null,
       });

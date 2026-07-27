@@ -56,6 +56,7 @@ interface Pin {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  photoUrl?: string | null;
   approved?: boolean;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
@@ -465,9 +466,20 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                       data-testid={`checkbox-pin-${pin.id}`}
                     />
                   )}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
-                    <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
-                  </div>
+                  {pin.photoUrl ? (
+                    <a href={pin.photoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="shrink-0">
+                      <img
+                        src={pin.photoUrl}
+                        alt={`Photo for ${pin.userName}`}
+                        className="w-9 h-9 rounded-md object-cover"
+                        data-testid={`img-pin-photo-${pin.id}`}
+                      />
+                    </a>
+                  ) : (
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
+                      <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <h4 className="font-medium text-foreground text-sm break-words">{pin.userName}</h4>

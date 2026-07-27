@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Image, Pressable, Text, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
+import { apiUpload } from "@/lib/api";
 import type { PinColor, PinIcon } from "../../../shared/enums";
 
 export interface PinFormValue {
@@ -11,6 +14,7 @@ export interface PinFormValue {
   instagramHandle: string;
   linkedinHandle: string;
   note: string;
+  photoUrl: string | null;
   pinColor: PinColor | null;
   pinIcon: PinIcon | null;
 }
@@ -32,6 +36,34 @@ export function PinForm({ value, onChange, noteLabel, notePrompt, hasPinCustomiz
   );
   const [showPinStyle, setShowPinStyle] = useState(!!(value.pinColor || value.pinIcon));
   const [fillMySocials, setFillMySocials] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const pickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Photo access needed", "Allow photo library access in Settings to attach a photo.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    setIsUploadingPhoto(true);
+    try {
+      const response = await apiUpload("/api/uploads/pin-photo", {
+        uri: asset.uri,
+        name: asset.fileName || "photo.jpg",
+        mimeType: asset.mimeType || "image/jpeg",
+      });
+      const { url } = await response.json();
+      onChange({ ...value, photoUrl: url });
+    } catch (err: any) {
+      Alert.alert("Couldn't upload photo", err?.message ?? "Please try again.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const hasProfileSocials = !!(
     profileSocials &&
@@ -69,6 +101,26 @@ export function PinForm({ value, onChange, noteLabel, notePrompt, hasPinCustomiz
         testID="input-pin-note"
       />
       {notePrompt && <Text className="-mt-2.5 text-xs text-slate-500">{notePrompt}</Text>}
+
+      <View className="gap-2">
+        <Text className="text-sm font-medium text-slate-700">Photo (optional)</Text>
+        {value.photoUrl ? (
+          <View className="flex-row items-start gap-2">
+            <Image source={{ uri: value.photoUrl }} className="h-20 w-20 rounded-lg" testID="img-pin-photo-preview" />
+            <Pressable
+              onPress={() => onChange({ ...value, photoUrl: null })}
+              className="h-7 w-7 items-center justify-center rounded-full bg-slate-800"
+              testID="button-remove-photo"
+            >
+              <Ionicons name="close" size={14} color="#ffffff" />
+            </Pressable>
+          </View>
+        ) : (
+          <Button variant="outline" size="sm" className="self-start" onPress={pickPhoto} loading={isUploadingPhoto} testID="button-upload-photo">
+            {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+          </Button>
+        )}
+      </View>
 
       <View className="gap-3">
         <Button

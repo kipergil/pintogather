@@ -59,7 +59,21 @@ const config: ExpoConfig = {
     favicon: "./assets/favicon.png",
     bundler: "metro",
   },
-  plugins: ["expo-router", "expo-status-bar", "expo-secure-store", "expo-web-browser", "expo-asset", "expo-sharing", "react-native-maps"],
+  plugins: [
+    "expo-router",
+    "expo-status-bar",
+    "expo-secure-store",
+    "expo-web-browser",
+    "expo-asset",
+    "expo-sharing",
+    "react-native-maps",
+    [
+      "expo-image-picker",
+      {
+        photosPermission: `${APP_NAME} uses your photo library so you can attach a photo to a pin.`,
+      },
+    ],
+  ],
   // Runtime config (API base URL, Clerk publishable key) is NOT read here —
   // Expo inlines any EXPO_PUBLIC_* variable from mobile/.env directly into
   // process.env at build time, so app code (see src/lib/config.ts) reads
