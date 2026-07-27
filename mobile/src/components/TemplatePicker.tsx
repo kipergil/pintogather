@@ -22,13 +22,27 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
     <View className="gap-4 py-6">
       <View className="gap-1">
         <Text className="text-lg font-semibold text-slate-900">What are you mapping?</Text>
-        <Text className="text-sm text-slate-500">Start from a template, or build your own from scratch.</Text>
+        <Text className="text-sm text-slate-500">Start blank, or use one of the templates below as a starting point.</Text>
       </View>
 
       {isLoading ? (
         <ActivityIndicator size="small" color="#2563EB" />
       ) : (
         <View className="gap-2.5">
+          <Pressable
+            onPress={() => onSelect(null)}
+            className="flex-row items-start gap-3 rounded-xl border border-dashed border-slate-300 p-3.5 active:bg-slate-50"
+            testID="card-template-scratch"
+          >
+            <View className="h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+              <Ionicons name="sparkles-outline" size={18} color="#64748b" />
+            </View>
+            <View className="flex-1 gap-0.5">
+              <Text className="font-medium text-slate-900">Start from scratch</Text>
+              <Text className="text-xs text-slate-500">A blank map — set it up your own way.</Text>
+            </View>
+          </Pressable>
+
           {templates?.map((template) => (
             <Pressable
               key={template.id}
@@ -45,20 +59,6 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
               </View>
             </Pressable>
           ))}
-
-          <Pressable
-            onPress={() => onSelect(null)}
-            className="flex-row items-start gap-3 rounded-xl border border-dashed border-slate-300 p-3.5 active:bg-slate-50"
-            testID="card-template-scratch"
-          >
-            <View className="h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
-              <Ionicons name="sparkles-outline" size={18} color="#64748b" />
-            </View>
-            <View className="flex-1 gap-0.5">
-              <Text className="font-medium text-slate-900">Start from scratch</Text>
-              <Text className="text-xs text-slate-500">A blank map — set it up your own way.</Text>
-            </View>
-          </Pressable>
         </View>
       )}
     </View>
