@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
@@ -118,6 +119,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
+  const clustererRef = useRef<MarkerClusterer | null>(null);
   const activeInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -233,18 +235,27 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
     if ((mapInstanceRef.current.getZoom() ?? 0) < 16) {
       mapInstanceRef.current.setZoom(16);
     }
-    google.maps.event.trigger(marker, 'click');
+    // Wait for the map to settle before clicking — at this zoom the marker
+    // should have declustered, but the clusterer only re-renders on 'idle',
+    // so clicking immediately can hit a marker that's still hidden inside a cluster.
+    google.maps.event.addListenerOnce(mapInstanceRef.current, 'idle', () => {
+      google.maps.event.trigger(marker, 'click');
+    });
   }, [focusRequest]);
 
   const updatePins = () => {
     if (!mapInstanceRef.current) return;
 
     // Clear existing markers
+    clustererRef.current?.clearMarkers();
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
     markersByPinIdRef.current.clear();
 
-    // Add markers for each pin
+    // Add markers for each pin. The map is intentionally left unset here —
+    // the MarkerClusterer below takes ownership of each marker's map
+    // assignment, showing either the individual marker or a cluster badge
+    // depending on the current zoom level.
     mapCollection.pins.forEach(pin => {
       const { color, icon } = resolvePinStyle(pin, mapCollection);
       const marker = new google.maps.Marker({
@@ -252,7 +263,6 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
           lat: parseFloat(pin.latitude),
           lng: parseFloat(pin.longitude)
         },
-        map: mapInstanceRef.current,
         title: pin.userName,
         icon: buildPinMarkerIcon({ color, icon, pending: pin.approved === false }),
       });
@@ -296,6 +306,15 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest 
       markersRef.current.push(marker);
       markersByPinIdRef.current.set(pin.id, marker);
     });
+
+    if (clustererRef.current) {
+      clustererRef.current.addMarkers(markersRef.current);
+    } else {
+      clustererRef.current = new MarkerClusterer({
+        map: mapInstanceRef.current,
+        markers: markersRef.current,
+      });
+    }
 
     fitToAllPins();
   };
