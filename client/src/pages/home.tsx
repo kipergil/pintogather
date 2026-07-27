@@ -37,6 +37,9 @@ import type { UsageSummary } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
 import { TIER_LIMITS } from "@shared/limits";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
+import { useCreateFolder, useDeleteFolder, useFolders, useUpdateFolder } from "@/hooks/useFolders";
+import { FolderSidebar } from "@/components/folder-sidebar";
+import type { Folder } from "@shared/schema";
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
@@ -159,6 +162,39 @@ export default function Home() {
   const firstName = user?.firstName || user?.fullName?.split(" ")[0];
   const { usage } = useUsage();
 
+  const { data: folders = [] } = useFolders();
+  const createFolderMutation = useCreateFolder();
+  const updateFolderMutation = useUpdateFolder();
+  const deleteFolderMutation = useDeleteFolder();
+
+  const moveToFolderMutation = useMutation({
+    mutationFn: async ({ mapId, folderId }: { mapId: string; folderId: string | null }) => {
+      const response = await apiRequest("PUT", `/api/maps/${mapId}/details`, { folderId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Couldn't move map",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteFolder = (folder: Folder) => {
+    if (
+      !window.confirm(
+        `Delete "${folder.name}"? Maps and subfolders inside it move back to the root level — nothing is deleted.`,
+      )
+    ) {
+      return;
+    }
+    deleteFolderMutation.mutate(folder.id);
+  };
+
   return (
     <>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -183,6 +219,11 @@ export default function Home() {
             isArchiving={archiveMapsMutation.isPending}
             isRestoring={restoreMapsMutation.isPending}
             restoringIds={restoreMapsMutation.isPending ? restoreMapsMutation.variables ?? [] : []}
+            folders={folders}
+            onCreateFolder={(name, parentFolderId) => createFolderMutation.mutate({ name, parentFolderId })}
+            onRenameFolder={(folderId, name) => updateFolderMutation.mutate({ folderId, data: { name } })}
+            onDeleteFolder={handleDeleteFolder}
+            onMoveToFolder={(map, folderId) => moveToFolderMutation.mutate({ mapId: map.id, folderId })}
           />
         ) : (
           <AnonymousLanding />
@@ -223,6 +264,11 @@ interface SignedInDashboardProps {
   isArchiving: boolean;
   isRestoring: boolean;
   restoringIds: string[];
+  folders: Folder[];
+  onCreateFolder: (name: string, parentFolderId: string | null) => void;
+  onRenameFolder: (folderId: string, name: string) => void;
+  onDeleteFolder: (folder: Folder) => void;
+  onMoveToFolder: (map: MapCollectionSummary, folderId: string | null) => void;
 }
 
 function SignedInDashboard({
@@ -245,11 +291,23 @@ function SignedInDashboard({
   isArchiving,
   isRestoring,
   restoringIds,
+  folders,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+  onMoveToFolder,
 }: SignedInDashboardProps) {
   const [ownedSelectMode, setOwnedSelectMode] = useState(false);
   const [selectedOwnedIds, setSelectedOwnedIds] = useState<Set<string>>(new Set());
   const [archivedSelectMode, setArchivedSelectMode] = useState(false);
   const [selectedArchivedIds, setSelectedArchivedIds] = useState<Set<string>>(new Set());
+  // undefined = "All maps" (no filter), null = "Unfiled", a string = that folder.
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null | undefined>(undefined);
+
+  const folderCount = (folderId: string | null | undefined) =>
+    folderId === undefined ? ownedMaps.length : ownedMaps.filter((map) => (map.folderId ?? null) === folderId).length;
+  const visibleOwnedMaps =
+    selectedFolderId === undefined ? ownedMaps : ownedMaps.filter((map) => (map.folderId ?? null) === selectedFolderId);
 
   const toggleOwnedSelected = (map: MapCollectionSummary) => {
     setSelectedOwnedIds((prev) => {
@@ -347,6 +405,15 @@ function SignedInDashboard({
             />
           ) : (
             <>
+              <FolderSidebar
+                folders={folders}
+                selectedFolderId={selectedFolderId}
+                onSelect={setSelectedFolderId}
+                countFor={folderCount}
+                onCreate={onCreateFolder}
+                onRename={onRenameFolder}
+                onDelete={onDeleteFolder}
+              />
               {hasMapArchiving && (
                 <div className="flex items-center justify-between gap-3 mb-4">
                   {ownedSelectMode && selectedOwnedIds.size > 0 ? (
@@ -397,20 +464,30 @@ function SignedInDashboard({
                   </div>
                 </div>
               )}
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {ownedMaps.map((map) => (
-                  <MapCard
-                    key={map.id}
-                    map={map}
-                    role="owner"
-                    onDelete={onDeleteMap}
-                    onExportCsv={onExportCsv}
-                    selectable={ownedSelectMode}
-                    selected={selectedOwnedIds.has(map.id)}
-                    onToggleSelected={toggleOwnedSelected}
-                  />
-                ))}
-              </div>
+              {visibleOwnedMaps.length === 0 ? (
+                <EmptyState
+                  icon={<MapPin className="h-8 w-8" />}
+                  title="No maps in this folder"
+                  description="Move a map here from its actions menu, or pick a different folder above."
+                />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {visibleOwnedMaps.map((map) => (
+                    <MapCard
+                      key={map.id}
+                      map={map}
+                      role="owner"
+                      onDelete={onDeleteMap}
+                      onExportCsv={onExportCsv}
+                      selectable={ownedSelectMode}
+                      selected={selectedOwnedIds.has(map.id)}
+                      onToggleSelected={toggleOwnedSelected}
+                      folders={folders}
+                      onMoveToFolder={onMoveToFolder}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </TabsContent>

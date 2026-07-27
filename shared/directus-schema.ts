@@ -68,6 +68,8 @@ export interface MapCollection {
   curated_tagline: string | null;
   /** Set once at clone time (POST /api/maps/:shareUrl/clone); never editable afterward. Null if this map wasn't cloned, or its original was deleted. */
   forked_from_map: string | null;
+  /** Private, owner-only organization folder this map is filed under. Never exposed to non-owners. */
+  folder: string | null;
   date_created: string;
 }
 
@@ -146,6 +148,19 @@ export interface Page {
 }
 
 /**
+ * A private, owner-only folder for organizing one's own maps. Nested
+ * (parent_folder is self-referencing) to arbitrary depth. Never exposed in
+ * any public-facing response — only the owner can ever see/manage their own.
+ */
+export interface Folder {
+  id: string;
+  name: string;
+  owner: string;
+  parent_folder: string | null;
+  date_created: string;
+}
+
+/**
  * The full PinTogather Directus schema, keyed by collection name. Pass this
  * as the generic to `createDirectus<PinTogatherSchema>(url)` so every SDK
  * call (items, aggregate, etc.) is fully typed end-to-end.
@@ -159,4 +174,5 @@ export interface PinTogatherSchema {
   user_follows: UserFollow[];
   map_likes: MapLike[];
   pintogather_pages: Page[];
+  map_folders: Folder[];
 }
