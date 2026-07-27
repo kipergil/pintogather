@@ -24,6 +24,21 @@ export function dateCreatedField(): FieldDefinition {
   };
 }
 
+export function dateUpdatedField(): FieldDefinition {
+  return {
+    field: "date_updated",
+    type: "timestamp",
+    meta: {
+      special: ["date-updated"],
+      interface: "datetime",
+      readonly: true,
+      hidden: true,
+      width: "half",
+    },
+    schema: { is_nullable: true },
+  };
+}
+
 export interface M2OOptions {
   required?: boolean;
   nullable?: boolean;

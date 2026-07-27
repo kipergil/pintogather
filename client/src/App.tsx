@@ -32,7 +32,9 @@ import ImportPins from "@/pages/import-pins";
 import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
 import AdminCurateMap from "@/pages/admin-curate-map";
+import CmsPage from "@/pages/cms-page";
 import NotFound from "@/pages/not-found";
+import { SiteFooter } from "@/components/site-footer";
 import { Compass, LogIn, MapPinned, Rss, Shield, User, LogOut, ExternalLink, CreditCard } from "lucide-react";
 
 function Router() {
@@ -43,6 +45,11 @@ function Router() {
       <Route path="/feed" component={Feed} />
       <Route path="/profile" component={Profile} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/how-it-works"><CmsPage slug="how-it-works" /></Route>
+      <Route path="/who-its-for"><CmsPage slug="who-its-for" /></Route>
+      <Route path="/features"><CmsPage slug="features" /></Route>
+      <Route path="/use-cases"><CmsPage slug="use-cases" /></Route>
+      <Route path="/pages/:slug" component={CmsPage} />
       <Route path="/auth" component={Auth} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/admin/maps/:mapId/curate" component={AdminCurateMap} />
@@ -199,6 +206,7 @@ function AppShell() {
     <div className="min-h-screen bg-background">
       {!isBrandedView && <HeaderContent />}
       <Router />
+      {!isBrandedView && <SiteFooter />}
       <Toaster />
     </div>
   );

@@ -14,6 +14,7 @@ import {
   cascadingSelectField,
   dateCreatedField,
   dateField,
+  dateUpdatedField,
   decimalField,
   idField,
   integerField,
@@ -323,6 +324,52 @@ export const mapLikesCollection: CollectionDefinition = {
   relationFields: [likeUser, likeMap],
 };
 
+/**
+ * Simple CMS collection: static marketing pages (how-it-works, features,
+ * etc.) and, later, blog-style posts — both are just "pages" distinguished
+ * by slug, with no separate blog-specific collection needed for a v1.
+ * Content is edited directly in the Directus admin panel; the app only
+ * ever reads published pages (see GET /api/pages and GET /api/pages/:slug).
+ */
+export const pagesCollection: CollectionDefinition = {
+  // Namespaced (not just "pages") — this Directus instance is shared with
+  // other projects, and "pages" is generic enough that another project may
+  // already have its own unrelated collection by that name (learned the
+  // hard way: an earlier version of this schema used "pages" directly and
+  // it collided with an existing foreign collection on this instance).
+  collection: "pintogather_pages",
+  icon: "article",
+  note: "Static marketing/CMS pages (and future blog posts), rendered by slug on both the web and mobile apps.",
+  displayTemplate: "{{title}}",
+  fields: [
+    idField(),
+    textField("slug", {
+      required: true,
+      unique: true,
+      maxLength: 100,
+      note: "URL path segment, e.g. \"how-it-works\". Lowercase, hyphenated, no leading/trailing slash.",
+    }),
+    textField("title", { required: true }),
+    textField("meta_description", {
+      nullable: true,
+      maxLength: 300,
+      note: "SEO/social-preview description. Falls back to a truncated excerpt of the content when unset.",
+    }),
+    richTextField("content", {
+      nullable: true,
+      note: "Markdown body, rendered on both platforms via a markdown renderer.",
+    }),
+    booleanField("published", true, "Unpublished pages 404 on both platforms, even if you have the direct link."),
+    integerField("nav_order", {
+      nullable: true,
+      note: "Where this page appears in the site nav/footer link list, lowest first. Leave blank to keep the page reachable by direct link only, without a nav entry.",
+    }),
+    dateCreatedField(),
+    dateUpdatedField(),
+  ],
+  relationFields: [],
+};
+
 export const allCollections: CollectionDefinition[] = [
   mapCollectionsCollection,
   pinsCollection,
@@ -330,4 +377,5 @@ export const allCollections: CollectionDefinition[] = [
   mapInvitationsCollection,
   userFollowsCollection,
   mapLikesCollection,
+  pagesCollection,
 ];

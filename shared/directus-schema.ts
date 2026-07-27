@@ -131,6 +131,18 @@ export interface MapLike {
   date_created: string;
 }
 
+export interface Page {
+  id: string;
+  slug: string;
+  title: string;
+  meta_description: string | null;
+  content: string | null;
+  published: boolean;
+  nav_order: number | null;
+  date_created: string;
+  date_updated: string | null;
+}
+
 /**
  * The full PinTogather Directus schema, keyed by collection name. Pass this
  * as the generic to `createDirectus<PinTogatherSchema>(url)` so every SDK
@@ -144,4 +156,5 @@ export interface PinTogatherSchema {
   map_invitations: MapInvitation[];
   user_follows: UserFollow[];
   map_likes: MapLike[];
+  pintogather_pages: Page[];
 }

@@ -54,6 +54,9 @@ export const servicePolicy: PolicyDefinition = {
     { collection: "map_likes", action: "read" },
     { collection: "map_likes", action: "update" },
     { collection: "map_likes", action: "delete" },
+    // Read-only: pages are authored/edited directly in the Directus admin
+    // panel, not through the app's own API.
+    { collection: "pintogather_pages", action: "read" },
     // Per-user map-branding logo uploads (see server/storage.ts's
     // uploadUserLogo) — files live under map-logos/<userId>/ so each
     // user's uploads are isolated in their own subfolder.

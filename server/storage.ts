@@ -18,6 +18,7 @@ import type {
   MapInvitation,
   MapLike,
   MapViewer,
+  Page,
   Pin,
   CurateMap,
   InsertMapCollection,
@@ -34,6 +35,7 @@ import type {
   MapInvitation as DirectusMapInvitation,
   MapLike as DirectusMapLike,
   MapViewer as DirectusMapViewer,
+  Page as DirectusPage,
   Pin as DirectusPin,
   UserFollow as DirectusUserFollow,
 } from "../shared/directus-schema.js";
@@ -108,6 +110,18 @@ const INVITATION_FIELDS = [
 const FOLLOW_FIELDS = ["id", "follower", "following", "date_created"] as const;
 
 const LIKE_FIELDS = ["id", "user", "map", "date_created"] as const;
+
+const PAGE_FIELDS = [
+  "id",
+  "slug",
+  "title",
+  "meta_description",
+  "content",
+  "published",
+  "nav_order",
+  "date_created",
+  "date_updated",
+] as const;
 
 const USER_FIELDS = [
   "id",
@@ -241,6 +255,19 @@ function toMapLike(row: DirectusMapLike): MapLike {
   };
 }
 
+function toPage(row: DirectusPage): Page {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    metaDescription: row.meta_description,
+    content: row.content,
+    navOrder: row.nav_order,
+    createdAt: new Date(row.date_created),
+    updatedAt: row.date_updated ? new Date(row.date_updated) : null,
+  };
+}
+
 function toMapInvitation(row: DirectusMapInvitation): MapInvitation {
   return {
     id: row.id,
@@ -344,6 +371,12 @@ export interface IStorage {
   getMapLikeCounts(mapIds: string[]): Promise<Record<string, number>>;
   /** Which of the given maps this user has liked. */
   getUserLikedMapIds(userId: string, mapIds: string[]): Promise<Set<string>>;
+
+  // Pages (CMS)
+  /** Published pages only, sorted by navOrder (nulls last) then title — powers the site nav/footer link list. */
+  getPublishedPages(): Promise<Page[]>;
+  /** A single published page by slug, or undefined if it doesn't exist or isn't published. */
+  getPublishedPageBySlug(slug: string): Promise<Page | undefined>;
 }
 
 export interface UploadableFile {
@@ -1197,6 +1230,30 @@ class DirectusStorage implements IStorage {
       }),
     );
     return new Set((rows as Array<{ map: string }>).map((row) => row.map));
+  }
+
+  async getPublishedPages(): Promise<Page[]> {
+    const rows = await this.client.request(
+      readItems("pintogather_pages", {
+        filter: { published: { _eq: true } },
+        fields: PAGE_FIELDS,
+        sort: ["nav_order", "title"],
+        limit: -1,
+      }),
+    );
+    return (rows as DirectusPage[]).map(toPage);
+  }
+
+  async getPublishedPageBySlug(slug: string): Promise<Page | undefined> {
+    const rows = await this.client.request(
+      readItems("pintogather_pages", {
+        filter: { slug: { _eq: slug }, published: { _eq: true } },
+        fields: PAGE_FIELDS,
+        limit: 1,
+      }),
+    );
+    const row = rows[0] as DirectusPage | undefined;
+    return row ? toPage(row) : undefined;
   }
 }
 

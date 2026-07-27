@@ -634,6 +634,31 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // --- Pages (CMS) ------------------------------------------------------------------
+  // Static marketing pages and (later) blog posts, authored directly in the
+  // Directus admin panel — these routes are read-only from the app's side.
+
+  app.get("/api/pages", async (_req, res) => {
+    try {
+      const pages = await storage.getPublishedPages();
+      res.json(pages);
+    } catch (error) {
+      console.error("Error fetching pages:", error);
+      res.status(500).json({ message: "Failed to fetch pages" });
+    }
+  });
+
+  app.get("/api/pages/:slug", async (req, res) => {
+    try {
+      const page = await storage.getPublishedPageBySlug(req.params.slug);
+      if (!page) return res.status(404).json({ message: "Page not found" });
+      res.json(page);
+    } catch (error) {
+      console.error("Error fetching page:", error);
+      res.status(500).json({ message: "Failed to fetch page" });
+    }
+  });
+
   // --- Uploads --------------------------------------------------------------------
   // Map branding logos. Uploaded files live in Directus under a per-user
   // subfolder (map-logos/<userId>/), but the browser never talks to Directus
