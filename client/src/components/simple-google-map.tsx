@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
@@ -13,6 +13,16 @@ import type { PinColor, PinIcon } from '@shared/enums';
 
 /** Google's familiar "blue dot" color for a user's own location — deliberately distinct from the app's default pin color (blue). */
 const MY_LOCATION_COLOR = '#4285F4';
+
+// Clustering logic: below this many pins, clustering isn't worth the
+// overhead — every pin just shows individually, at every zoom level. At or
+// above it, pins group into clusters when zoomed out (or just crowded
+// together), but still fall back to individual markers once zoomed in past
+// CLUSTER_MAX_ZOOM — that close in, a cluster badge would only be hiding
+// detail, not reducing clutter.
+const CLUSTER_MIN_PIN_COUNT = 12;
+const CLUSTER_MAX_ZOOM = 15;
+const CLUSTER_RADIUS = 60;
 
 function escapeHtml(value: string): string {
   const div = document.createElement('div');
@@ -126,6 +136,10 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
   const markersRef = useRef<google.maps.Marker[]>([]);
   const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const clustererRef = useRef<MarkerClusterer | null>(null);
+  // Whether the current clustererRef instance was built with clustering on
+  // or off — the algorithm can't be swapped on an existing MarkerClusterer,
+  // so updatePins() recreates the instance whenever this needs to flip.
+  const clusteringEnabledRef = useRef<boolean | null>(null);
   const activeInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   // The temporary marker + confirm/cancel bubble shown after a click while
   // "Add pin" mode is armed — the actual pin isn't created until the user
@@ -384,13 +398,28 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
       markersByPinIdRef.current.set(pin.id, marker);
     });
 
-    if (clustererRef.current) {
+    const shouldCluster = mapCollection.pins.length >= CLUSTER_MIN_PIN_COUNT;
+    if (!shouldCluster) {
+      // Below the threshold, skip the clusterer entirely and show every pin
+      // as its own marker — simpler, and sidesteps a MarkerClusterer quirk
+      // where an always-"nothing changed" algorithm (e.g. a no-op) makes it
+      // skip its own render pass, so markers never actually get placed on
+      // the map at all. See CLUSTER_MIN_PIN_COUNT above.
+      clustererRef.current?.setMap(null);
+      clustererRef.current = null;
+      clusteringEnabledRef.current = false;
+      markersRef.current.forEach((marker) => marker.setMap(mapInstanceRef.current));
+    } else if (clustererRef.current && clusteringEnabledRef.current === true) {
       clustererRef.current.addMarkers(markersRef.current);
     } else {
+      // Mode flipped (or this is the first run) — recreate the clusterer.
+      clustererRef.current?.setMap(null);
       clustererRef.current = new MarkerClusterer({
         map: mapInstanceRef.current,
         markers: markersRef.current,
+        algorithm: new SuperClusterAlgorithm({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM }),
       });
+      clusteringEnabledRef.current = shouldCluster;
     }
 
     fitToAllPins();
