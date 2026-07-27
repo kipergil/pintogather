@@ -9,6 +9,7 @@ import { TextField } from "@/components/ui/TextField";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUpdateProfile, useUsernameAvailability } from "@/hooks/useProfile";
 import { useUsage } from "@/hooks/useBilling";
+import { usePages } from "@/hooks/usePages";
 
 const TIER_LABELS: Record<string, string> = { freemium: "Free", basic: "Basic", premium: "Premium" };
 
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
   const { data: currentUser } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const { data: usage } = useUsage();
+  const { data: pages } = usePages();
 
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -193,6 +195,21 @@ export default function ProfileScreen() {
           </Button>
         </Link>
       </View>
+
+      {pages && pages.length > 0 && (
+        <View className="gap-3 pb-6">
+          <Text className="text-sm font-semibold text-slate-900">About</Text>
+          <View className="gap-2 rounded-xl border border-slate-200 p-1">
+            {pages.map((page) => (
+              <Link key={page.slug} href={`/pages/${page.slug}`} asChild>
+                <Button variant="ghost" className="justify-start" testID={`button-page-${page.slug}`}>
+                  {page.title}
+                </Button>
+              </Link>
+            ))}
+          </View>
+        </View>
+      )}
 
       <View className="gap-3">
         <Button variant="outline" onPress={() => signOut()} testID="button-sign-out">

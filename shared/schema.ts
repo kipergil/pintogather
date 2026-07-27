@@ -323,4 +323,16 @@ export const insertMapInvitationSchema = z.object({
 });
 export type InsertMapInvitation = z.infer<typeof insertMapInvitationSchema>;
 
+/** A CMS page — a static marketing page or (later) a blog post, rendered by slug. Authored in the Directus admin panel; the app only ever reads published pages. */
+export interface Page {
+  id: string;
+  slug: string;
+  title: string;
+  metaDescription: string | null;
+  content: string | null;
+  navOrder: number | null;
+  createdAt: Date;
+  updatedAt: Date | null;
+}
+
 export * from "./enums.js";
