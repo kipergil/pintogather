@@ -1380,7 +1380,7 @@ class DirectusStorage implements IStorage {
 
   async getPublishedPages(): Promise<Page[]> {
     const rows = await this.client.request(
-      readItems("pintogather_pages", {
+      readItems("map_pages", {
         filter: { published: { _eq: true } },
         fields: PAGE_FIELDS,
         sort: ["nav_order", "title"],
@@ -1392,7 +1392,7 @@ class DirectusStorage implements IStorage {
 
   async getPublishedPageBySlug(slug: string): Promise<Page | undefined> {
     const rows = await this.client.request(
-      readItems("pintogather_pages", {
+      readItems("map_pages", {
         filter: { slug: { _eq: slug }, published: { _eq: true } },
         fields: PAGE_FIELDS,
         limit: 1,
@@ -1404,7 +1404,7 @@ class DirectusStorage implements IStorage {
 
   async getPublishedMapTemplates(): Promise<MapTemplate[]> {
     const rows = await this.client.request(
-      readItems("pintogather_map_templates", {
+      readItems("map_templates", {
         filter: { published: { _eq: true } },
         fields: MAP_TEMPLATE_FIELDS,
         sort: ["sort_order", "label"],

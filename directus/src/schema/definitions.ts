@@ -392,7 +392,10 @@ export const pagesCollection: CollectionDefinition = {
   // already have its own unrelated collection by that name (learned the
   // hard way: an earlier version of this schema used "pages" directly and
   // it collided with an existing foreign collection on this instance).
-  collection: "pintogather_pages",
+  // "map_" (this app's actual collection prefix, e.g. map_collections,
+  // map_folders) rather than "pintogather_" — consistent with every other
+  // collection here.
+  collection: "map_pages",
   icon: "article",
   note: "Static marketing/CMS pages (and future blog posts), rendered by slug on both the web and mobile apps.",
   displayTemplate: "{{title}}",
@@ -435,9 +438,7 @@ export const pagesCollection: CollectionDefinition = {
  * initial values; nothing here is persisted onto the map itself.
  */
 export const mapTemplatesCollection: CollectionDefinition = {
-  // Namespaced, per the "pintogather_pages" precedent — this Directus
-  // instance is shared with other projects.
-  collection: "pintogather_map_templates",
+  collection: "map_templates",
   icon: "dashboard_customize",
   note: "Starter presets shown in the create-map template picker, on both web and mobile.",
   displayTemplate: "{{label}}",

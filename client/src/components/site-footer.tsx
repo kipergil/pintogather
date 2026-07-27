@@ -8,7 +8,7 @@ interface CmsPageSummary {
 }
 
 /**
- * Nav links here come straight from the pintogather_pages CMS collection
+ * Nav links here come straight from the map_pages CMS collection
  * (nav_order set, published) — adding a new page in Directus with a
  * nav_order is enough to add it here too, no code change required.
  */

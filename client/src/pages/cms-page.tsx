@@ -30,7 +30,7 @@ function setMetaDescription(content: string | null) {
 
 /**
  * Renders any published CMS page by slug — how-it-works, features, etc. are
- * just rows in Directus's pintogather_pages collection (see
+ * just rows in Directus's map_pages collection (see
  * directus/src/content/seed-pages.ts), so a new page only ever needs a new
  * Directus row plus, for a friendly URL, one route line in App.tsx. No new
  * component or deploy required to edit copy or add a page at /pages/:slug.
