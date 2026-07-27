@@ -106,6 +106,8 @@ export interface MapDetail extends MapCollection {
   likeCount: number;
   likedByViewer: boolean;
   hasPinCustomization: boolean;
+  /** Set when this map is a clone of another — permanent credit to the original, never editable. Null if the original was deleted. */
+  forkedFrom: { name: string; shareUrl: string; ownerName: string | null } | null;
 }
 
 export function useMap(shareUrl: string | undefined) {
@@ -113,6 +115,19 @@ export function useMap(shareUrl: string | undefined) {
     queryKey: [`/api/maps/${shareUrl}`],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!shareUrl,
+  });
+}
+
+export function useCloneMap(shareUrl: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/maps/${shareUrl}/clone`);
+      return (await res.json()) as MapDetail;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
   });
 }
 

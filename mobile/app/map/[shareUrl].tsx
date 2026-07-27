@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
 import { ShareSheet } from "@/components/ShareSheet";
-import { useAddPin, useDeletePin, useMap, useReorderPins } from "@/hooks/useMaps";
+import { useAddPin, useCloneMap, useDeletePin, useMap, useReorderPins } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
 import { signInHref } from "@/lib/authNav";
@@ -43,6 +43,7 @@ export default function MapDetailScreen() {
   const addPin = useAddPin(shareUrl);
   const deletePin = useDeletePin(shareUrl);
   const reorderPins = useReorderPins(shareUrl);
+  const cloneMap = useCloneMap(shareUrl);
   const isOwner = !!currentUser && !!map && currentUser.id === map.ownerId;
 
   const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
@@ -137,6 +138,23 @@ export default function MapDetailScreen() {
 
   const canModifyPin = (pin: Pin) => isOwner || (!!currentUser && currentUser.id === pin.userId);
 
+  const onClone = () => {
+    Alert.alert("Clone this map?", "Creates your own editable copy, permanently credited back to this original.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clone",
+        onPress: async () => {
+          try {
+            const cloned = await cloneMap.mutateAsync();
+            router.replace(`/map/${cloned.shareUrl}`);
+          } catch (err: any) {
+            Alert.alert("Couldn't clone map", err?.message ?? "Please try again.");
+          }
+        },
+      },
+    ]);
+  };
+
   const onDeletePin = (pin: Pin) => {
     Alert.alert("Delete pin?", `Remove "${pin.userName}"'s pin from this map.`, [
       { text: "Cancel", style: "cancel" },
@@ -168,6 +186,11 @@ export default function MapDetailScreen() {
               <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
                 <Ionicons name="share-outline" size={22} color="#2563EB" />
               </Pressable>
+              {isSignedIn && (
+                <Pressable hitSlop={8} onPress={onClone} testID="button-clone-map">
+                  <Ionicons name="git-branch-outline" size={22} color="#2563EB" />
+                </Pressable>
+              )}
               {isOwner && (
                 <Link href={`/map/edit/${shareUrl}`} asChild>
                   <Pressable hitSlop={8} testID="button-edit-map">
@@ -274,7 +297,17 @@ export default function MapDetailScreen() {
                 {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
               </Text>
             </View>
-            <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
+            {map.forkedFrom ? (
+              <Link href={`/map/${map.forkedFrom.shareUrl}`} testID="link-forked-from">
+                <Text className="text-xs text-primary" numberOfLines={1}>
+                  Forked from {map.forkedFrom.name}
+                </Text>
+              </Link>
+            ) : map.forkedFromMapId !== null ? (
+              <Text className="text-xs text-slate-400">Forked map no longer available</Text>
+            ) : (
+              <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
+            )}
           </View>
         </>
       )}
