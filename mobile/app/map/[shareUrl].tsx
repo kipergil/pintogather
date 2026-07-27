@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import ClusteredMapView from "react-native-map-clustering";
 import { Callout, Marker, Polyline, type LatLng } from "react-native-maps";
@@ -44,7 +44,7 @@ const EMPTY_PIN_FORM: PinFormValue = {
 
 export default function MapDetailScreen() {
   const { isSignedIn } = useAuth();
-  const { shareUrl } = useLocalSearchParams<{ shareUrl: string }>();
+  const { shareUrl, pin: focusPinId } = useLocalSearchParams<{ shareUrl: string; pin?: string }>();
   const router = useRouter();
   const { user } = useUser();
   const { data: currentUser } = useCurrentUser();
@@ -94,6 +94,22 @@ export default function MapDetailScreen() {
       : DEFAULT_REGION;
     return { ...center, latitudeDelta: 0.05, longitudeDelta: 0.05 };
   }, [map?.pins]);
+
+  // Deep link from Search (?pin=<id>) — focuses that pin once the map's
+  // pins have loaded. Consumed once so it doesn't re-fire on background
+  // refetches; mirrors the web app's equivalent in map-detail.tsx.
+  const consumedFocusPinRef = useRef(false);
+  useEffect(() => {
+    if (consumedFocusPinRef.current || !focusPinId || !map) return;
+    const target = map.pins.find((pin) => pin.id === focusPinId);
+    if (!target) return;
+    consumedFocusPinRef.current = true;
+    setSelectedPin(target);
+    mapRef.current?.animateToRegion(
+      { latitude: Number(target.latitude), longitude: Number(target.longitude), latitudeDelta: 0.02, longitudeDelta: 0.02 },
+      500,
+    );
+  }, [focusPinId, map]);
 
   const openAddPinModal = (coordinate: LatLng) => {
     setPendingCoordinate(coordinate);
@@ -207,9 +223,6 @@ export default function MapDetailScreen() {
           ),
           headerRight: () => (
             <View className="flex-row items-center gap-4">
-              <Pressable hitSlop={8} onPress={() => setRouteMode((v) => !v)} testID="button-toggle-route">
-                <Ionicons name="git-network-outline" size={22} color={routeMode ? "#2563EB" : "#64748b"} />
-              </Pressable>
               <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
                 <Ionicons name="share-outline" size={22} color="#2563EB" />
               </Pressable>
@@ -243,6 +256,13 @@ export default function MapDetailScreen() {
             className="flex-1"
             initialRegion={initialRegion}
             onPress={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
+            // Android fires POI taps (a restaurant, landmark, etc.) as onPoiClick
+            // instead of onPress, so without this a tap on one of those icons
+            // silently did nothing instead of dropping a pin — mirrors the
+            // clickableIcons:false fix on the web map (client/src/components/
+            // simple-google-map.tsx). No iOS equivalent hook exists in
+            // react-native-maps; iOS POI taps are a platform limitation.
+            onPoiClick={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
             clusterColor="#2563EB"
             clusteringEnabled={map.pins.length >= CLUSTER_MIN_PIN_COUNT}
             radius={CLUSTER_RADIUS}
