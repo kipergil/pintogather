@@ -40,6 +40,7 @@ const ICONS = {
     '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
   ),
   x: iconSvg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+  check: iconSvg('<polyline points="20 6 9 17 4 12"/>'),
 };
 
 // A single compact row of icon links: socials (whichever handles are set)
@@ -126,6 +127,11 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
   const markersByPinIdRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const clustererRef = useRef<MarkerClusterer | null>(null);
   const activeInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  // The temporary marker + confirm/cancel bubble shown after a click while
+  // "Add pin" mode is armed — the actual pin isn't created until the user
+  // confirms, so an accidental or mis-aimed click can't drop a pin outright.
+  const pendingMarkerRef = useRef<google.maps.Marker | null>(null);
+  const pendingInfoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const routePolylineRef = useRef<google.maps.Polyline | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -156,6 +162,10 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
   const isArmedForClickRef = useRef(isArmedForClick);
   useEffect(() => {
     isArmedForClickRef.current = isArmedForClick;
+    if (!isArmedForClick) {
+      clearPendingLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isArmedForClick]);
 
   useEffect(() => {
@@ -193,18 +203,14 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         console.log('Google Maps instance created successfully');
 
         // Add click listener for new pins (view-only maps skip this entirely).
-        // Only opens the dialog while "Add pin" mode is armed.
+        // Only shows the confirm/cancel bubble while "Add pin" mode is armed;
+        // the dialog itself only opens once the user confirms that spot.
         if (!readOnly) {
           map.addListener('click', (e: google.maps.MapMouseEvent) => {
             if (!isArmedForClickRef.current) return;
             console.log('Map clicked at:', e.latLng?.lat(), e.latLng?.lng());
             if (e.latLng) {
-              setSelectedLocation({
-                lat: e.latLng.lat(),
-                lng: e.latLng.lng(),
-                address: `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`
-              });
-              setIsAddPinModalOpen(true);
+              showPendingLocationConfirm(e.latLng.lat(), e.latLng.lng());
             }
           });
         }
@@ -249,6 +255,69 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
       google.maps.event.trigger(marker, 'click');
     });
   }, [focusRequest]);
+
+  // Removes the pending-location marker and its confirm/cancel bubble, if any.
+  // Safe to call even when nothing is pending.
+  const clearPendingLocation = () => {
+    pendingInfoWindowRef.current?.close();
+    pendingInfoWindowRef.current = null;
+    pendingMarkerRef.current?.setMap(null);
+    pendingMarkerRef.current = null;
+  };
+
+  // Drops a temporary marker at the clicked spot with a small "Drop a pin
+  // here?" bubble offering Confirm/Cancel, instead of opening the Add Pin
+  // dialog immediately — guards against accidental or mis-aimed clicks.
+  // Clicking elsewhere while armed just moves the pending spot here.
+  const showPendingLocationConfirm = (lat: number, lng: number) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    clearPendingLocation();
+
+    const marker = new google.maps.Marker({
+      position: { lat, lng },
+      map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 9,
+        fillColor: '#2563EB',
+        fillOpacity: 0.9,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+      },
+      zIndex: 9999,
+      clickable: false,
+    });
+    pendingMarkerRef.current = marker;
+
+    const infoWindow = new google.maps.InfoWindow({
+      content: `
+        <div style="padding: 6px 4px; min-width: 170px; font-family: inherit;">
+          <div style="font-size: 12px; color: #374151; margin-bottom: 8px;">Drop a pin here?</div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="pending-pin-confirm" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#2563EB; color:#fff; border:0; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;">${ICONS.check} Confirm</button>
+            <button type="button" id="pending-pin-cancel" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#fff; color:#374151; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;">${ICONS.x} Cancel</button>
+          </div>
+        </div>
+      `,
+    });
+
+    infoWindow.addListener('domready', () => {
+      document.getElementById('pending-pin-confirm')?.addEventListener('click', () => {
+        setSelectedLocation({ lat, lng, address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
+        setIsAddPinModalOpen(true);
+        clearPendingLocation();
+      });
+      document.getElementById('pending-pin-cancel')?.addEventListener('click', () => {
+        clearPendingLocation();
+      });
+    });
+    infoWindow.addListener('closeclick', clearPendingLocation);
+
+    infoWindow.open(map, marker);
+    pendingInfoWindowRef.current = infoWindow;
+  };
 
   const updatePins = () => {
     if (!mapInstanceRef.current) return;
@@ -552,7 +621,9 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
       if (geoTimeoutIdRef.current !== null) {
         clearTimeout(geoTimeoutIdRef.current);
       }
+      clearPendingLocation();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
@@ -600,7 +671,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
           {isArmedForClick ? (
             <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mt-2.5">
               <MousePointerClick className="h-4 w-4 shrink-0" />
-              Click anywhere on the map to drop a pin there
+              Click anywhere on the map, then confirm the spot to drop a pin there
             </p>
           ) : (
             <p className="text-sm text-muted-foreground mt-2.5">

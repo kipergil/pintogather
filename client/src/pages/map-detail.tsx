@@ -47,7 +47,9 @@ interface MapCollection {
   curatedCategory?: CuratedCategory | null;
   likeCount: number;
   likedByViewer: boolean;
-  /** Set when this map is a clone of another — permanent credit to the original, never editable. Null if the original was deleted. */
+  /** Non-null iff this map is a clone of another — permanent, never editable. Used to gate the credit banner (see forkedFrom). */
+  forkedFromMapId?: string | null;
+  /** The live-resolved original for forkedFromMapId. Null both when this map was never cloned AND when it was but the original has since been deleted — use forkedFromMapId, not this, to tell those two apart. */
   forkedFrom?: { name: string; shareUrl: string; ownerName: string | null } | null;
   createdAt: string;
   pinCount: number;
@@ -247,7 +249,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               {mapCollection.description && (
                 <p className="text-muted-foreground">{mapCollection.description}</p>
               )}
-              {mapCollection.forkedFrom !== undefined && (
+              {!!mapCollection.forkedFromMapId && (
                 <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                   <GitFork className="h-3.5 w-3.5" />
                   {mapCollection.forkedFrom ? (
