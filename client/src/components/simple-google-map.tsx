@@ -210,7 +210,14 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
           gestureHandling: 'greedy', // Enable single-finger dragging
           zoomControl: true, // Show zoom buttons
           streetViewControl: false, // Hide street view icon
-          mapTypeControl: false // Hide map/satellite view options
+          mapTypeControl: false, // Hide map/satellite view options
+          // Without this, clicking a POI icon (a restaurant, landmark, etc.)
+          // opens Google's own default info window on top of ours, which
+          // visually blocks the "Drop a pin here?" confirm bubble and makes
+          // it look like the click did nothing. The map still fires its
+          // normal 'click' event with the clicked lat/lng either way, so
+          // click-to-add-pin behaves the same everywhere on the map.
+          clickableIcons: false,
         });
 
         mapInstanceRef.current = map;
