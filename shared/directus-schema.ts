@@ -6,6 +6,7 @@ import type {
   Permission,
   PinColor,
   PinIcon,
+  TemplateIcon,
   UserGroup,
 } from "./enums.js";
 
@@ -161,6 +162,29 @@ export interface Folder {
 }
 
 /**
+ * A starter preset shown in the create-map template picker. Authored
+ * directly in Directus — see directus/src/content/seed-map-templates.ts for
+ * the original migrated set, GET /api/map-templates for how the app reads it.
+ */
+export interface MapTemplate {
+  id: string;
+  key: string;
+  icon: TemplateIcon;
+  label: string;
+  tagline: string;
+  suggested_name: string;
+  suggested_description: string | null;
+  note_label: string | null;
+  note_prompt: string | null;
+  default_pin_color: PinColor | null;
+  default_pin_icon: PinIcon | null;
+  published: boolean;
+  sort_order: number | null;
+  date_created: string;
+  date_updated: string | null;
+}
+
+/**
  * The full PinTogather Directus schema, keyed by collection name. Pass this
  * as the generic to `createDirectus<PinTogatherSchema>(url)` so every SDK
  * call (items, aggregate, etc.) is fully typed end-to-end.
@@ -175,4 +199,5 @@ export interface PinTogatherSchema {
   map_likes: MapLike[];
   pintogather_pages: Page[];
   map_folders: Folder[];
+  pintogather_map_templates: MapTemplate[];
 }

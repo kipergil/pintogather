@@ -35,6 +35,36 @@ export const PIN_ICON = [
 ] as const;
 export type PinIcon = (typeof PIN_ICON)[number];
 
+/**
+ * Fixed icon glyph set for the map-creation template picker's card icon —
+ * a superset of PIN_ICON plus a few glyphs (plane/compass/briefcase/users)
+ * that read better for a template category than for an individual pin.
+ * Deliberately a closed enum (not a free icon name) so every choice has a
+ * guaranteed lucide-react + Ionicons mapping on both platforms — see
+ * client/src/lib/template-icons.ts and mobile/src/lib/template-icons.ts.
+ */
+export const TEMPLATE_ICON = [
+  "pin",
+  "star",
+  "heart",
+  "coffee",
+  "restaurant",
+  "home",
+  "building",
+  "landmark",
+  "shopping",
+  "bed",
+  "trees",
+  "music",
+  "camera",
+  "flag",
+  "plane",
+  "compass",
+  "briefcase",
+  "users",
+] as const;
+export type TemplateIcon = (typeof TEMPLATE_ICON)[number];
+
 /** Fixed theme categories for the /discover curated-maps page — one editorial bucket per map, kept small and closed so the category filter stays meaningful. */
 export const CURATED_CATEGORY = [
   "food-drink",

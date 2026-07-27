@@ -10,6 +10,7 @@ import {
   PIN_ICON,
   USER_GROUP,
 } from "./enums.js";
+import type { TemplateIcon } from "./enums.js";
 
 /**
  * Domain types used throughout the app (client + server). These are the
@@ -370,6 +371,27 @@ export interface Page {
   navOrder: number | null;
   createdAt: Date;
   updatedAt: Date | null;
+}
+
+/**
+ * A starter preset shown in the create-map template picker. Authored
+ * directly in the Directus admin panel — the app only ever reads published
+ * templates (GET /api/map-templates). Picking one just prefills the
+ * create-map form's initial values; nothing here is persisted onto the map.
+ */
+export interface MapTemplate {
+  id: string;
+  /** Stable identifier (e.g. "weekend-trip") — for data-testids, never shown to end users. */
+  key: string;
+  icon: TemplateIcon;
+  label: string;
+  tagline: string;
+  suggestedName: string;
+  suggestedDescription: string | null;
+  noteLabel: string | null;
+  notePrompt: string | null;
+  defaultPinColor: (typeof PIN_COLOR)[number] | null;
+  defaultPinIcon: (typeof PIN_ICON)[number] | null;
 }
 
 export * from "./enums.js";

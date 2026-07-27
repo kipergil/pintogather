@@ -7,6 +7,7 @@ import {
   PERMISSION,
   PIN_COLOR,
   PIN_ICON,
+  TEMPLATE_ICON,
   USER_GROUP,
 } from "../../../shared/enums.js";
 import {
@@ -424,6 +425,63 @@ export const pagesCollection: CollectionDefinition = {
   relationFields: [],
 };
 
+/**
+ * Starter presets shown when creating a new map (see the "What are you
+ * mapping?" picker), so a new map never starts as a blank "name your map"
+ * field. Content is authored directly in the Directus admin panel — adding
+ * a new template, reordering, or retiring one is a data change, not a code
+ * change. The app only ever reads published templates (see GET
+ * /api/map-templates). Picking one just prefills the create-map form's
+ * initial values; nothing here is persisted onto the map itself.
+ */
+export const mapTemplatesCollection: CollectionDefinition = {
+  // Namespaced, per the "pintogather_pages" precedent — this Directus
+  // instance is shared with other projects.
+  collection: "pintogather_map_templates",
+  icon: "dashboard_customize",
+  note: "Starter presets shown in the create-map template picker, on both web and mobile.",
+  displayTemplate: "{{label}}",
+  fields: [
+    idField(),
+    textField("key", {
+      required: true,
+      unique: true,
+      maxLength: 60,
+      note: "Stable identifier, e.g. \"weekend-trip\" — used for data-testids, never shown to end users.",
+    }),
+    selectField("icon", TEMPLATE_ICON, {
+      nullable: false,
+      note: "Card icon shown in the template picker. Distinct from default_pin_icon below, which styles the created map's pins.",
+    }),
+    textField("label", { required: true, note: "Short title shown on the template card, e.g. \"Weekend trip\"." }),
+    textField("tagline", { required: true, maxLength: 150, note: "One-line description shown under the label." }),
+    textField("suggested_name", { required: true, note: "Prefilled map name when this template is picked." }),
+    richTextField("suggested_description", { nullable: true, note: "Prefilled map description." }),
+    textField("note_label", {
+      nullable: true,
+      maxLength: 60,
+      note: "Prefilled custom label for the pin note field, e.g. \"Why here?\".",
+    }),
+    richTextField("note_prompt", { nullable: true, note: "Prefilled custom prompt shown under the note label." }),
+    selectField("default_pin_color", PIN_COLOR, {
+      nullable: true,
+      note: "Prefilled default marker color for the created map (Basic/Premium only — ignored on freemium).",
+    }),
+    selectField("default_pin_icon", PIN_ICON, {
+      nullable: true,
+      note: "Prefilled default marker icon for the created map (Basic/Premium only — ignored on freemium).",
+    }),
+    booleanField("published", true, "Unpublished templates are hidden from the picker but kept here."),
+    integerField("sort_order", {
+      nullable: true,
+      note: "Display order in the picker, lowest first. Leave blank to sort after every explicitly-ordered template.",
+    }),
+    dateCreatedField(),
+    dateUpdatedField(),
+  ],
+  relationFields: [],
+};
+
 export const allCollections: CollectionDefinition[] = [
   mapCollectionsCollection,
   pinsCollection,
@@ -433,4 +491,5 @@ export const allCollections: CollectionDefinition[] = [
   mapLikesCollection,
   pagesCollection,
   mapFoldersCollection,
+  mapTemplatesCollection,
 ];

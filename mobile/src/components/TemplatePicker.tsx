@@ -1,14 +1,8 @@
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MAP_TEMPLATES, type MapTemplate } from "../../../shared/templates";
-
-const TEMPLATE_ICON_NAMES: Record<MapTemplate["icon"], keyof typeof Ionicons.glyphMap> = {
-  plane: "airplane-outline",
-  compass: "compass-outline",
-  heart: "heart-outline",
-  briefcase: "briefcase-outline",
-  users: "people-outline",
-};
+import { useMapTemplates } from "@/hooks/useMapTemplates";
+import { TEMPLATE_ICON_IONICON } from "@/lib/template-icons";
+import type { MapTemplate } from "../../../shared/schema";
 
 interface TemplatePickerProps {
   onSelect: (template: MapTemplate | null) => void;
@@ -18,9 +12,12 @@ interface TemplatePickerProps {
  * Shown before the create-map form so a new map never starts as a blank
  * "name your map" field. Mirrors client/src/components/template-picker.tsx —
  * picking a template just prefills the form's initial values, nothing is
- * persisted until the form itself is submitted.
+ * persisted until the form itself is submitted. Templates are authored in
+ * Directus (see GET /api/map-templates), not hardcoded here.
  */
 export function TemplatePicker({ onSelect }: TemplatePickerProps) {
+  const { data: templates, isLoading } = useMapTemplates();
+
   return (
     <View className="gap-4 py-6">
       <View className="gap-1">
@@ -28,38 +25,42 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
         <Text className="text-sm text-slate-500">Start from a template, or build your own from scratch.</Text>
       </View>
 
-      <View className="gap-2.5">
-        {MAP_TEMPLATES.map((template) => (
+      {isLoading ? (
+        <ActivityIndicator size="small" color="#2563EB" />
+      ) : (
+        <View className="gap-2.5">
+          {templates?.map((template) => (
+            <Pressable
+              key={template.id}
+              onPress={() => onSelect(template)}
+              className="flex-row items-start gap-3 rounded-xl border border-slate-200 p-3.5 active:bg-slate-50"
+              testID={`card-template-${template.key}`}
+            >
+              <View className="h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <Ionicons name={TEMPLATE_ICON_IONICON[template.icon]} size={18} color="#2563EB" />
+              </View>
+              <View className="flex-1 gap-0.5">
+                <Text className="font-medium text-slate-900">{template.label}</Text>
+                <Text className="text-xs text-slate-500">{template.tagline}</Text>
+              </View>
+            </Pressable>
+          ))}
+
           <Pressable
-            key={template.id}
-            onPress={() => onSelect(template)}
-            className="flex-row items-start gap-3 rounded-xl border border-slate-200 p-3.5 active:bg-slate-50"
-            testID={`card-template-${template.id}`}
+            onPress={() => onSelect(null)}
+            className="flex-row items-start gap-3 rounded-xl border border-dashed border-slate-300 p-3.5 active:bg-slate-50"
+            testID="card-template-scratch"
           >
-            <View className="h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <Ionicons name={TEMPLATE_ICON_NAMES[template.icon]} size={18} color="#2563EB" />
+            <View className="h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+              <Ionicons name="sparkles-outline" size={18} color="#64748b" />
             </View>
             <View className="flex-1 gap-0.5">
-              <Text className="font-medium text-slate-900">{template.label}</Text>
-              <Text className="text-xs text-slate-500">{template.tagline}</Text>
+              <Text className="font-medium text-slate-900">Start from scratch</Text>
+              <Text className="text-xs text-slate-500">A blank map — set it up your own way.</Text>
             </View>
           </Pressable>
-        ))}
-
-        <Pressable
-          onPress={() => onSelect(null)}
-          className="flex-row items-start gap-3 rounded-xl border border-dashed border-slate-300 p-3.5 active:bg-slate-50"
-          testID="card-template-scratch"
-        >
-          <View className="h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
-            <Ionicons name="sparkles-outline" size={18} color="#64748b" />
-          </View>
-          <View className="flex-1 gap-0.5">
-            <Text className="font-medium text-slate-900">Start from scratch</Text>
-            <Text className="text-xs text-slate-500">A blank map — set it up your own way.</Text>
-          </View>
-        </Pressable>
-      </View>
+        </View>
+      )}
     </View>
   );
 }

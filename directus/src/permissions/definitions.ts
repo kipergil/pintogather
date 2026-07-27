@@ -57,6 +57,9 @@ export const servicePolicy: PolicyDefinition = {
     // Read-only: pages are authored/edited directly in the Directus admin
     // panel, not through the app's own API.
     { collection: "pintogather_pages", action: "read" },
+    // Read-only: map templates are authored/edited directly in the Directus
+    // admin panel, not through the app's own API.
+    { collection: "pintogather_map_templates", action: "read" },
     { collection: "map_folders", action: "create" },
     { collection: "map_folders", action: "read" },
     { collection: "map_folders", action: "update" },

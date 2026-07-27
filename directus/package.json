@@ -9,6 +9,7 @@
     "flows:apply": "tsx src/flows/apply.ts",
     "backfill:is-public": "tsx src/schema/backfill-is-public.ts",
     "pages:seed": "tsx src/content/seed-pages.ts",
+    "map-templates:seed": "tsx src/content/seed-map-templates.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

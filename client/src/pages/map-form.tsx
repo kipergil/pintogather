@@ -9,7 +9,7 @@ import { TemplatePicker } from "@/components/template-picker";
 import { useAuth } from "@/contexts/AuthContext";
 import { TIER_LIMITS } from "@shared/limits";
 import type { PinColor, PinIcon } from "@shared/enums";
-import type { MapTemplate } from "@shared/templates";
+import type { MapTemplate } from "@shared/schema";
 
 interface MapFormProps {
   params?: {
@@ -184,9 +184,9 @@ export default function MapForm({ params }: MapFormProps) {
                   : template
                     ? {
                         name: template.suggestedName,
-                        description: template.suggestedDescription,
-                        noteLabel: template.noteLabel,
-                        notePrompt: template.notePrompt,
+                        description: template.suggestedDescription ?? "",
+                        noteLabel: template.noteLabel ?? "",
+                        notePrompt: template.notePrompt ?? "",
                         // A template can only suggest pin styling if this user's plan actually supports it —
                         // otherwise the picker isn't shown but the value would still be submitted and rejected.
                         defaultPinColor: hasPinCustomization ? template.defaultPinColor : null,

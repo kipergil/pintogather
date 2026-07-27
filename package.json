@@ -13,7 +13,8 @@
     "directus:permissions:apply": "npm --prefix directus run permissions:apply",
     "directus:flows:apply": "npm --prefix directus run flows:apply",
     "directus:backfill:is-public": "npm --prefix directus run backfill:is-public",
-    "directus:pages:seed": "npm --prefix directus run pages:seed"
+    "directus:pages:seed": "npm --prefix directus run pages:seed",
+    "directus:map-templates:seed": "npm --prefix directus run map-templates:seed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.114.0",
