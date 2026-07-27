@@ -23,11 +23,14 @@ import {
   ListChecks,
   Loader2,
   X,
+  LayoutGrid,
+  FolderTree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
 import { useState } from "react";
@@ -38,7 +41,7 @@ import { UsageMeter } from "@/components/usage-meter";
 import { TIER_LIMITS } from "@shared/limits";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useCreateFolder, useDeleteFolder, useFolders, useUpdateFolder } from "@/hooks/useFolders";
-import { FolderSidebar } from "@/components/folder-sidebar";
+import { FolderBrowser } from "@/components/folder-browser";
 import type { Folder } from "@shared/schema";
 
 export default function Home() {
@@ -301,13 +304,26 @@ function SignedInDashboard({
   const [selectedOwnedIds, setSelectedOwnedIds] = useState<Set<string>>(new Set());
   const [archivedSelectMode, setArchivedSelectMode] = useState(false);
   const [selectedArchivedIds, setSelectedArchivedIds] = useState<Set<string>>(new Set());
-  // undefined = "All maps" (no filter), null = "Unfiled", a string = that folder.
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null | undefined>(undefined);
+  const [ownedViewMode, setOwnedViewMode] = useState<"flat" | "folder">("flat");
 
-  const folderCount = (folderId: string | null | undefined) =>
-    folderId === undefined ? ownedMaps.length : ownedMaps.filter((map) => (map.folderId ?? null) === folderId).length;
-  const visibleOwnedMaps =
-    selectedFolderId === undefined ? ownedMaps : ownedMaps.filter((map) => (map.folderId ?? null) === selectedFolderId);
+  const renderOwnedMapGrid = (maps: MapCollectionSummary[]) => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {maps.map((map) => (
+        <MapCard
+          key={map.id}
+          map={map}
+          role="owner"
+          onDelete={onDeleteMap}
+          onExportCsv={onExportCsv}
+          selectable={ownedSelectMode}
+          selected={selectedOwnedIds.has(map.id)}
+          onToggleSelected={toggleOwnedSelected}
+          folders={folders}
+          onMoveToFolder={onMoveToFolder}
+        />
+      ))}
+    </div>
+  );
 
   const toggleOwnedSelected = (map: MapCollectionSummary) => {
     setSelectedOwnedIds((prev) => {
@@ -405,40 +421,53 @@ function SignedInDashboard({
             />
           ) : (
             <>
-              <FolderSidebar
-                folders={folders}
-                selectedFolderId={selectedFolderId}
-                onSelect={setSelectedFolderId}
-                countFor={folderCount}
-                onCreate={onCreateFolder}
-                onRename={onRenameFolder}
-                onDelete={onDeleteFolder}
-              />
-              {hasMapArchiving && (
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  {ownedSelectMode && selectedOwnedIds.size > 0 ? (
-                    <span className="text-sm font-medium text-foreground">
-                      {selectedOwnedIds.size} selected
-                    </span>
-                  ) : (
-                    <span />
-                  )}
+              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <ToggleGroup
+                  type="single"
+                  value={ownedViewMode}
+                  onValueChange={(value) => value && setOwnedViewMode(value as "flat" | "folder")}
+                  className="bg-muted rounded-lg p-1 justify-start"
+                >
+                  <ToggleGroupItem
+                    value="flat"
+                    size="sm"
+                    className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
+                    data-testid="button-view-mode-flat"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+                    Flat
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="folder"
+                    size="sm"
+                    className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
+                    data-testid="button-view-mode-folder"
+                  >
+                    <FolderTree className="h-3.5 w-3.5 mr-1.5" />
+                    Folders
+                  </ToggleGroupItem>
+                </ToggleGroup>
+
+                {hasMapArchiving && (
                   <div className="flex items-center gap-2">
                     {ownedSelectMode && selectedOwnedIds.size > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleArchiveSelected}
-                        disabled={isArchiving}
-                        data-testid="button-archive-selected"
-                      >
-                        {isArchiving ? (
-                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        ) : (
-                          <Archive className="h-3.5 w-3.5 mr-1.5" />
-                        )}
-                        Archive selected
-                      </Button>
+                      <>
+                        <span className="text-sm font-medium text-foreground">{selectedOwnedIds.size} selected</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleArchiveSelected}
+                          disabled={isArchiving}
+                          data-testid="button-archive-selected"
+                        >
+                          {isArchiving ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Archive className="h-3.5 w-3.5 mr-1.5" />
+                          )}
+                          Archive selected
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"
@@ -462,31 +491,20 @@ function SignedInDashboard({
                       )}
                     </Button>
                   </div>
-                </div>
-              )}
-              {visibleOwnedMaps.length === 0 ? (
-                <EmptyState
-                  icon={<MapPin className="h-8 w-8" />}
-                  title="No maps in this folder"
-                  description="Move a map here from its actions menu, or pick a different folder above."
-                />
+                )}
+              </div>
+
+              {ownedViewMode === "flat" ? (
+                renderOwnedMapGrid(ownedMaps)
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {visibleOwnedMaps.map((map) => (
-                    <MapCard
-                      key={map.id}
-                      map={map}
-                      role="owner"
-                      onDelete={onDeleteMap}
-                      onExportCsv={onExportCsv}
-                      selectable={ownedSelectMode}
-                      selected={selectedOwnedIds.has(map.id)}
-                      onToggleSelected={toggleOwnedSelected}
-                      folders={folders}
-                      onMoveToFolder={onMoveToFolder}
-                    />
-                  ))}
-                </div>
+                <FolderBrowser
+                  folders={folders}
+                  maps={ownedMaps}
+                  onCreate={onCreateFolder}
+                  onRename={onRenameFolder}
+                  onDelete={onDeleteFolder}
+                  renderMaps={renderOwnedMapGrid}
+                />
               )}
             </>
           )}
