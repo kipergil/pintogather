@@ -261,6 +261,20 @@ export const pinsCollection: CollectionDefinition = {
       labels: VENUE_TYPE_LABELS,
       note: "Google Places primary type for the venue, captured at venue-search time. Null for pins dropped by clicking the map or venues outside this curated type list.",
     }),
+    integerField("price_level", {
+      nullable: true,
+      defaultValue: null,
+      note: "Google Places price level, 0 (free) to 4 ($$$$). Null when Google doesn't report one (common for non-commercial venues) or for map-click pins.",
+    }),
+    textField("website", {
+      nullable: true,
+      maxLength: 500,
+      note: "The venue's own website, from Google Places.",
+    }),
+    richTextField("editorial_summary", {
+      nullable: true,
+      note: "Google's own one-line description of the venue — distinct from the contributor's own note.",
+    }),
     booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
     selectField("pin_color", PIN_COLOR, {
       nullable: true,

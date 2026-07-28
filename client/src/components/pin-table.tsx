@@ -22,6 +22,7 @@ import {
   Twitter,
   Instagram,
   Linkedin,
+  Globe,
   Edit,
   ExternalLink,
   MoreVertical,
@@ -36,7 +37,7 @@ import { getInitials } from "@/lib/map-utils";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { buildSocialUrl } from "@/lib/social-links";
 import { PinStyleSwatch } from "@/components/pin-style-picker";
-import { formatVenueType } from "@/lib/venue-type";
+import { formatVenueType, formatPriceLevel } from "@/lib/venue-type";
 import type { PinColor, PinIcon } from "@shared/enums";
 
 interface Pin {
@@ -59,6 +60,9 @@ interface Pin {
   googleMapsUrl?: string | null;
   photoUrl?: string | null;
   venueType?: string | null;
+  priceLevel?: number | null;
+  website?: string | null;
+  editorialSummary?: string | null;
   approved?: boolean;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
@@ -95,11 +99,24 @@ function avatarClasses(seed: string) {
 }
 
 function SocialLinks({ pin }: { pin: Pin }) {
-  if (!pin.twitterHandle && !pin.instagramHandle && !pin.linkedinHandle) {
-    return <span className="text-sm text-muted-foreground/60">—</span>;
+  if (!pin.website && !pin.twitterHandle && !pin.instagramHandle && !pin.linkedinHandle) {
+    return null;
   }
   return (
     <div className="flex items-center gap-2.5">
+      {pin.website && (
+        <a
+          href={pin.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          title="Website"
+          data-testid={`link-website-${pin.id}`}
+        >
+          <Globe className="h-4 w-4" />
+        </a>
+      )}
       {pin.twitterHandle && (
         <a
           href={buildSocialUrl("twitter", pin.twitterHandle)!}
@@ -491,6 +508,11 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                           {formatVenueType(pin.venueType)}
                         </Badge>
                       )}
+                      {pin.priceLevel != null && (
+                        <span className="text-xs text-muted-foreground shrink-0" title="Price level">
+                          {formatPriceLevel(pin.priceLevel)}
+                        </span>
+                      )}
                       {pin.approved === false && (
                         <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
                           <Clock className="h-3 w-3" />
@@ -510,13 +532,12 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                   </div>
                 </div>
 
-                {/* Note */}
-                <div className="flex-1 min-w-0">
-                  {pin.note ? (
-                    <NoteContent label={resolvedNoteLabel} note={pin.note} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground/50 italic">No {resolvedNoteLabel.toLowerCase()}</p>
+                {/* Editorial summary + note */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  {pin.editorialSummary && (
+                    <p className="text-xs text-muted-foreground italic">{pin.editorialSummary}</p>
                   )}
+                  {pin.note && <NoteContent label={resolvedNoteLabel} note={pin.note} />}
                 </div>
 
                 {/* Social + actions */}

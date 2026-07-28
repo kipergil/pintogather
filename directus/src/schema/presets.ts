@@ -162,14 +162,14 @@ export function dateField(
 
 export function integerField(
   field: string,
-  opts: { defaultValue?: number; nullable?: boolean; note?: string } = {},
+  opts: { defaultValue?: number | null; nullable?: boolean; note?: string } = {},
 ): FieldDefinition {
   return {
     field,
     type: "integer",
     meta: { interface: "input", note: opts.note, width: "half" },
     schema: {
-      default_value: opts.defaultValue ?? 0,
+      default_value: opts.defaultValue === undefined ? 0 : opts.defaultValue,
       is_nullable: opts.nullable ?? true,
     },
   };

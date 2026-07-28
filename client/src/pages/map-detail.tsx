@@ -79,6 +79,9 @@ interface MapCollection {
     googleMapsUrl?: string | null;
     photoUrl?: string | null;
     venueType?: string | null;
+    priceLevel?: number | null;
+    website?: string | null;
+    editorialSummary?: string | null;
     approved?: boolean;
     pinColor?: PinColor | null;
     pinIcon?: PinIcon | null;

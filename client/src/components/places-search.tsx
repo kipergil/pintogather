@@ -12,6 +12,9 @@ interface PlaceResult {
   lat: number;
   lng: number;
   venueType: string | null;
+  priceLevel: number | null;
+  website: string | null;
+  editorialSummary: string | null;
 }
 
 interface PlacesSearchProps {
@@ -118,7 +121,7 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
     setIsLoading(true);
     const request: google.maps.places.PlaceDetailsRequest = {
       placeId: prediction.place_id,
-      fields: ['name', 'formatted_address', 'geometry', 'place_id', 'types']
+      fields: ['name', 'formatted_address', 'geometry', 'place_id', 'types', 'price_level', 'website', 'editorial_summary']
     };
 
     placesService.getDetails(request, (place, status) => {
@@ -129,7 +132,10 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
           address: place.formatted_address || prediction.description,
           lat: place.geometry.location.lat(),
           lng: place.geometry.location.lng(),
-          venueType: getPrimaryVenueType(place.types)
+          venueType: getPrimaryVenueType(place.types),
+          priceLevel: place.price_level ?? null,
+          website: place.website ?? null,
+          editorialSummary: (place as any).editorial_summary?.overview ?? null
         };
 
         setQuery(result.name);

@@ -18,3 +18,10 @@ export function formatVenueType(venueType?: string | null): string | null {
   if (!venueType) return null;
   return VENUE_TYPE_LABELS[venueType as VenueType] ?? venueType;
 }
+
+/** Formats a Google Places price level (0-4) as "Free" or a "$" run — 0 is a real value ("free"), so check with `!= null`, not truthiness. */
+export function formatPriceLevel(priceLevel?: number | null): string | null {
+  if (priceLevel == null) return null;
+  if (priceLevel <= 0) return "Free";
+  return "$".repeat(priceLevel);
+}
