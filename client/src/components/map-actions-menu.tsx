@@ -1,4 +1,4 @@
-import { Settings, Upload, Share2, Download, Database, Trash2, Menu, FolderInput, Check } from "lucide-react";
+import { Settings, Upload, Share2, Download, Database, Trash2, Menu, FolderInput, Check, GitFork } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,6 +21,8 @@ export interface MapActionsMenuProps {
   onImportPins: () => void;
   /** Omitted on surfaces that already show a standalone Share button (e.g. map-detail) — the item is hidden entirely rather than duplicating it. */
   onShare?: () => void;
+  /** Available to any signed-in viewer, not just the owner — omit to hide the item. */
+  onClone?: () => void;
   /** Owner-only actions — omit the corresponding item entirely when not provided. */
   onEditMap?: () => void;
   onExportCsv?: () => void;
@@ -45,6 +47,7 @@ export function MapActionsMenu({
   isOwner,
   onImportPins,
   onShare,
+  onClone,
   onEditMap,
   onExportCsv,
   onDelete,
@@ -80,6 +83,12 @@ export function MapActionsMenu({
           <DropdownMenuItem onClick={onShare} data-testid={`menu-item-share-map${suffix}`}>
             <Share2 className="h-4 w-4 mr-2" />
             Share
+          </DropdownMenuItem>
+        )}
+        {onClone && (
+          <DropdownMenuItem onClick={onClone} data-testid={`menu-item-clone-map${suffix}`}>
+            <GitFork className="h-4 w-4 mr-2" />
+            Clone
           </DropdownMenuItem>
         )}
         {isOwner && onExportCsv && (

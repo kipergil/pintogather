@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, GitFork } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2 } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -216,192 +216,189 @@ export default function MapDetail({ params }: MapDetailProps) {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
-      {/* Anonymous User Notice */}
-      {!user && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-          <span>
-            Viewing as a guest — pins save anonymously.{" "}
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="font-medium underline hover:no-underline"
-            >
-              Sign in
-            </button>{" "}
-            to pin with your profile.
-          </span>
+    <>
+      {/* Sub-header: navigation lives here, apart from the page's own actions below */}
+      <div className="sticky top-16 z-30 border-b border-border bg-muted/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center gap-3">
+          <button
+            onClick={() => setLocation("/")}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background hover:bg-accent transition-colors"
+            aria-label="Back to home"
+            data-testid="button-back-to-home"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-sm font-semibold text-foreground truncate">{mapCollection.name}</span>
         </div>
-      )}
+      </div>
 
-      {/* Map Header */}
-      <Card className="border-border">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
-                {!!mapCollection.forkedFromMapId && <ForkedFromBadge forkedFrom={mapCollection.forkedFrom ?? null} />}
-                {isOwner && (
-                  <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
-                    <Crown className="h-3 w-3" />
-                    Owner
-                  </Badge>
-                )}
-                {mapCollection.curated && (
-                  <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary" data-testid="badge-curated">
-                    <Compass className="h-3 w-3" />
-                    Curated{mapCollection.curatedCategory ? ` · ${CURATED_CATEGORY_LABELS[mapCollection.curatedCategory]}` : ""}
-                  </Badge>
-                )}
-                {mapCollection.archived && (
-                  <Badge variant="outline" className="gap-1 border-muted-foreground/30 bg-muted text-muted-foreground">
-                    Archived
-                  </Badge>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
+        {/* Anonymous User Notice */}
+        {!user && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <span>
+              Viewing as a guest — pins save anonymously.{" "}
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="font-medium underline hover:no-underline"
+              >
+                Sign in
+              </button>{" "}
+              to pin with your profile.
+            </span>
+          </div>
+        )}
+
+        {/* Map Header */}
+        <Card className="border-border">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground break-words">{mapCollection.name}</h1>
+                  {!!mapCollection.forkedFromMapId && <ForkedFromBadge forkedFrom={mapCollection.forkedFrom ?? null} />}
+                  {isOwner && (
+                    <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary">
+                      <Crown className="h-3 w-3" />
+                      Owner
+                    </Badge>
+                  )}
+                  {mapCollection.curated && (
+                    <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-primary" data-testid="badge-curated">
+                      <Compass className="h-3 w-3" />
+                      Curated{mapCollection.curatedCategory ? ` · ${CURATED_CATEGORY_LABELS[mapCollection.curatedCategory]}` : ""}
+                    </Badge>
+                  )}
+                  {mapCollection.archived && (
+                    <Badge variant="outline" className="gap-1 border-muted-foreground/30 bg-muted text-muted-foreground">
+                      Archived
+                    </Badge>
+                  )}
+                </div>
+                {mapCollection.description && (
+                  <p className="text-muted-foreground">{mapCollection.description}</p>
                 )}
               </div>
-              {mapCollection.description && (
-                <p className="text-muted-foreground">{mapCollection.description}</p>
-              )}
+              <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
+                {isOwner && mapCollection.archived && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => restoreMapMutation.mutate(mapCollection.id)}
+                    disabled={restoreMapMutation.isPending}
+                    data-testid="button-restore-map"
+                  >
+                    {restoreMapMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ArchiveRestore className="h-4 w-4 mr-2" />
+                    )}
+                    Restore
+                  </Button>
+                )}
+                <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
+                  <LikeButton
+                    mapId={mapCollection.id}
+                    liked={mapCollection.likedByViewer}
+                    likeCount={mapCollection.likeCount}
+                    invalidateKeys={[`/api/maps/${params.shareUrl}`]}
+                    className="h-9 px-3 hover:bg-accent"
+                  />
+                  <SharePopover
+                    mapId={mapCollection.id}
+                    shareUrl={mapCollection.shareUrl}
+                    mapName={mapCollection.name}
+                    ownerName={mapCollection.ownerName}
+                    pinCount={mapCollection.pinCount}
+                    isOwner={isOwner}
+                    onInvite={() => setIsShareModalOpen(true)}
+                    triggerClassName="h-9 rounded-none"
+                  />
+                  <MapActionsMenu
+                    mapId={mapCollection.id}
+                    isOwner={isOwner}
+                    onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
+                    onImportPins={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
+                    onExportCsv={exportPins}
+                    onClone={user ? () => cloneMapMutation.mutate() : undefined}
+                    directusUrl={directusUrl}
+                    triggerClassName="h-9 w-9 rounded-none border-0"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
-              {isOwner && mapCollection.archived && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => restoreMapMutation.mutate(mapCollection.id)}
-                  disabled={restoreMapMutation.isPending}
-                  data-testid="button-restore-map"
-                >
-                  {restoreMapMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ArchiveRestore className="h-4 w-4 mr-2" />
-                  )}
-                  Restore
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation("/")}
-                data-testid="button-back-to-home"
+
+            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5",
+                  isOwner && pinCapReached && "text-destructive font-medium",
+                  isOwner && pinCapNear && "text-amber-600 font-medium",
+                )}
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <LikeButton
-                mapId={mapCollection.id}
-                liked={mapCollection.likedByViewer}
-                likeCount={mapCollection.likeCount}
-                invalidateKeys={[`/api/maps/${params.shareUrl}`]}
-                className="h-9 px-2"
-              />
-              <SharePopover
-                mapId={mapCollection.id}
-                shareUrl={mapCollection.shareUrl}
-                mapName={mapCollection.name}
-                ownerName={mapCollection.ownerName}
-                pinCount={mapCollection.pinCount}
-                isOwner={isOwner}
-                onInvite={() => setIsShareModalOpen(true)}
-              />
-              {user && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => cloneMapMutation.mutate()}
-                  disabled={cloneMapMutation.isPending}
-                  data-testid="button-clone-map"
-                >
-                  {cloneMapMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <GitFork className="h-4 w-4 mr-2" />
-                  )}
-                  Clone
-                </Button>
+                <MapPin className="h-4 w-4" />
+                {mapCollection.pinCount}
+                {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
+                {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-4 w-4" />
+                {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
+              </span>
+              {isOwner && (pinCapReached || pinCapNear) && (
+                <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
+                  {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
+                </Link>
               )}
-              <MapActionsMenu
-                mapId={mapCollection.id}
-                isOwner={isOwner}
-                onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
-                onImportPins={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
-                onExportCsv={exportPins}
-                directusUrl={directusUrl}
-              />
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5",
-                isOwner && pinCapReached && "text-destructive font-medium",
-                isOwner && pinCapNear && "text-amber-600 font-medium",
-              )}
-            >
-              <MapPin className="h-4 w-4" />
-              {mapCollection.pinCount}
-              {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
-              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="h-4 w-4" />
-              {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
-            </span>
-            {isOwner && (pinCapReached || pinCapNear) && (
-              <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
-                {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
-              </Link>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {/* Map View */}
+        <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} />
 
-      {/* Map View */}
-      <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} />
+        {/* Pins management */}
+        <Card className="border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
+                Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+                {isOwner && pendingCount > 0 && (
+                  <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
+                    <Clock className="h-3 w-3" />
+                    {pendingCount} pending review
+                  </Badge>
+                )}
+              </h2>
+            </div>
+            <PinTable
+              pins={mapCollection.pins}
+              mapOwnerId={mapCollection.ownerId}
+              shareUrl={mapCollection.shareUrl}
+              noteLabel={mapCollection.noteLabel}
+              onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
+            />
+          </CardContent>
+        </Card>
 
-      {/* Pins management */}
-      <Card className="border-border">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
-              Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
-              {isOwner && pendingCount > 0 && (
-                <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
-                  <Clock className="h-3 w-3" />
-                  {pendingCount} pending review
-                </Badge>
-              )}
-            </h2>
-          </div>
-          <PinTable
-            pins={mapCollection.pins}
-            mapOwnerId={mapCollection.ownerId}
-            shareUrl={mapCollection.shareUrl}
-            noteLabel={mapCollection.noteLabel}
-            onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
-          />
-        </CardContent>
-      </Card>
+        {/* Invite dialog — copy-link/social sharing lives in the SharePopover above, so this opens straight to the invite section. */}
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          shareUrl={mapCollection.shareUrl}
+          mapName={mapCollection.name}
+          mapId={mapCollection.id}
+          isOwner={isOwner}
+          showLinkAndSocial={false}
+        />
 
-      {/* Invite dialog — copy-link/social sharing lives in the SharePopover above, so this opens straight to the invite section. */}
-      <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        shareUrl={mapCollection.shareUrl}
-        mapName={mapCollection.name}
-        mapId={mapCollection.id}
-        isOwner={isOwner}
-        showLinkAndSocial={false}
-      />
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        returnUrl={`/map/${params.shareUrl}`}
-      />
-    </main>
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          returnUrl={`/map/${params.shareUrl}`}
+        />
+      </main>
+    </>
   );
 }
