@@ -305,7 +305,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
         .map((item) => {
           const match = item.matches[item.selectedIndex] ?? item.matches[0];
           return {
-            userName: item.name.trim() || match.name,
+            title: item.name.trim() || match.name,
             latitude: String(match.lat),
             longitude: String(match.lng),
             address: match.address || null,

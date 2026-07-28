@@ -42,7 +42,8 @@ import type { PinColor, PinIcon } from "@shared/enums";
 
 interface Pin {
   id: string;
-  userName: string;
+  title: string;
+  contributorName?: string | null;
   userId?: string;
   latitude: string;
   longitude: string;
@@ -306,7 +307,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
   });
 
   const filteredPins = contributorFilteredPins.filter(pin =>
-    pin.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pin.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pin.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pin.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pin.note?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -480,7 +481,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                       checked={selectedPinIds.has(pin.id)}
                       onCheckedChange={() => togglePinSelected(pin.id)}
                       onClick={(e) => e.stopPropagation()}
-                      aria-label={`Select ${pin.userName}`}
+                      aria-label={`Select ${pin.title}`}
                       className="mt-1 shrink-0"
                       data-testid={`checkbox-pin-${pin.id}`}
                     />
@@ -489,19 +490,19 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                     <a href={pin.photoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="shrink-0">
                       <img
                         src={pin.photoUrl}
-                        alt={`Photo for ${pin.userName}`}
+                        alt={`Photo for ${pin.title}`}
                         className="w-9 h-9 rounded-md object-cover"
                         data-testid={`img-pin-photo-${pin.id}`}
                       />
                     </a>
                   ) : (
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.userName)}`}>
-                      <span className="text-sm font-semibold">{getInitials(pin.userName)}</span>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.title)}`}>
+                      <span className="text-sm font-semibold">{getInitials(pin.title)}</span>
                     </div>
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-medium text-foreground text-sm break-words">{pin.userName}</h4>
+                      <h4 className="font-medium text-foreground text-sm break-words">{pin.title}</h4>
                       <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
                       {pin.venueType && (
                         <Badge variant="secondary" className="shrink-0 font-normal">
@@ -520,7 +521,10 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(pin.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatDate(pin.createdAt)}
+                      {pin.contributorName && ` · Added by ${pin.contributorName}`}
+                    </p>
                     {(pin.city || pin.town || pin.country || pin.postcode) && (
                       <div className="flex items-start gap-1.5 mt-1">
                         <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />

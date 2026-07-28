@@ -705,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           if (!map) return null;
           return {
             id: pin.id,
-            userName: pin.userName,
+            title: pin.title,
             note: pin.note,
             address: pin.address,
             city: pin.city,
@@ -1525,8 +1525,12 @@ export async function registerRoutes(app: Express): Promise<void> {
         ...req.body,
         mapId: mapCollection.id,
         userId: user?.id ?? null, // never trust a client-supplied userId
-        approved: isOwner, // pins from anyone but the owner need the owner's approval first
+        approved: isOwner || !mapCollection.requirePinApproval,
       });
+
+      if (!user && !data.contributorName) {
+        return res.status(400).json({ message: "Please enter your name so we know who added this pin." });
+      }
 
       if ((data.pinColor || data.pinIcon) && !(await getMapOwnerHasPinCustomization(mapCollection))) {
         return res.status(403).json({
@@ -1572,7 +1576,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
 
       const { pins } = bulkInsertPinsSchema.parse(req.body);
-      const data = pins.map((pin) => ({ ...pin, mapId: mapCollection.id, userId: user.id, approved: isOwner }));
+      const data = pins.map((pin) => ({
+        ...pin,
+        mapId: mapCollection.id,
+        userId: user.id,
+        approved: isOwner || !mapCollection.requirePinApproval,
+      }));
 
       const result = await storage.upsertPins(mapCollection.id, data, { maxNewPins: maxPins - currentPinCount });
       res.status(201).json(result);

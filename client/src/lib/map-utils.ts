@@ -80,10 +80,15 @@ export function formatCoordinates(lat: number, lng: number): string {
  * same account never gets double-counted across differently-typed names, and
  * imported pins (which are always attributed to the importing user's id)
  * count as one contribution from that user. Pins with no userId (fully
- * anonymous, no one signed in) fall back to grouping by the typed name.
+ * anonymous, no one signed in) fall back to grouping by the contributor's own
+ * typed name, or — when that's missing too (pre-existing pins from before
+ * this field existed) — the pin's own id, so unrelated anonymous pins never
+ * get silently merged into one contributor.
  */
-export function countDistinctContributors(pins: Array<{ userId?: string | null; userName: string }>): number {
-  const ids = new Set(pins.map((pin) => pin.userId || `anon:${pin.userName}`));
+export function countDistinctContributors(
+  pins: Array<{ id: string; userId?: string | null; contributorName?: string | null }>,
+): number {
+  const ids = new Set(pins.map((pin) => pin.userId || (pin.contributorName ? `anon:${pin.contributorName}` : `anon:${pin.id}`)));
   return ids.size;
 }
 

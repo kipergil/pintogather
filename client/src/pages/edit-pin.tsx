@@ -25,7 +25,7 @@ interface EditPinProps {
 }
 
 interface PinFormData {
-  userName: string;
+  title: string;
   twitterHandle: string;
   instagramHandle: string;
   linkedinHandle: string;
@@ -38,7 +38,7 @@ interface PinFormData {
 interface PinRecord {
   id: string;
   userId: string | null;
-  userName: string;
+  title: string;
   address?: string;
   twitterHandle?: string;
   instagramHandle?: string;
@@ -68,7 +68,7 @@ export default function EditPin({ params }: EditPinProps) {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<PinFormData>({
-    userName: "",
+    title: "",
     twitterHandle: "",
     instagramHandle: "",
     linkedinHandle: "",
@@ -106,9 +106,8 @@ export default function EditPin({ params }: EditPinProps) {
         return;
       }
 
-      const fullName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ");
       setFormData({
-        userName: pin.userName || fullName || "",
+        title: pin.title || "",
         twitterHandle: pin.twitterHandle || user?.twitterHandle || "",
         instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
         linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
@@ -177,12 +176,12 @@ export default function EditPin({ params }: EditPinProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.userName.trim()) return;
+    if (!formData.title.trim()) return;
 
     setLoading(true);
     try {
       updatePinMutation.mutate({
-        userName: formData.userName,
+        title: formData.title,
         twitterHandle: formData.twitterHandle || "",
         instagramHandle: formData.instagramHandle || "",
         linkedinHandle: formData.linkedinHandle || "",
@@ -269,15 +268,15 @@ export default function EditPin({ params }: EditPinProps) {
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="userName">Your name</Label>
+                <Label htmlFor="title">Title</Label>
                 <Input
-                  id="userName"
+                  id="title"
                   type="text"
-                  placeholder="Enter your name"
-                  value={formData.userName}
-                  onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                  placeholder="Venue name, or whatever this pin is about"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
-                  data-testid="input-user-name"
+                  data-testid="input-title"
                 />
               </div>
 
@@ -416,7 +415,7 @@ export default function EditPin({ params }: EditPinProps) {
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={loading || updatePinMutation.isPending || isUploadingPhoto || !formData.userName.trim()}
+                  disabled={loading || updatePinMutation.isPending || isUploadingPhoto || !formData.title.trim()}
                   data-testid="button-update-pin"
                 >
                   <Save className="h-4 w-4 mr-2" />

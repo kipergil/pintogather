@@ -62,6 +62,7 @@ export interface MapCollection {
   archived: boolean;
   default_pin_color: PinColor | null;
   default_pin_icon: PinIcon | null;
+  require_pin_approval: boolean;
   curated: boolean;
   curated_category: CuratedCategory | null;
   curated_country: CuratedCountry | null;
@@ -80,6 +81,7 @@ export interface Pin {
   map: string;
   user: string | null;
   user_name: string;
+  contributor_name: string | null;
   latitude: string;
   longitude: string;
   address: string | null;

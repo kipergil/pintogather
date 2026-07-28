@@ -18,7 +18,7 @@ import { haversineDistanceKm, sortPinsForRoute } from "@shared/geo";
 
 export interface RoutePin {
   id: string;
-  userName: string;
+  title: string;
   latitude: string;
   longitude: string;
   note?: string;
@@ -152,7 +152,7 @@ function RouteRow({
           {index + 1}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-medium text-foreground text-sm truncate">{pin.userName}</div>
+          <div className="font-medium text-foreground text-sm truncate">{pin.title}</div>
           {pin.note && <p className="text-xs text-muted-foreground truncate">{pin.note}</p>}
         </div>
         {distanceFromPrev !== null && (

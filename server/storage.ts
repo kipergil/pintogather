@@ -63,6 +63,7 @@ const MAP_FIELDS = [
   "archived",
   "default_pin_color",
   "default_pin_icon",
+  "require_pin_approval",
   "curated",
   "curated_category",
   "curated_country",
@@ -79,6 +80,7 @@ const PIN_FIELDS = [
   "map",
   "user",
   "user_name",
+  "contributor_name",
   "latitude",
   "longitude",
   "address",
@@ -191,6 +193,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     archived: row.archived,
     defaultPinColor: row.default_pin_color,
     defaultPinIcon: row.default_pin_icon,
+    requirePinApproval: row.require_pin_approval,
     curated: row.curated,
     curatedCategory: row.curated_category,
     curatedCountry: row.curated_country,
@@ -220,7 +223,8 @@ function toPin(row: DirectusPin): Pin {
     id: row.id,
     mapId: row.map,
     userId: row.user,
-    userName: row.user_name,
+    title: row.user_name,
+    contributorName: row.contributor_name,
     latitude: row.latitude,
     longitude: row.longitude,
     address: row.address,
@@ -252,7 +256,8 @@ function toDirectusPinInput(data: InsertPin) {
   return {
     map: data.mapId,
     user: data.userId ?? null,
-    user_name: data.userName,
+    user_name: data.title,
+    contributor_name: data.contributorName ?? null,
     latitude: data.latitude,
     longitude: data.longitude,
     address: data.address ?? null,
@@ -516,6 +521,7 @@ class DirectusStorage implements IStorage {
           show_on_profile: data.showOnProfile ?? false,
           default_pin_color: data.defaultPinColor ?? null,
           default_pin_icon: data.defaultPinIcon ?? null,
+          require_pin_approval: data.requirePinApproval ?? true,
         },
         { fields: MAP_FIELDS },
       ),
@@ -556,6 +562,7 @@ class DirectusStorage implements IStorage {
           show_on_profile: false,
           default_pin_color: source.defaultPinColor,
           default_pin_icon: source.defaultPinIcon,
+          require_pin_approval: source.requirePinApproval,
           forked_from_map: source.id,
         },
         { fields: MAP_FIELDS },
@@ -568,7 +575,8 @@ class DirectusStorage implements IStorage {
     const pinPayloads = sourcePins.map((pin) => ({
       map: map.id,
       user: null,
-      user_name: pin.userName,
+      user_name: pin.title,
+      contributor_name: null,
       latitude: pin.latitude,
       longitude: pin.longitude,
       address: pin.address,
@@ -760,6 +768,7 @@ class DirectusStorage implements IStorage {
       if (data.showOnProfile !== undefined) payload.show_on_profile = data.showOnProfile;
       if (data.defaultPinColor !== undefined) payload.default_pin_color = data.defaultPinColor;
       if (data.defaultPinIcon !== undefined) payload.default_pin_icon = data.defaultPinIcon;
+      if (data.requirePinApproval !== undefined) payload.require_pin_approval = data.requirePinApproval;
       if (data.folderId !== undefined) payload.folder = data.folderId;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
@@ -949,7 +958,7 @@ class DirectusStorage implements IStorage {
     opts: { maxNewPins?: number } = {},
   ): Promise<{ created: Pin[]; updated: Pin[]; skippedDueToLimit: number }> {
     const existing = await this.getPinsByMapId(mapId);
-    const existingByName = new Map(existing.map((pin) => [pin.userName.trim().toLowerCase(), pin]));
+    const existingByName = new Map(existing.map((pin) => [pin.title.trim().toLowerCase(), pin]));
 
     // Collapse repeated names within the incoming batch itself (last one
     // wins) — otherwise pasting/uploading the same venue twice in one list
@@ -957,7 +966,7 @@ class DirectusStorage implements IStorage {
     // *existing* pin yet.
     const dedupedByName = new Map<string, InsertPin>();
     for (const pin of data) {
-      dedupedByName.set(pin.userName.trim().toLowerCase(), pin);
+      dedupedByName.set(pin.title.trim().toLowerCase(), pin);
     }
 
     let toCreate: InsertPin[] = [];
@@ -1015,7 +1024,8 @@ class DirectusStorage implements IStorage {
   async updatePin(id: string, data: Partial<InsertPin>): Promise<Pin | undefined> {
     try {
       const payload: Record<string, unknown> = {};
-      if (data.userName !== undefined) payload.user_name = data.userName;
+      if (data.title !== undefined) payload.user_name = data.title;
+      if (data.contributorName !== undefined) payload.contributor_name = data.contributorName;
       if (data.latitude !== undefined) payload.latitude = data.latitude;
       if (data.longitude !== undefined) payload.longitude = data.longitude;
       if (data.address !== undefined) payload.address = data.address;

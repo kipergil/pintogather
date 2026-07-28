@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Switch, Text, View } from "react-native";
 import { Link, Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
@@ -28,6 +28,7 @@ export default function CreateMapScreen() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [showNoteCustomization, setShowNoteCustomization] = useState(false);
+  const [requirePinApproval, setRequirePinApproval] = useState(true);
   const [noteLabel, setNoteLabel] = useState("");
   const [notePrompt, setNotePrompt] = useState("");
   const [showPinStyle, setShowPinStyle] = useState(false);
@@ -74,6 +75,7 @@ export default function CreateMapScreen() {
         description: description.trim() || undefined,
         noteLabel: noteLabel.trim() || null,
         notePrompt: notePrompt.trim() || null,
+        requirePinApproval,
         defaultPinColor: hasPinCustomization ? defaultPinColor : null,
         defaultPinIcon: hasPinCustomization ? defaultPinIcon : null,
       });
@@ -107,6 +109,16 @@ export default function CreateMapScreen() {
           numberOfLines={3}
           testID="input-map-description"
         />
+
+        <View className="flex-row items-center justify-between gap-3 rounded-xl border border-slate-200 p-3.5">
+          <View className="flex-1 gap-0.5">
+            <Text className="text-sm font-medium text-slate-700">Require approval for new pins</Text>
+            <Text className="text-xs text-slate-500">
+              Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
+            </Text>
+          </View>
+          <Switch value={requirePinApproval} onValueChange={setRequirePinApproval} testID="switch-require-pin-approval" />
+        </View>
 
         <View className="gap-3">
           <Button

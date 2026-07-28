@@ -60,7 +60,8 @@ interface LocationData {
 }
 
 interface PinFormData {
-  userName: string;
+  title: string;
+  contributorName: string;
   twitterHandle: string;
   instagramHandle: string;
   linkedinHandle: string;
@@ -87,7 +88,8 @@ type LocationSource = "click" | "search";
 const NOTE_MAX_LENGTH = 280;
 
 const emptyForm: PinFormData = {
-  userName: "",
+  title: "",
+  contributorName: "",
   twitterHandle: "",
   instagramHandle: "",
   linkedinHandle: "",
@@ -136,14 +138,11 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   }, [isOpen, initialLocation]);
 
   useEffect(() => {
-    if (isOpen && user) {
-      const fullName = user.fullName || [user.firstName, user.lastName].filter(Boolean).join(" ");
-      setFormData((prev) => ({ ...prev, userName: fullName || prev.userName }));
-    } else if (isOpen && !user) {
+    if (isOpen) {
       setFormData(emptyForm);
+      setFillMySocials(false);
     }
-    if (isOpen) setFillMySocials(false);
-  }, [isOpen, user]);
+  }, [isOpen]);
 
   const hasProfileSocials = !!(user?.twitterHandle || user?.instagramHandle || user?.linkedinHandle);
 
@@ -222,8 +221,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       postcode: "",
       country: ""
     });
-    // Name the pin after the venue so search-built maps read as a list of places.
-    setFormData((prev) => ({ ...prev, userName: place.name }));
+    // Title the pin after the venue so search-built maps read as a list of places.
+    setFormData((prev) => ({ ...prev, title: place.name }));
   };
 
   const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,10 +289,19 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.userName.trim()) {
+    if (!formData.title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for this pin",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user && !formData.contributorName.trim()) {
       toast({
         title: "Name required",
-        description: "Please enter your name",
+        description: "Please enter your name so we know who added this pin",
         variant: "destructive",
       });
       return;
@@ -310,7 +318,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
 
     const pinData = {
       userId: user?.id || null,
-      userName: formData.userName.trim(),
+      title: formData.title.trim(),
+      contributorName: user ? null : formData.contributorName.trim() || null,
       latitude: selectedLocation.lat.toString(),
       longitude: selectedLocation.lng.toString(),
       address: locationSource === "search" ? selectedPlace?.address : (locationData?.address || null),
@@ -410,17 +419,32 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="userName">Your name</Label>
+                <Label htmlFor="title">Title</Label>
                 <Input
-                  id="userName"
+                  id="title"
                   type="text"
-                  placeholder="How should we credit this pin?"
-                  value={formData.userName}
-                  onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                  placeholder="Venue name, or whatever this pin is about"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
-                  data-testid="input-user-name"
+                  data-testid="input-title"
                 />
               </div>
+
+              {!user && (
+                <div className="space-y-2">
+                  <Label htmlFor="contributorName">Your name</Label>
+                  <Input
+                    id="contributorName"
+                    type="text"
+                    placeholder="So the map owner knows who added this"
+                    value={formData.contributorName}
+                    onChange={(e) => setFormData({ ...formData, contributorName: e.target.value })}
+                    required
+                    data-testid="input-contributor-name"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

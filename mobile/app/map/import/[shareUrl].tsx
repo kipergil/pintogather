@@ -11,7 +11,7 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const DEFAULT_REGION = { latitude: 51.5074, longitude: -0.1278, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 
-type Placed = { userName: string; latitude: string; longitude: string };
+type Placed = { title: string; latitude: string; longitude: string };
 
 /**
  * Scoped-down mobile equivalent of client/src/pages/import-pins.tsx's
@@ -60,7 +60,7 @@ export default function ImportPinsScreen() {
   const currentName = names[currentIndex];
 
   const onMapPress = (coordinate: LatLng) => {
-    setPlaced((prev) => [...prev, { userName: currentName, latitude: String(coordinate.latitude), longitude: String(coordinate.longitude) }]);
+    setPlaced((prev) => [...prev, { title: currentName, latitude: String(coordinate.latitude), longitude: String(coordinate.longitude) }]);
   };
 
   const onSkip = () => {
@@ -118,7 +118,7 @@ export default function ImportPinsScreen() {
           <>
             <MapView className="flex-1" initialRegion={DEFAULT_REGION} onPress={(e) => onMapPress(e.nativeEvent.coordinate)}>
               {placed.map((pin, i) => (
-                <Marker key={i} coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }} title={pin.userName} />
+                <Marker key={i} coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }} title={pin.title} />
               ))}
             </MapView>
             <View className="absolute left-4 right-4 top-4 gap-2 rounded-2xl bg-white/95 px-4 py-3 shadow">
@@ -165,7 +165,7 @@ export default function ImportPinsScreen() {
             {placed.map((pin, i) => (
               <View key={i} className="mb-2 flex-row items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
                 <Text className="flex-1 text-sm font-medium text-slate-900" numberOfLines={1}>
-                  {pin.userName}
+                  {pin.title}
                 </Text>
                 <Pressable onPress={() => setPlaced((prev) => prev.filter((_, idx) => idx !== i))} hitSlop={8}>
                   <Ionicons name="close-circle" size={20} color="#94a3b8" />

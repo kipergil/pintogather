@@ -30,7 +30,8 @@ interface MapCollection {
   forkedFrom?: { name: string; shareUrl: string; ownerName: string | null } | null;
   pins: Array<{
     id: string;
-    userName: string;
+    title: string;
+    contributorName?: string | null;
     userId?: string;
     latitude: string;
     longitude: string;

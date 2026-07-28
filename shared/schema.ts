@@ -155,6 +155,8 @@ export interface MapCollection {
   defaultPinColor: (typeof PIN_COLOR)[number] | null;
   /** Default marker icon glyph for this map's pins (Basic/Premium only) — falls back to a plain pin when null. A pin's own pinIcon, if set, overrides this. */
   defaultPinIcon: (typeof PIN_ICON)[number] | null;
+  /** Whether a pin added by anyone other than the owner needs the owner's approval before it's visible to others. Defaults to true (the historical, previously-hardcoded behavior) — an owner can turn this off to auto-approve new pins instead. */
+  requirePinApproval: boolean;
   /**
    * Curated-map fields (/discover page) — admin-managed directly in Directus,
    * never through the app's own map-create/edit forms, so these are absent
@@ -192,6 +194,7 @@ export const insertMapCollectionSchema = z.object({
   showOnProfile: z.boolean().optional(),
   defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
   defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
+  requirePinApproval: z.boolean().optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 
@@ -203,6 +206,7 @@ export const updateMapDetailsSchema = z.object({
   brandingLogoUrl: z.string().trim().max(500).nullable().optional(),
   defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
   defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
+  requirePinApproval: z.boolean().optional(),
   showOnProfile: z.boolean().optional(),
   /** Move this map into a folder (or back to the root level with null). Ownership of the target folder is checked server-side. */
   folderId: z.string().nullable().optional(),
@@ -241,7 +245,10 @@ export interface Pin {
   id: string;
   mapId: string;
   userId: string | null;
-  userName: string;
+  /** What this pin is about — a venue name (auto-filled from search) or the contributor's own free-form label. Not the contributor's identity; see contributorName for that. */
+  title: string;
+  /** The anonymous contributor's own name, captured since an anonymous submission has no account to attribute it to. Always null for a signed-in contributor — their identity is userId. */
+  contributorName: string | null;
   latitude: string;
   longitude: string;
   address: string | null;
@@ -278,7 +285,8 @@ export interface Pin {
 export const insertPinSchema = z.object({
   mapId: z.string().min(1),
   userId: z.string().nullable().optional(),
-  userName: z.string().min(1),
+  title: z.string().trim().min(1).max(255),
+  contributorName: z.string().trim().max(100).nullable().optional(),
   latitude: z.union([z.string(), z.number()]).transform((v) => String(v)),
   longitude: z.union([z.string(), z.number()]).transform((v) => String(v)),
   address: z.string().nullable().optional(),

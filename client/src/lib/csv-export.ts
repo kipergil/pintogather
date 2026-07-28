@@ -1,5 +1,5 @@
 interface PinCsvRow {
-  userName: string;
+  title: string;
   city?: string | null;
   town?: string | null;
   country?: string | null;
@@ -13,9 +13,9 @@ interface PinCsvRow {
 
 export function downloadPinsCsv(pins: PinCsvRow[], noteLabel: string) {
   const csvContent = [
-    ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
+    ["Title", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
     ...pins.map(pin => [
-      pin.userName,
+      pin.title,
       [pin.city, pin.town].filter(Boolean).join(", ") || "",
       pin.country || "",
       pin.postcode || "",

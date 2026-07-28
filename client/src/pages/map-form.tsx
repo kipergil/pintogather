@@ -27,6 +27,7 @@ interface MapCollection {
   notePrompt?: string | null;
   brandingLogoUrl?: string | null;
   showOnProfile?: boolean;
+  requirePinApproval?: boolean;
   defaultPinColor?: PinColor | null;
   defaultPinIcon?: PinIcon | null;
 }
@@ -177,6 +178,7 @@ export default function MapForm({ params }: MapFormProps) {
                       notePrompt: mapCollection.notePrompt ?? "",
                       brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
                       showOnProfile: mapCollection.showOnProfile ?? false,
+                      requirePinApproval: mapCollection.requirePinApproval ?? true,
                       defaultPinColor: mapCollection.defaultPinColor ?? null,
                       defaultPinIcon: mapCollection.defaultPinIcon ?? null,
                       shareUrl: mapCollection.shareUrl,

@@ -5,7 +5,7 @@ import { Callout, Marker, Polyline, type LatLng } from "react-native-maps";
 import type MapView from "react-native-maps";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/clerk-expo";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
@@ -32,7 +32,8 @@ const CLUSTER_MAX_ZOOM = 15;
 const CLUSTER_RADIUS = 60;
 
 const EMPTY_PIN_FORM: PinFormValue = {
-  userName: "",
+  title: "",
+  contributorName: "",
   twitterHandle: "",
   instagramHandle: "",
   linkedinHandle: "",
@@ -46,7 +47,6 @@ export default function MapDetailScreen() {
   const { isSignedIn } = useAuth();
   const { shareUrl, pin: focusPinId } = useLocalSearchParams<{ shareUrl: string; pin?: string }>();
   const router = useRouter();
-  const { user } = useUser();
   const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
   const addPin = useAddPin(shareUrl);
@@ -114,10 +114,7 @@ export default function MapDetailScreen() {
   const openAddPinModal = (coordinate: LatLng) => {
     setPendingCoordinate(coordinate);
     setPendingAddress(null);
-    setPinForm({
-      ...EMPTY_PIN_FORM,
-      userName: user?.fullName || user?.primaryEmailAddress?.emailAddress || "",
-    });
+    setPinForm(EMPTY_PIN_FORM);
     setSubmitError(null);
   };
 
@@ -125,9 +122,9 @@ export default function MapDetailScreen() {
     setVenueSearchVisible(false);
     setPendingCoordinate({ latitude: Number(place.latitude), longitude: Number(place.longitude) });
     setPendingAddress(place.address);
-    // Name the pin after the venue so search-built maps read as a list of
+    // Title the pin after the venue so search-built maps read as a list of
     // places, mirroring client/src/components/add-pin-modal.tsx's handlePlaceSelect.
-    setPinForm({ ...EMPTY_PIN_FORM, userName: place.name });
+    setPinForm({ ...EMPTY_PIN_FORM, title: place.name });
     setSubmitError(null);
   };
 
@@ -139,14 +136,19 @@ export default function MapDetailScreen() {
 
   const onSubmitPin = async () => {
     if (!pendingCoordinate) return;
-    if (!pinForm.userName.trim()) {
-      setSubmitError("Please enter your name.");
+    if (!pinForm.title.trim()) {
+      setSubmitError("Please enter a title for this pin.");
+      return;
+    }
+    if (!isSignedIn && !pinForm.contributorName.trim()) {
+      setSubmitError("Please enter your name so we know who added this pin.");
       return;
     }
     setSubmitError(null);
     try {
       const pin = await addPin.mutateAsync({
-        userName: pinForm.userName.trim(),
+        title: pinForm.title.trim(),
+        contributorName: isSignedIn ? null : pinForm.contributorName.trim() || null,
         latitude: String(pendingCoordinate.latitude),
         longitude: String(pendingCoordinate.longitude),
         address: pendingAddress || undefined,
@@ -187,7 +189,7 @@ export default function MapDetailScreen() {
   };
 
   const onDeletePin = (pin: Pin) => {
-    Alert.alert("Delete pin?", `Remove "${pin.userName}"'s pin from this map.`, [
+    Alert.alert("Delete pin?", `Remove "${pin.title}" from this map.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -275,7 +277,7 @@ export default function MapDetailScreen() {
                 <Marker
                   key={pin.id}
                   coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }}
-                  title={pin.userName}
+                  title={pin.title}
                   anchor={{ x: 0.5, y: 0.5 }}
                   onCalloutPress={() => setSelectedPin(pin)}
                 >
@@ -290,7 +292,7 @@ export default function MapDetailScreen() {
                       {pin.photoUrl && (
                         <Image source={{ uri: pin.photoUrl }} className="mb-1 h-24 w-full rounded-md" resizeMode="cover" />
                       )}
-                      <Text className="font-semibold text-slate-900">{pin.userName}</Text>
+                      <Text className="font-semibold text-slate-900">{pin.title}</Text>
                       {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
                       {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
                       {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}
@@ -406,7 +408,7 @@ export default function MapDetailScreen() {
                     <Text className="text-xs font-semibold text-primary">{index + 1}</Text>
                   </View>
                   <View className="min-w-0 flex-1">
-                    <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.userName}</Text>
+                    <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.title}</Text>
                     {index > 0 && (
                       <Text className="text-xs text-slate-400">{haversineDistanceKm(orderedPins[index - 1], pin).toFixed(1)} km from previous</Text>
                     )}
@@ -451,6 +453,7 @@ export default function MapDetailScreen() {
                 noteLabel={map?.noteLabel || "Note"}
                 notePrompt={map?.notePrompt ?? null}
                 hasPinCustomization={!!map?.hasPinCustomization}
+                showContributorName={!isSignedIn}
                 profileSocials={
                   currentUser
                     ? {
@@ -482,7 +485,10 @@ export default function MapDetailScreen() {
               {selectedPin.photoUrl && (
                 <Image source={{ uri: selectedPin.photoUrl }} className="h-40 w-full rounded-xl" resizeMode="cover" />
               )}
-              <Text className="text-lg font-bold text-slate-900">{selectedPin.userName}</Text>
+              <Text className="text-lg font-bold text-slate-900">{selectedPin.title}</Text>
+              {selectedPin.contributorName && (
+                <Text className="text-xs text-slate-400">Added by {selectedPin.contributorName}</Text>
+              )}
               {!selectedPin.approved && <Text className="text-sm font-medium text-amber-600">Pending the owner's approval</Text>}
               {selectedPin.note && <Text className="text-sm text-slate-600">{selectedPin.note}</Text>}
               {selectedPin.address && <Text className="text-xs text-slate-400">{selectedPin.address}</Text>}

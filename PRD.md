@@ -124,7 +124,9 @@ Stripe Checkout (`/pricing`) and the Stripe Customer Portal handle subscribing, 
 ### 3.3 Pin Management
 
 #### Pin Properties
-All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonymous pins are allowed), `userName`, `latitude`/`longitude`, `address`, `city`, `state`, `town`, `borough`, `postcode`, `country`, `twitterHandle`, `instagramHandle`, `linkedinHandle`, `note`, `pinColor`/`pinIcon` (optional per-pin marker override, Basic/Premium map owners only — see §2.2), `createdAt`.
+All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonymous pins are allowed), `title` (the pin's own label — a venue name when added via search, or a free-form label for a map-click pin; not the contributor's identity), `contributorName` (optional — the anonymous contributor's own name, captured only when no account is signed in), `latitude`/`longitude`, `address`, `city`, `state`, `town`, `borough`, `postcode`, `country`, `twitterHandle`, `instagramHandle`, `linkedinHandle`, `note`, `pinColor`/`pinIcon` (optional per-pin marker override, Basic/Premium map owners only — see §2.2), `createdAt`.
+
+**Pin approval mode.** Each map has a `requirePinApproval` flag (default `true`, matching the historical hardcoded behavior). A pin submitted by anyone other than the map's owner is auto-approved (`approved: true`) when the owner has turned this off in the map's settings; otherwise it starts unapproved (`approved: false`) and stays hidden from other viewers until the owner approves it in `PinTable`. The owner's own pins are always auto-approved regardless of this setting. An anonymous (signed-out) contributor must supply `contributorName` when adding a pin — enforced server-side — since there's no account to otherwise attribute the pin to.
 
 #### Pin Operations
 
