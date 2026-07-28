@@ -101,6 +101,7 @@ export interface VenueResult {
   types?: string[];
   rating?: number;
   website?: string;
+  priceLevel?: number;
 }
 
 export async function searchVenues(
@@ -138,7 +139,8 @@ export async function searchVenues(
             lng: place.geometry?.location?.lng() || 0,
             types: place.types,
             rating: place.rating,
-            website: place.website
+            website: place.website,
+            priceLevel: place.price_level
           }));
           resolve(venues);
         } else {

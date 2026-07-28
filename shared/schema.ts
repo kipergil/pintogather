@@ -259,6 +259,12 @@ export interface Pin {
   photoUrl: string | null;
   /** Google Places primary type for the venue (e.g. "restaurant", "cafe", "museum") — set automatically when the pin is added via venue search, null for map-click pins. */
   venueType: (typeof VENUE_TYPE)[number] | null;
+  /** Google Places price level, 0 (free) to 4 ($$$$) — null when not returned (e.g. most non-commercial venues) or for map-click pins. */
+  priceLevel: number | null;
+  /** The venue's own website, from Google Places — null for map-click pins or venues without one on file. */
+  website: string | null;
+  /** Google's own one-line description of the venue (Places' "editorial summary") — distinct from the contributor's own note. */
+  editorialSummary: string | null;
   approved: boolean;
   /** Per-pin marker color override (Basic/Premium map owners only) — overrides the map's defaultPinColor when set. */
   pinColor: (typeof PIN_COLOR)[number] | null;
@@ -289,6 +295,9 @@ export const insertPinSchema = z.object({
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
   photoUrl: z.string().trim().max(500).nullable().optional(),
   venueType: z.enum(VENUE_TYPE).nullable().optional(),
+  priceLevel: z.number().int().min(0).max(4).nullable().optional(),
+  website: z.string().trim().max(500).nullable().optional(),
+  editorialSummary: z.string().trim().max(1000).nullable().optional(),
   approved: z.boolean().optional(),
   pinColor: z.enum(PIN_COLOR).nullable().optional(),
   pinIcon: z.enum(PIN_ICON).nullable().optional(),

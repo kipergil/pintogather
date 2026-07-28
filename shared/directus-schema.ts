@@ -96,6 +96,9 @@ export interface Pin {
   google_maps_url: string | null;
   photo_url: string | null;
   venue_type: VenueType | null;
+  price_level: number | null;
+  website: string | null;
+  editorial_summary: string | null;
   approved: boolean;
   sequence: number | null;
   pin_color: PinColor | null;

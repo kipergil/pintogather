@@ -77,6 +77,9 @@ interface PlaceResult {
   lat: number;
   lng: number;
   venueType: string | null;
+  priceLevel: number | null;
+  website: string | null;
+  editorialSummary: string | null;
 }
 
 type LocationSource = "click" | "search";
@@ -322,6 +325,9 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       note: formData.note.trim() || null,
       photoUrl: formData.photoUrl,
       venueType: locationSource === "search" ? selectedPlace?.venueType ?? null : null,
+      priceLevel: locationSource === "search" ? selectedPlace?.priceLevel ?? null : null,
+      website: locationSource === "search" ? selectedPlace?.website ?? null : null,
+      editorialSummary: locationSource === "search" ? selectedPlace?.editorialSummary ?? null : null,
       pinColor: formData.pinColor,
       pinIcon: formData.pinIcon,
     };

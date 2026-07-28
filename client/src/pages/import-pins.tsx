@@ -311,6 +311,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
             address: match.address || null,
             googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, name: match.name, address: match.address, placeId: match.id }),
             venueType: getPrimaryVenueType(match.types),
+            priceLevel: match.priceLevel ?? null,
           };
         });
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
