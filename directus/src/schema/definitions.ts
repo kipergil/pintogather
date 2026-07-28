@@ -150,6 +150,11 @@ export const mapCollectionsCollection: CollectionDefinition = {
       note: "Default marker icon glyph for this map's pins (Basic/Premium only). Falls back to a plain pin when empty. A pin's own pin_icon overrides this.",
     }),
     booleanField(
+      "require_pin_approval",
+      true,
+      "Whether a pin added by anyone other than the owner needs the owner's approval before it's visible to others. Defaults to true (the historical, previously-hardcoded behavior) — the owner can turn this off in the map's settings to auto-approve new pins instead.",
+    ),
+    booleanField(
       "curated",
       false,
       "Whether this map appears on the public /discover page. Admin-managed — set directly here in Directus, never through the app's own map forms.",
@@ -233,6 +238,11 @@ export const pinsCollection: CollectionDefinition = {
   fields: [
     idField(),
     textField("user_name", { required: true }),
+    textField("contributor_name", {
+      nullable: true,
+      maxLength: 100,
+      note: "The anonymous contributor's own name, captured only when no account is signed in. Null for a signed-in contributor's pins, whose identity is the linked user account instead.",
+    }),
     decimalField("latitude", { precision: 10, scale: 8, nullable: false }),
     decimalField("longitude", { precision: 11, scale: 8, nullable: false }),
     textField("address", { nullable: true }),

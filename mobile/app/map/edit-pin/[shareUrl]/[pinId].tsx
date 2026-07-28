@@ -10,7 +10,8 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const EMPTY_PIN_FORM: PinFormValue = {
-  userName: "",
+  title: "",
+  contributorName: "",
   twitterHandle: "",
   instagramHandle: "",
   linkedinHandle: "",
@@ -36,7 +37,8 @@ export default function EditPinScreen() {
   useEffect(() => {
     if (!pin) return;
     setForm({
-      userName: pin.userName ?? "",
+      title: pin.title ?? "",
+      contributorName: pin.contributorName ?? "",
       twitterHandle: pin.twitterHandle ?? "",
       instagramHandle: pin.instagramHandle ?? "",
       linkedinHandle: pin.linkedinHandle ?? "",
@@ -52,14 +54,14 @@ export default function EditPinScreen() {
   const canModify = !!pin && !!currentUser && (currentUser.id === pin.userId || currentUser.id === map?.ownerId);
 
   const onSave = async () => {
-    if (!form.userName.trim()) {
-      setError("Please enter your name.");
+    if (!form.title.trim()) {
+      setError("Please enter a title for this pin.");
       return;
     }
     setError(null);
     try {
       await updatePin.mutateAsync({
-        userName: form.userName.trim(),
+        title: form.title.trim(),
         twitterHandle: form.twitterHandle.trim() || null,
         instagramHandle: form.instagramHandle.trim() || null,
         linkedinHandle: form.linkedinHandle.trim() || null,
@@ -76,7 +78,7 @@ export default function EditPinScreen() {
 
   const onDelete = () => {
     if (!pin) return;
-    Alert.alert("Delete pin?", `Remove "${pin.userName}"'s pin from this map.`, [
+    Alert.alert("Delete pin?", `Remove "${pin.title}" from this map.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -124,7 +126,7 @@ export default function EditPinScreen() {
             }
           />
           {error && <Text className="text-sm text-red-600">{error}</Text>}
-          <Button onPress={onSave} loading={updatePin.isPending} disabled={!form.userName.trim()} testID="button-save-pin">
+          <Button onPress={onSave} loading={updatePin.isPending} disabled={!form.title.trim()} testID="button-save-pin">
             Save changes
           </Button>
           <Button variant="destructive" onPress={onDelete} loading={deletePin.isPending} testID="button-delete-pin">

@@ -28,6 +28,7 @@ interface MapDetailsFormData {
   notePrompt: string;
   brandingLogoUrl: string;
   showOnProfile: boolean;
+  requirePinApproval: boolean;
   defaultPinColor: PinColor | null;
   defaultPinIcon: PinIcon | null;
 }
@@ -54,6 +55,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
     notePrompt: initialValues?.notePrompt ?? "",
     brandingLogoUrl: initialValues?.brandingLogoUrl ?? "",
     showOnProfile: initialValues?.showOnProfile ?? false,
+    requirePinApproval: initialValues?.requirePinApproval ?? true,
     defaultPinColor: initialValues?.defaultPinColor ?? null,
     defaultPinIcon: initialValues?.defaultPinIcon ?? null,
   });
@@ -120,6 +122,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         noteLabel: data.noteLabel.trim() || null,
         notePrompt: data.notePrompt.trim() || null,
         brandingLogoUrl: data.brandingLogoUrl.trim() || null,
+        requirePinApproval: data.requirePinApproval,
         defaultPinColor: data.defaultPinColor,
         defaultPinIcon: data.defaultPinIcon,
         ownerId: user?.id || null,
@@ -156,6 +159,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         notePrompt: data.notePrompt.trim() || null,
         brandingLogoUrl: data.brandingLogoUrl.trim() || null,
         showOnProfile: data.showOnProfile,
+        requirePinApproval: data.requirePinApproval,
         defaultPinColor: data.defaultPinColor,
         defaultPinIcon: data.defaultPinIcon,
       };
@@ -224,6 +228,21 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           rows={3}
           data-testid="input-map-description"
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
+        <div className="space-y-0.5">
+          <Label htmlFor="requirePinApproval">Require approval for new pins</Label>
+          <p className="text-xs text-muted-foreground">
+            Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
+          </p>
+        </div>
+        <Switch
+          id="requirePinApproval"
+          checked={formData.requirePinApproval}
+          onCheckedChange={(checked) => setFormData({ ...formData, requirePinApproval: checked })}
+          data-testid="switch-require-pin-approval"
         />
       </div>
 

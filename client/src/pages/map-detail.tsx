@@ -61,7 +61,8 @@ interface MapCollection {
   hasPinCustomization?: boolean;
   pins: Array<{
     id: string;
-    userName: string;
+    title: string;
+    contributorName?: string | null;
     userId?: string;
     latitude: string;
     longitude: string;

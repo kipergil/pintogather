@@ -33,6 +33,7 @@ export default function EditMapScreen() {
   const [noteLabel, setNoteLabel] = useState("");
   const [notePrompt, setNotePrompt] = useState("");
   const [showOnProfile, setShowOnProfile] = useState(false);
+  const [requirePinApproval, setRequirePinApproval] = useState(true);
   const [defaultPinColor, setDefaultPinColor] = useState<PinColor | null>(null);
   const [defaultPinIcon, setDefaultPinIcon] = useState<PinIcon | null>(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -48,6 +49,7 @@ export default function EditMapScreen() {
     setNoteLabel(map.noteLabel ?? "");
     setNotePrompt(map.notePrompt ?? "");
     setShowOnProfile(map.showOnProfile);
+    setRequirePinApproval(map.requirePinApproval);
     setDefaultPinColor(map.defaultPinColor);
     setDefaultPinIcon(map.defaultPinIcon);
     setIsPublic(map.isPublic);
@@ -68,6 +70,7 @@ export default function EditMapScreen() {
         noteLabel: noteLabel.trim() || null,
         notePrompt: notePrompt.trim() || null,
         showOnProfile,
+        requirePinApproval,
         defaultPinColor: hasPinCustomization ? defaultPinColor : map.defaultPinColor,
         defaultPinIcon: hasPinCustomization ? defaultPinIcon : map.defaultPinIcon,
       });
@@ -162,6 +165,16 @@ export default function EditMapScreen() {
               <Text className="text-xs text-slate-500">List this map on your public profile page.</Text>
             </View>
             <Switch value={showOnProfile} onValueChange={setShowOnProfile} testID="switch-show-on-profile" />
+          </View>
+
+          <View className="flex-row items-center justify-between gap-3 rounded-xl border border-slate-200 p-3.5">
+            <View className="flex-1 gap-0.5">
+              <Text className="text-sm font-medium text-slate-700">Require approval for new pins</Text>
+              <Text className="text-xs text-slate-500">
+                Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
+              </Text>
+            </View>
+            <Switch value={requirePinApproval} onValueChange={setRequirePinApproval} testID="switch-require-pin-approval" />
           </View>
 
           <TextField

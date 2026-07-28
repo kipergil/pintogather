@@ -9,7 +9,8 @@ import { apiUpload } from "@/lib/api";
 import type { PinColor, PinIcon } from "../../../shared/enums";
 
 export interface PinFormValue {
-  userName: string;
+  title: string;
+  contributorName: string;
   twitterHandle: string;
   instagramHandle: string;
   linkedinHandle: string;
@@ -27,10 +28,12 @@ interface PinFormProps {
   hasPinCustomization: boolean;
   /** Profile social handles to fill in with one tap — omitted/empty hides the "fill in my socials" checkbox. */
   profileSocials?: { twitterHandle: string; instagramHandle: string; linkedinHandle: string };
+  /** Shows the "Your name" field — only relevant for anonymous (not signed-in) contributors adding a new pin. */
+  showContributorName?: boolean;
 }
 
 /** Add-pin and edit-pin field set shared between both screens — mirrors client/src/components/add-pin-modal.tsx's form. */
-export function PinForm({ value, onChange, noteLabel, notePrompt, hasPinCustomization, profileSocials }: PinFormProps) {
+export function PinForm({ value, onChange, noteLabel, notePrompt, hasPinCustomization, profileSocials, showContributorName }: PinFormProps) {
   const [showSocialLinks, setShowSocialLinks] = useState(
     !!(value.twitterHandle || value.instagramHandle || value.linkedinHandle),
   );
@@ -84,12 +87,22 @@ export function PinForm({ value, onChange, noteLabel, notePrompt, hasPinCustomiz
   return (
     <View className="gap-4">
       <TextField
-        label="Your name"
-        value={value.userName}
-        onChangeText={(userName) => onChange({ ...value, userName })}
-        placeholder="How should we credit this pin?"
-        testID="input-user-name"
+        label="Title"
+        value={value.title}
+        onChangeText={(title) => onChange({ ...value, title })}
+        placeholder="Venue name, or whatever this pin is about"
+        testID="input-title"
       />
+
+      {showContributorName && (
+        <TextField
+          label="Your name"
+          value={value.contributorName}
+          onChangeText={(contributorName) => onChange({ ...value, contributorName })}
+          placeholder="So the map owner knows who added this"
+          testID="input-contributor-name"
+        />
+      )}
 
       <TextField
         label={noteLabel}

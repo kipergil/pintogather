@@ -19,7 +19,7 @@ interface SearchMapResult {
 
 interface SearchPinResult {
   id: string;
-  userName: string;
+  title: string;
   note: string | null;
   address: string | null;
   city: string | null;
@@ -167,7 +167,7 @@ export default function SearchPage() {
               >
                 <Card className="border-border hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">
                   <CardContent className="p-4">
-                    <div className="font-medium text-foreground truncate">{pin.userName}</div>
+                    <div className="font-medium text-foreground truncate">{pin.title}</div>
                     {(pin.note || pin.address || pin.city) && (
                       <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">
                         {pin.note || [pin.address, pin.city].filter(Boolean).join(", ")}

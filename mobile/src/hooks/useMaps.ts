@@ -41,7 +41,7 @@ export function useUnarchiveMaps() {
 
 type CreateMapInput = Pick<
   InsertMapCollection,
-  "name" | "description" | "noteLabel" | "notePrompt" | "defaultPinColor" | "defaultPinIcon"
+  "name" | "description" | "noteLabel" | "notePrompt" | "requirePinApproval" | "defaultPinColor" | "defaultPinIcon"
 >;
 
 export function useCreateMap() {
@@ -155,7 +155,7 @@ export function usePin(pinId: string | undefined) {
 
 type PinEditableFields = Pick<
   InsertPin,
-  "userName" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "photoUrl" | "pinColor" | "pinIcon"
+  "title" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "photoUrl" | "pinColor" | "pinIcon"
 >;
 
 export function useUpdatePin(pinId: string | undefined, shareUrl: string | undefined) {

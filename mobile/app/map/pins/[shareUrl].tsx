@@ -105,7 +105,7 @@ export default function ManagePinsScreen() {
                   )}
                   <View className="mt-1 h-3 w-3 rounded-full" style={{ backgroundColor: hex }} />
                   <View className="flex-1">
-                    <Text className="font-semibold text-slate-900">{pin.userName}</Text>
+                    <Text className="font-semibold text-slate-900">{pin.title}</Text>
                     {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
                     {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
                     {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}

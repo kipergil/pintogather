@@ -17,7 +17,7 @@ interface SearchMapResult {
 
 interface SearchPinResult {
   id: string;
-  userName: string;
+  title: string;
   note: string | null;
   address: string | null;
   city: string | null;
@@ -172,7 +172,7 @@ export default function SearchScreen() {
           return (
             <Link href={{ pathname: "/map/[shareUrl]", params: { shareUrl: pin.mapShareUrl, pin: pin.id } }} asChild>
               <Pressable className="rounded-xl border border-slate-200 bg-white p-3.5" testID={`link-search-pin-${pin.id}`}>
-                <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.userName}</Text>
+                <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.title}</Text>
                 {(pin.note || pin.address || pin.city) && (
                   <Text className="mt-0.5 text-sm text-slate-500" numberOfLines={1}>
                     {pin.note || [pin.address, pin.city].filter(Boolean).join(", ")}

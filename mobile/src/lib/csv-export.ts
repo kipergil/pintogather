@@ -2,7 +2,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
 interface PinCsvRow {
-  userName: string;
+  title: string;
   city?: string | null;
   town?: string | null;
   country?: string | null;
@@ -23,10 +23,10 @@ interface PinCsvRow {
  */
 export async function sharePinsCsv(pins: PinCsvRow[], noteLabel: string): Promise<void> {
   const csvContent = [
-    ["Name", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
+    ["Title", "Town", "Country", "Postcode", "Twitter", "Instagram", "LinkedIn", noteLabel, "Added Date"].join(","),
     ...pins.map((pin) =>
       [
-        pin.userName,
+        pin.title,
         [pin.city, pin.town].filter(Boolean).join(", ") || "",
         pin.country || "",
         pin.postcode || "",

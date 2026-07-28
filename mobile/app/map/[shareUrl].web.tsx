@@ -14,7 +14,8 @@ import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
 import { signInHref } from "@/lib/authNav";
 
 const EMPTY_PIN_FORM: PinFormValue = {
-  userName: "",
+  title: "",
+  contributorName: "",
   twitterHandle: "",
   instagramHandle: "",
   linkedinHandle: "",
@@ -50,7 +51,7 @@ export default function MapDetailWebFallback() {
   const onVenueSelected = (place: VenueResult) => {
     setVenueSearchVisible(false);
     setPendingPlace(place);
-    setPinForm({ ...EMPTY_PIN_FORM, userName: place.name });
+    setPinForm({ ...EMPTY_PIN_FORM, title: place.name });
     setSubmitError(null);
   };
 
@@ -61,14 +62,19 @@ export default function MapDetailWebFallback() {
 
   const onSubmitPin = async () => {
     if (!pendingPlace) return;
-    if (!pinForm.userName.trim()) {
-      setSubmitError("Please enter your name.");
+    if (!pinForm.title.trim()) {
+      setSubmitError("Please enter a title for this pin.");
+      return;
+    }
+    if (!isSignedIn && !pinForm.contributorName.trim()) {
+      setSubmitError("Please enter your name so we know who added this pin.");
       return;
     }
     setSubmitError(null);
     try {
       const pin = await addPin.mutateAsync({
-        userName: pinForm.userName.trim(),
+        title: pinForm.title.trim(),
+        contributorName: isSignedIn ? null : pinForm.contributorName.trim() || null,
         latitude: pendingPlace.latitude,
         longitude: pendingPlace.longitude,
         address: pendingPlace.address,
@@ -148,7 +154,7 @@ export default function MapDetailWebFallback() {
                 <View className="mb-2 flex-row items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
                   <View className="mt-1 h-3 w-3 rounded-full" style={{ backgroundColor: hex }} />
                   <View className="flex-1">
-                    <Text className="font-semibold text-slate-900">{pin.userName}</Text>
+                    <Text className="font-semibold text-slate-900">{pin.title}</Text>
                     {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
                     {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
                     {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}
@@ -186,6 +192,7 @@ export default function MapDetailWebFallback() {
                 noteLabel={map?.noteLabel || "Note"}
                 notePrompt={map?.notePrompt ?? null}
                 hasPinCustomization={!!map?.hasPinCustomization}
+                showContributorName={!isSignedIn}
                 profileSocials={
                   currentUser
                     ? {
