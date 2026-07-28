@@ -115,7 +115,7 @@ export interface MapLike {
   createdAt: Date;
 }
 
-/** A single map card in the /feed page — a map owned by someone the viewer follows, or the pintogather system account. */
+/** A single map card in the /feed page — a map owned by someone the viewer follows, or the pingather system account. */
 export interface FeedMapItem {
   id: string;
   name: string;
@@ -144,7 +144,7 @@ export interface MapCollection {
   noteLabel: string | null;
   /** Custom question/prompt shown under the note label, e.g. "What should people order here?". */
   notePrompt: string | null;
-  /** Custom logo shown instead of PinTogather branding on this map's public /p/:shareUrl page. */
+  /** Custom logo shown instead of PinGather branding on this map's public /p/:shareUrl page. */
   brandingLogoUrl: string | null;
   /** Whether this map appears on the owner's public profile page (/u/:username). Independent of isPublic/defaultPermission, which govern anonymous edit access via the share link. */
   showOnProfile: boolean;

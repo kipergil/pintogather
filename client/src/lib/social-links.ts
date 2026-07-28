@@ -14,7 +14,7 @@ const PLATFORM_BASE_URL: Record<SocialPlatform, string> = {
 
 /**
  * Builds a clickable profile URL from a saved social field, which may be
- * either a bare handle (e.g. "pintogather", optionally with a leading "@")
+ * either a bare handle (e.g. "pingather", optionally with a leading "@")
  * or a full profile URL pasted directly — LinkedIn in particular is often a
  * full URL like linkedin.com/company/foo that a fixed "/in/" prefix would
  * mangle. Returns null for an empty value.

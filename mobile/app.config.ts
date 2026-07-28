@@ -14,8 +14,8 @@ import type { ExpoConfig } from "expo/config";
  * two before your first store submission, or deliberately when doing a
  * real relaunch.
  */
-const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME ?? "PinTogather";
-const APP_SLUG = process.env.APP_SLUG ?? "pintogather";
+const APP_NAME = process.env.EXPO_PUBLIC_APP_NAME ?? "PinGather";
+const APP_SLUG = process.env.APP_SLUG ?? "pingather";
 
 const config: ExpoConfig = {
   name: APP_NAME,
@@ -27,7 +27,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: "automatic",
   ios: {
     supportsTablet: true,
-    bundleIdentifier: process.env.IOS_BUNDLE_IDENTIFIER ?? "app.pintogather.mobile",
+    bundleIdentifier: process.env.IOS_BUNDLE_IDENTIFIER ?? "app.pingather.mobile",
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
     },
@@ -40,7 +40,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: process.env.ANDROID_PACKAGE ?? "app.pintogather.mobile",
+    package: process.env.ANDROID_PACKAGE ?? "app.pingather.mobile",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/android-icon-foreground.png",

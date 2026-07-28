@@ -393,7 +393,7 @@ export const pagesCollection: CollectionDefinition = {
   // hard way: an earlier version of this schema used "pages" directly and
   // it collided with an existing foreign collection on this instance).
   // "map_" (this app's actual collection prefix, e.g. map_collections,
-  // map_folders) rather than "pintogather_" — consistent with every other
+  // map_folders) rather than "pingather_" — consistent with every other
   // collection here.
   collection: "map_pages",
   icon: "article",

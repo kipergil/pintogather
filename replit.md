@@ -1,7 +1,7 @@
-# PinTogather - Collaborative Mapping Platform
+# PinGather - Collaborative Mapping Platform
 
 ## Overview
-PinTogather is a full-stack collaborative mapping platform that allows users to create shared map collections where community members can add pins, share locations, and collaborate. Built with React, Express.js, Directus, and Clerk, it features Google Maps integration, authenticated collaboration, and a flexible permission system.
+PinGather is a full-stack collaborative mapping platform that allows users to create shared map collections where community members can add pins, share locations, and collaborate. Built with React, Express.js, Directus, and Clerk, it features Google Maps integration, authenticated collaboration, and a flexible permission system.
 
 ## System Architecture
 
@@ -89,7 +89,7 @@ Directus can be either a local stack (`docker compose up -d`) or an existing/hos
 
 1. `cp directus/.env.example directus/.env` and `cp .env.example .env`
    - **Local Directus**: fill in the generated `KEY`/`SECRET`/`ADMIN_PASSWORD`, then `docker compose up -d` to start Postgres, Redis, and Directus
-   - **Hosted Directus**: set `DIRECTUS_URL`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `directus/.env` to the existing instance's admin credentials instead. If the instance is shared with other projects, that's fine — the schema/permissions tooling only creates PinTogather's own collections and a distinctly-named `PinTogather Service` policy/role, and never modifies collections, policies, or roles it didn't create itself.
+   - **Hosted Directus**: set `DIRECTUS_URL`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `directus/.env` to the existing instance's admin credentials instead. If the instance is shared with other projects, that's fine — the schema/permissions tooling only creates PinGather's own collections and a distinctly-named `PinGather Service` policy/role, and never modifies collections, policies, or roles it didn't create itself.
    - Fill in your Clerk keys either way
 2. `npm install`
 3. `npm run directus:schema:apply` then `npm run directus:permissions:apply` (the latter prints a `DIRECTUS_SERVICE_TOKEN` — paste it into both `.env` files)

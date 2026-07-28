@@ -12,7 +12,7 @@ import type {
 
 /**
  * Custom fields added to directus_users to support Clerk-backed accounts and
- * PinTogather's own profile/permission data. Panel logins (none expected in
+ * PinGather's own profile/permission data. Panel logins (none expected in
  * normal use) stay native Directus accounts; every end user is synced from
  * Clerk and carries the fields below.
  */
@@ -185,11 +185,11 @@ export interface MapTemplate {
 }
 
 /**
- * The full PinTogather Directus schema, keyed by collection name. Pass this
- * as the generic to `createDirectus<PinTogatherSchema>(url)` so every SDK
+ * The full PinGather Directus schema, keyed by collection name. Pass this
+ * as the generic to `createDirectus<PinGatherSchema>(url)` so every SDK
  * call (items, aggregate, etc.) is fully typed end-to-end.
  */
-export interface PinTogatherSchema {
+export interface PinGatherSchema {
   directus_users: DirectusUser[];
   map_collections: MapCollection[];
   pins: Pin[];

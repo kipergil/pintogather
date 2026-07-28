@@ -2,7 +2,7 @@
 
 ## Overview
 
-PinTogather is configured entirely through environment variables — no secrets are committed to the repo. This doc lists every variable the app reads, explains where each one comes from, and how to set them locally and in Vercel.
+PinGather is configured entirely through environment variables — no secrets are committed to the repo. This doc lists every variable the app reads, explains where each one comes from, and how to set them locally and in Vercel.
 
 A variable prefixed `VITE_` is bundled into the **client-side** JavaScript and is visible to anyone who opens the site — never put a real secret behind a `VITE_` name. Everything else is server-only and stays on the backend.
 
@@ -61,7 +61,7 @@ Directus is a separately hosted service (see `docker-compose.yml` for local dev,
 ### Anthropic — `ANTHROPIC_API_KEY`
 
 1. Go to [console.anthropic.com](https://console.anthropic.com) → **Settings → API Keys**.
-2. **Create Key**, name it (e.g. `pintogather-prod`), copy the value immediately — it's shown only once.
+2. **Create Key**, name it (e.g. `pingather-prod`), copy the value immediately — it's shown only once.
 3. Ensure the workspace/organization has billing set up, or requests will fail once free credits run out.
 
 ### Stripe — `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_BASIC`, `STRIPE_PRICE_PREMIUM`
