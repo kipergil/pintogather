@@ -9,6 +9,7 @@ import {
   PIN_COLOR,
   PIN_ICON,
   USER_GROUP,
+  VENUE_TYPE,
 } from "./enums.js";
 import type { TemplateIcon } from "./enums.js";
 
@@ -257,7 +258,7 @@ export interface Pin {
   googleMapsUrl: string | null;
   photoUrl: string | null;
   /** Google Places primary type for the venue (e.g. "restaurant", "cafe", "museum") — set automatically when the pin is added via venue search, null for map-click pins. */
-  venueType: string | null;
+  venueType: (typeof VENUE_TYPE)[number] | null;
   approved: boolean;
   /** Per-pin marker color override (Basic/Premium map owners only) — overrides the map's defaultPinColor when set. */
   pinColor: (typeof PIN_COLOR)[number] | null;
@@ -287,7 +288,7 @@ export const insertPinSchema = z.object({
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
   photoUrl: z.string().trim().max(500).nullable().optional(),
-  venueType: z.string().trim().max(100).nullable().optional(),
+  venueType: z.enum(VENUE_TYPE).nullable().optional(),
   approved: z.boolean().optional(),
   pinColor: z.enum(PIN_COLOR).nullable().optional(),
   pinIcon: z.enum(PIN_ICON).nullable().optional(),

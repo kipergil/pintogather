@@ -8,6 +8,7 @@ import type {
   PinIcon,
   TemplateIcon,
   UserGroup,
+  VenueType,
 } from "./enums.js";
 
 /**
@@ -94,7 +95,7 @@ export interface Pin {
   note: string | null;
   google_maps_url: string | null;
   photo_url: string | null;
-  venue_type: string | null;
+  venue_type: VenueType | null;
   approved: boolean;
   sequence: number | null;
   pin_color: PinColor | null;

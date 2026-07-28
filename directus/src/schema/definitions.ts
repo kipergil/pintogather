@@ -9,6 +9,8 @@ import {
   PIN_ICON,
   TEMPLATE_ICON,
   USER_GROUP,
+  VENUE_TYPE,
+  VENUE_TYPE_LABELS,
 } from "../../../shared/enums.js";
 import {
   booleanField,
@@ -254,10 +256,10 @@ export const pinsCollection: CollectionDefinition = {
       maxLength: 500,
       note: "URL of a photo attached to this pin, served via /api/uploads/:fileId.",
     }),
-    textField("venue_type", {
+    selectField("venue_type", VENUE_TYPE, {
       nullable: true,
-      maxLength: 100,
-      note: "Google Places primary type for the venue (e.g. \"restaurant\", \"cafe\", \"museum\"), captured at venue-search time. Null for pins dropped by clicking the map.",
+      labels: VENUE_TYPE_LABELS,
+      note: "Google Places primary type for the venue, captured at venue-search time. Null for pins dropped by clicking the map or venues outside this curated type list.",
     }),
     booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
     selectField("pin_color", PIN_COLOR, {

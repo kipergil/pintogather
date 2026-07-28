@@ -1,38 +1,20 @@
-/**
- * Google Places `types` arrays always include a handful of generic
- * classifiers alongside (or instead of) a meaningful one — skip those so
- * the first remaining entry is the closest thing to "what kind of place is
- * this" (e.g. "restaurant", "cafe", "museum").
- */
-const GENERIC_PLACE_TYPES = new Set([
-  "point_of_interest",
-  "establishment",
-  "premise",
-  "subpremise",
-  "political",
-  "geocode",
-  "plus_code",
-  "route",
-  "street_address",
-  "postal_code",
-  "locality",
-  "sublocality",
-  "neighborhood",
-  "administrative_area_level_1",
-  "administrative_area_level_2",
-  "administrative_area_level_3",
-  "country",
-]);
+import { VENUE_TYPE, VENUE_TYPE_LABELS, type VenueType } from "@shared/enums";
 
-/** Picks the most specific Google Places type out of a place's `types` array. */
-export function getPrimaryVenueType(types?: string[] | null): string | null {
+/**
+ * Picks the best VENUE_TYPE match out of a place's Google `types` array —
+ * walking VENUE_TYPE's own order (not the array's) so a place tagged with
+ * several known types (e.g. a museum Google also lists as "library")
+ * resolves to whichever we consider more specific/useful, deterministically,
+ * rather than however Google happened to order that particular result.
+ */
+export function getPrimaryVenueType(types?: string[] | null): VenueType | null {
   if (!types) return null;
-  return types.find((type) => !GENERIC_PLACE_TYPES.has(type)) ?? null;
+  const placeTypes = new Set(types);
+  return VENUE_TYPE.find((venueType) => placeTypes.has(venueType)) ?? null;
 }
 
-/** Formats a raw Google Places type (e.g. "night_club") for display (e.g. "Night club"). */
+/** Human-readable label for a venue type (e.g. "night_club" -> "Night club"). */
 export function formatVenueType(venueType?: string | null): string | null {
   if (!venueType) return null;
-  const words = venueType.split("_").join(" ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return VENUE_TYPE_LABELS[venueType as VenueType] ?? venueType;
 }
