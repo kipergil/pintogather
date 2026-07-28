@@ -24,6 +24,7 @@ interface SharePopoverProps {
   pinCount: number;
   isOwner: boolean;
   onInvite: () => void;
+  triggerClassName?: string;
 }
 
 /**
@@ -31,7 +32,7 @@ interface SharePopoverProps {
  * a single button opening a compact popover with copy-link, image-backed
  * social sharing, and (owner-only) a shortcut into the invite dialog.
  */
-export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, isOwner, onInvite }: SharePopoverProps) {
+export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, isOwner, onInvite, triggerClassName }: SharePopoverProps) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -110,7 +111,7 @@ export function SharePopover({ mapId, shareUrl, mapName, ownerName, pinCount, is
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="default" size="sm" data-testid="button-share">
+        <Button variant="default" size="sm" className={triggerClassName} data-testid="button-share">
           <Share2 className="h-4 w-4 mr-2" />
           Share
         </Button>
