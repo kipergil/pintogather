@@ -4,7 +4,7 @@ import { CURATED_CATEGORY_GRADIENT } from "@/lib/curated-maps";
 
 const WIDTH = 640;
 const HEIGHT = 400;
-const DEFAULT_GRADIENT: [string, string] = ["#2C3B7A", "#EE6B4D"];
+const DEFAULT_GRADIENT: [string, string] = ["#2563EB", "#7C3AED"];
 
 export interface DiscoverCoverOptions {
   mapId: string;
