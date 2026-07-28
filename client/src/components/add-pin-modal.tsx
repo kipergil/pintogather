@@ -76,6 +76,7 @@ interface PlaceResult {
   address: string;
   lat: number;
   lng: number;
+  venueType: string | null;
 }
 
 type LocationSource = "click" | "search";
@@ -320,6 +321,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
       linkedinHandle: formData.linkedinHandle.trim() || null,
       note: formData.note.trim() || null,
       photoUrl: formData.photoUrl,
+      venueType: locationSource === "search" ? selectedPlace?.venueType ?? null : null,
       pinColor: formData.pinColor,
       pinIcon: formData.pinIcon,
     };

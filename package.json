@@ -13,6 +13,7 @@
     "directus:permissions:apply": "npm --prefix directus run permissions:apply",
     "directus:flows:apply": "npm --prefix directus run flows:apply",
     "directus:backfill:is-public": "npm --prefix directus run backfill:is-public",
+    "directus:backfill:venue-type": "npm --prefix directus run backfill:venue-type",
     "directus:pages:seed": "npm --prefix directus run pages:seed",
     "directus:map-templates:seed": "npm --prefix directus run map-templates:seed"
   },

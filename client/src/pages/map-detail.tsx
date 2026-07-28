@@ -78,6 +78,7 @@ interface MapCollection {
     note?: string;
     googleMapsUrl?: string | null;
     photoUrl?: string | null;
+    venueType?: string | null;
     approved?: boolean;
     pinColor?: PinColor | null;
     pinIcon?: PinIcon | null;

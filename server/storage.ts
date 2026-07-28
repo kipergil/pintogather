@@ -94,6 +94,7 @@ const PIN_FIELDS = [
   "note",
   "google_maps_url",
   "photo_url",
+  "venue_type",
   "approved",
   "pin_color",
   "pin_icon",
@@ -232,6 +233,7 @@ function toPin(row: DirectusPin): Pin {
     note: row.note,
     googleMapsUrl: row.google_maps_url,
     photoUrl: row.photo_url,
+    venueType: row.venue_type,
     approved: row.approved,
     pinColor: row.pin_color,
     pinIcon: row.pin_icon,
@@ -260,6 +262,7 @@ function toDirectusPinInput(data: InsertPin) {
     note: data.note ?? null,
     google_maps_url: data.googleMapsUrl ?? null,
     photo_url: data.photoUrl ?? null,
+    venue_type: data.venueType ?? null,
     approved: data.approved ?? true,
     pin_color: data.pinColor ?? null,
     pin_icon: data.pinIcon ?? null,
@@ -1019,6 +1022,7 @@ class DirectusStorage implements IStorage {
       if (data.note !== undefined) payload.note = data.note;
       if (data.googleMapsUrl !== undefined) payload.google_maps_url = data.googleMapsUrl;
       if (data.photoUrl !== undefined) payload.photo_url = data.photoUrl;
+      if (data.venueType !== undefined) payload.venue_type = data.venueType;
       if (data.approved !== undefined) payload.approved = data.approved;
       if (data.pinColor !== undefined) payload.pin_color = data.pinColor;
       if (data.pinIcon !== undefined) payload.pin_icon = data.pinIcon;

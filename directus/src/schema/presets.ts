@@ -214,14 +214,14 @@ export function cascadingSelectField(
 export function selectField(
   field: string,
   choices: readonly string[],
-  opts: { defaultValue?: string; nullable?: boolean; note?: string } = {},
+  opts: { defaultValue?: string; nullable?: boolean; note?: string; labels?: Record<string, string> } = {},
 ): FieldDefinition {
   return {
     field,
     type: "string",
     meta: {
       interface: "select-dropdown",
-      options: { choices: choices.map((value) => ({ text: value, value })) },
+      options: { choices: choices.map((value) => ({ text: opts.labels?.[value] ?? value, value })) },
       display: "labels",
       note: opts.note,
       width: "half",
