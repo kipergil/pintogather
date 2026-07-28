@@ -26,8 +26,8 @@ export async function generateShareImage(options: ShareImageOptions): Promise<Bl
   if (!ctx) throw new Error("Canvas 2D context unavailable");
 
   const gradient = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-  gradient.addColorStop(0, "#2563EB");
-  gradient.addColorStop(1, "#7C3AED");
+  gradient.addColorStop(0, "#2C3B7A");
+  gradient.addColorStop(1, "#EE6B4D");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, SIZE, SIZE);
 

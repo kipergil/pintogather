@@ -324,7 +324,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 9,
-        fillColor: '#2563EB',
+        fillColor: '#2C3B7A',
         fillOpacity: 0.9,
         strokeColor: '#ffffff',
         strokeWeight: 2,
@@ -339,7 +339,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         <div style="padding: 6px 4px; min-width: 170px; font-family: inherit;">
           <div style="font-size: 12px; color: #374151; margin-bottom: 8px;">Drop a pin here?</div>
           <div style="display: flex; gap: 8px;">
-            <button type="button" id="pending-pin-confirm" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#2563EB; color:#fff; border:0; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;">${ICONS.check} Confirm</button>
+            <button type="button" id="pending-pin-confirm" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#2C3B7A; color:#fff; border:0; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;">${ICONS.check} Confirm</button>
             <button type="button" id="pending-pin-cancel" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#fff; color:#374151; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;">${ICONS.x} Cancel</button>
           </div>
         </div>
@@ -479,7 +479,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         routePolylineRef.current = new google.maps.Polyline({
           map,
           path: points,
-          strokeColor: '#2563EB',
+          strokeColor: '#2C3B7A',
           strokeWeight: 3,
           strokeOpacity: 0.8,
         });
