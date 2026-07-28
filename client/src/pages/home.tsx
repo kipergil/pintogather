@@ -695,7 +695,7 @@ function AnonymousLanding() {
           Collaborative maps, made simple
         </div>
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground mb-5 max-w-3xl mx-auto">
-          Pin your people. Pin your favorite places.
+          Gather what matters, one pin at a time.
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
           Create a shared map and invite your community. Each person can mark where they are, or search Google Maps
