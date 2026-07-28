@@ -254,6 +254,11 @@ export const pinsCollection: CollectionDefinition = {
       maxLength: 500,
       note: "URL of a photo attached to this pin, served via /api/uploads/:fileId.",
     }),
+    textField("venue_type", {
+      nullable: true,
+      maxLength: 100,
+      note: "Google Places primary type for the venue (e.g. \"restaurant\", \"cafe\", \"museum\"), captured at venue-search time. Null for pins dropped by clicking the map.",
+    }),
     booleanField("approved", true, "Pins added by anyone other than the map owner start unapproved and are hidden until the owner approves them."),
     selectField("pin_color", PIN_COLOR, {
       nullable: true,

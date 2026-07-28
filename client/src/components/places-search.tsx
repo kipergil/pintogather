@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, MapPin, Loader2, X } from "lucide-react";
 import { loadGoogleMaps } from "@/lib/google-maps";
+import { getPrimaryVenueType } from "@/lib/venue-type";
 
 interface PlaceResult {
   placeId: string;
@@ -10,6 +11,7 @@ interface PlaceResult {
   address: string;
   lat: number;
   lng: number;
+  venueType: string | null;
 }
 
 interface PlacesSearchProps {
@@ -116,7 +118,7 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
     setIsLoading(true);
     const request: google.maps.places.PlaceDetailsRequest = {
       placeId: prediction.place_id,
-      fields: ['name', 'formatted_address', 'geometry', 'place_id']
+      fields: ['name', 'formatted_address', 'geometry', 'place_id', 'types']
     };
 
     placesService.getDetails(request, (place, status) => {
@@ -126,7 +128,8 @@ export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place.
           name: place.name || prediction.structured_formatting.main_text,
           address: place.formatted_address || prediction.description,
           lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng()
+          lng: place.geometry.location.lng(),
+          venueType: getPrimaryVenueType(place.types)
         };
 
         setQuery(result.name);

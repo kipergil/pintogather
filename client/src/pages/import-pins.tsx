@@ -15,6 +15,7 @@ import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useUsage } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
+import { getPrimaryVenueType } from "@/lib/venue-type";
 import { TIER_LIMITS } from "@shared/limits";
 import {
   ArrowLeft,
@@ -309,6 +310,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
             longitude: String(match.lng),
             address: match.address || null,
             googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, name: match.name, address: match.address, placeId: match.id }),
+            venueType: getPrimaryVenueType(match.types),
           };
         });
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });

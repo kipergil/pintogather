@@ -256,6 +256,8 @@ export interface Pin {
   note: string | null;
   googleMapsUrl: string | null;
   photoUrl: string | null;
+  /** Google Places primary type for the venue (e.g. "restaurant", "cafe", "museum") — set automatically when the pin is added via venue search, null for map-click pins. */
+  venueType: string | null;
   approved: boolean;
   /** Per-pin marker color override (Basic/Premium map owners only) — overrides the map's defaultPinColor when set. */
   pinColor: (typeof PIN_COLOR)[number] | null;
@@ -285,6 +287,7 @@ export const insertPinSchema = z.object({
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
   photoUrl: z.string().trim().max(500).nullable().optional(),
+  venueType: z.string().trim().max(100).nullable().optional(),
   approved: z.boolean().optional(),
   pinColor: z.enum(PIN_COLOR).nullable().optional(),
   pinIcon: z.enum(PIN_ICON).nullable().optional(),
