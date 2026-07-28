@@ -1,4 +1,4 @@
-# PinTogather Mobile
+# PinGather Mobile
 
 A React Native (Expo) app for iOS and Android, sharing auth, data-fetching, and
 domain logic with the web app (`../client`) via `../shared/*.ts`. This app is
@@ -28,7 +28,7 @@ The web app's API server must be running and reachable at `EXPO_PUBLIC_API_URL`
 Copy `.env.example` to `.env` and fill in:
 
 - `EXPO_PUBLIC_APP_NAME` — display name shown in-app and as the installed
-  app's name. Optional, defaults to "PinTogather". Set `VITE_APP_NAME` to
+  app's name. Optional, defaults to "PinGather". Set `VITE_APP_NAME` to
   the same value in the root `.env` so the web app agrees.
 - `APP_SLUG` / `APP_SCHEME` — project identifiers read at build time, safe
   to change any time. `IOS_BUNDLE_IDENTIFIER` / `ANDROID_PACKAGE` are also

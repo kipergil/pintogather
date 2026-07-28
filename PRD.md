@@ -1,4 +1,4 @@
-# PinTogather - Product Requirements Document (PRD)
+# PinGather - Product Requirements Document (PRD)
 
 **Version:** 2.0
 **Last Updated:** July 20, 2026
@@ -9,7 +9,7 @@
 ## 1. Product Overview
 
 ### 1.1 Vision
-PinTogather lets communities, teams, and groups build a shared map together, pin by pin. Each contributor adds either their own location — where they are, or where they're based — or a specific venue worth visiting, found via Google Maps search. Some communities map where people are; others map the places they love; many do both. The platform bridges the gap between social networking and geographic visualization, making it easy for people to discover and share meaningful places together.
+PinGather lets communities, teams, and groups build a shared map together, pin by pin. Each contributor adds either their own location — where they are, or where they're based — or a specific venue worth visiting, found via Google Maps search. Some communities map where people are; others map the places they love; many do both. The platform bridges the gap between social networking and geographic visualization, making it easy for people to discover and share meaningful places together.
 
 ### 1.2 Problem Statement
 Communities and teams often need to share location-based information but lack accessible tools that combine:
@@ -187,7 +187,7 @@ Unchanged from prior implementation — Google Maps JavaScript API (Map, Marker,
 
 ### 3.6 Discover — Curated Maps
 
-A public, SEO-facing `/discover` page showcasing editorially curated map collections — content marketing/accumulation as much as a product feature. No new content model: a curated map is just an ordinary `map_collections` row with `curated: true` plus editorial metadata (`curated_category`, `curated_country`, `curated_city`, `curated_order`, `curated_tagline`). Since the map keeps its normal `owner`, the existing owner-name resolution (used for share images, §3.4) doubles as the credit line — a curated map can be entirely PinTogather's own (owned by a dedicated `pintogather` system account, a `directus_users` row with no Clerk login, created directly via the Directus API) or a real user's map that the team chose to feature, crediting them automatically with no separate "featured maps" table.
+A public, SEO-facing `/discover` page showcasing editorially curated map collections — content marketing/accumulation as much as a product feature. No new content model: a curated map is just an ordinary `map_collections` row with `curated: true` plus editorial metadata (`curated_category`, `curated_country`, `curated_city`, `curated_order`, `curated_tagline`). Since the map keeps its normal `owner`, the existing owner-name resolution (used for share images, §3.4) doubles as the credit line — a curated map can be entirely PinGather's own (owned by a dedicated `pingather` system account, a `directus_users` row with no Clerk login, created directly via the Directus API) or a real user's map that the team chose to feature, crediting them automatically with no separate "featured maps" table.
 
 **Taxonomy** (`shared/enums.ts`): `CURATED_CATEGORY` — 10 fixed theme buckets (Food & Drink, Coffee & Cafés, Nightlife & Bars, Culture & Art, Outdoors & Parks, Shopping, Hidden Gems, Family & Kids, Date Night, Landmarks & Sightseeing). `CURATED_COUNTRY` — 8 fixed countries (Turkey, UK, USA, Scotland, Spain, Greece, Italy, France) each mapped to a fixed list of well-known cities (`CURATED_CITY_BY_COUNTRY`), rather than free-text city entry — keeps the taxonomy from fragmenting into near-duplicate spellings as more countries get added over time. `curated_city`'s Directus select field uses a real cascading dropdown (`meta.conditions`, a small addition to the schema-as-code layer's `FieldMeta`/`cascadingSelectField` preset) so its choices narrow to the selected country's cities — both in the Directus admin UI where curation is actually managed, and mirrored client-side on the Discover page's own country→city filter.
 
@@ -288,7 +288,7 @@ The browser never talks to Directus directly — every request goes through the 
 | `map_viewers` | Permission grants for maps (populated on invitation accept) |
 | `map_invitations` | Email invitation tracking |
 
-Schema is declared in code (`directus/src/schema/definitions.ts`) and applied idempotently via `npm run directus:schema:apply`; permissions (a single narrowly-scoped "PinTogather Service" role used by the Express server's static token) via `npm run directus:permissions:apply`.
+Schema is declared in code (`directus/src/schema/definitions.ts`) and applied idempotently via `npm run directus:schema:apply`; permissions (a single narrowly-scoped "PinGather Service" role used by the Express server's static token) via `npm run directus:permissions:apply`.
 
 ### 5.2 Relationships
 - `map_collections.owner` → `directus_users` (many-to-one, `SET NULL` on delete)
@@ -399,7 +399,7 @@ See `.env.example` (app) and `directus/.env.example` (Directus instance) for the
 3. Production: `dist/start.js` handles environment setup
 
 ### 9.3 Local Development
-Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Directus) or an existing/hosted instance. `npm run directus:schema:apply` and `npm run directus:permissions:apply` provision the schema and a service account/token either way — pointed at a hosted instance shared with other projects, they only create PinTogather's own collections and a distinctly-named `PinTogather Service` policy/role, never touching anything they didn't create. `npm run dev` starts the Express + Vite dev server. See `replit.md` for the full walkthrough.
+Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Directus) or an existing/hosted instance. `npm run directus:schema:apply` and `npm run directus:permissions:apply` provision the schema and a service account/token either way — pointed at a hosted instance shared with other projects, they only create PinGather's own collections and a distinctly-named `PinGather Service` policy/role, never touching anything they didn't create. `npm run dev` starts the Express + Vite dev server. See `replit.md` for the full walkthrough.
 
 ### 9.4 Health Monitoring
 - `/api/healthcheck` for endpoint discovery
@@ -416,7 +416,7 @@ Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Dir
 - **Share URL**: Unique identifier for accessing a map
 - **Viewer**: User with access to a shared map
 - **Contributor**: User who can edit a shared map
-- **Service token**: The long-lived Directus API token used exclusively by the Express server, scoped to a narrow "PinTogather Service" role with no admin/schema access
+- **Service token**: The long-lived Directus API token used exclusively by the Express server, scoped to a narrow "PinGather Service" role with no admin/schema access
 
 ### 10.2 Version History
 | Version | Date | Changes |

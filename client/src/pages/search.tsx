@@ -66,7 +66,7 @@ export default function SearchPage() {
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in">
       <div className="text-center space-y-3">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Search</h1>
-        <p className="text-muted-foreground">Find maps, pins, and people across PinTogather.</p>
+        <p className="text-muted-foreground">Find maps, pins, and people across PinGather.</p>
       </div>
 
       <div className="relative">

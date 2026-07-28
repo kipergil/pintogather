@@ -104,7 +104,7 @@ const MAP_INVITATION_MAIL_BODY = `
 `;
 
 export const mapInvitationFlow: FlowSpec = {
-  name: "PinTogather: Send map invitation email",
+  name: "PinGather: Send map invitation email",
   icon: "mail",
   trigger: { scope: ["items.create"], collections: ["map_invitations"] },
   operations: [
@@ -150,7 +150,7 @@ const NEW_USER_MAIL_BODY = `
 `;
 
 export const newUserFlow: FlowSpec = {
-  name: "PinTogather: Notify admins of new signup",
+  name: "PinGather: Notify admins of new signup",
   icon: "person_add",
   trigger: { scope: ["items.create"], collections: ["directus_users"] },
   operations: [
@@ -192,7 +192,7 @@ const NEW_PURCHASE_MAIL_BODY = `
 `;
 
 export const newPurchaseFlow: FlowSpec = {
-  name: "PinTogather: Notify admins of paid subscription",
+  name: "PinGather: Notify admins of paid subscription",
   icon: "payments",
   trigger: { scope: ["items.update"], collections: ["directus_users"] },
   operations: [
@@ -247,7 +247,7 @@ const INVITATION_ACCEPTED_MAIL_BODY = `
 `;
 
 export const invitationAcceptedFlow: FlowSpec = {
-  name: "PinTogather: Notify inviter of accepted invitation",
+  name: "PinGather: Notify inviter of accepted invitation",
   icon: "how_to_reg",
   trigger: { scope: ["items.update"], collections: ["map_invitations"] },
   operations: [

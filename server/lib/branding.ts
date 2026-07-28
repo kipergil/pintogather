@@ -5,12 +5,12 @@
  * each platform resolves its own copy since there's no shared env-loading
  * mechanism across Vite/Expo/Node.
  */
-export const APP_NAME = process.env.APP_NAME ?? "PinTogather";
+export const APP_NAME = process.env.APP_NAME ?? "PinGather";
 
 /**
  * Username of the dedicated, login-less directus_users row that owns
- * PinTogather-authored curated maps (see /api/discover and the "convert to
+ * PinGather-authored curated maps (see /api/discover and the "convert to
  * curated map" admin flow) — distinct from APP_NAME since it's a technical
  * identifier (must be a valid, already-provisioned username), not display copy.
  */
-export const CURATED_MAPS_SYSTEM_USERNAME = process.env.CURATED_MAPS_SYSTEM_USERNAME ?? "pintogather";
+export const CURATED_MAPS_SYSTEM_USERNAME = process.env.CURATED_MAPS_SYSTEM_USERNAME ?? "pingather";
