@@ -18,6 +18,7 @@ import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google
 import { getPrimaryVenueType } from "@/lib/venue-type";
 import { TIER_LIMITS } from "@shared/limits";
 import type { ItemType } from "@shared/enums";
+import { ImageDropzone, type ImageRejection } from "@/components/image-dropzone";
 import {
   ArrowLeft,
   ArrowUp,
@@ -25,7 +26,6 @@ import {
   Check,
   ClipboardPaste,
   FileUp,
-  ImageIcon,
   Link2,
   Loader2,
   MapPin,
@@ -34,8 +34,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-
-const ALLOWED_SCREENSHOT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 interface AddItemsProps {
   params: {
@@ -176,7 +174,6 @@ export default function AddItems({ params }: AddItemsProps) {
   const initialMethod = parseMethod(searchParams.get("method"));
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const { usage } = useUsage();
   const aiLimitReached = usage ? usage.aiSuggestions.used >= usage.aiSuggestions.limit : false;
   const hasScreenshotImport = TIER_LIMITS[user?.userGroup ?? "freemium"].screenshotImport;
@@ -196,7 +193,7 @@ export default function AddItems({ params }: AddItemsProps) {
   const [resolveProgress, setResolveProgress] = useState(0);
   const [pasteText, setPasteText] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
-  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [images, setImages] = useState<File[]>([]);
 
   const updateItem = useCallback((id: string, patch: Partial<StagedItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -378,56 +375,55 @@ export default function AddItems({ params }: AddItemsProps) {
     onError: onGenerateError,
   });
 
-  const generateFromScreenshotMutation = useMutation({
-    mutationFn: async ({ file, prompt }: { file: File; prompt: string }) => {
+  const extractFromImagesMutation = useMutation({
+    mutationFn: async ({ files, prompt }: { files: File[]; prompt: string }) => {
       const response = await apiUpload(
         `/api/maps/${shareUrl}/extract-items`,
-        file,
+        files,
         prompt ? { prompt } : undefined,
       );
       return response.json() as Promise<ExtractResponse>;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
-      setScreenshot(null);
+      setImages([]);
       startStaging(seedsFromResponse(data));
     },
     onError: onGenerateError,
   });
 
+  /** Explains anything the dropzone refused, rather than letting it vanish silently. */
+  const reportRejections = (rejections: ImageRejection[]) => {
+    const first = rejections[0];
+    const description =
+      first.reason === "type"
+        ? "Only PNG, JPEG, WebP, and GIF images can be read."
+        : first.reason === "size"
+          ? "Images need to be under 4MB each."
+          : "You can attach up to 4 images at a time.";
+    toast({
+      title: rejections.length === 1 ? `Skipped ${first.name}` : `Skipped ${rejections.length} files`,
+      description,
+      variant: "destructive",
+    });
+  };
+
   const handleGenerateSuggestions = () => {
-    if (screenshot) {
-      generateFromScreenshotMutation.mutate({ file: screenshot, prompt: aiPrompt.trim() });
+    if (images.length > 0) {
+      extractFromImagesMutation.mutate({ files: images, prompt: aiPrompt.trim() });
       return;
     }
     if (!aiPrompt.trim()) return;
     generateSuggestionsMutation.mutate(aiPrompt.trim());
   };
 
-  const handleScreenshotInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!ALLOWED_SCREENSHOT_TYPES.has(file.type)) {
-      toast({
-        title: "Unsupported file type",
-        description: "Please upload a PNG, JPEG, WebP, or GIF image.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (file.size > 4 * 1024 * 1024) {
-      toast({
-        title: "Image too large",
-        description: "Please upload an image under 4MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setScreenshot(file);
+  /** Shared by the upload and paste tabs: hand images straight to the extractor. */
+  const extractNow = (files: File[]) => {
+    if (files.length === 0) return;
+    extractFromImagesMutation.mutate({ files, prompt: "" });
   };
 
-  const isGenerating = generateSuggestionsMutation.isPending || generateFromScreenshotMutation.isPending;
+  const isGenerating = generateSuggestionsMutation.isPending || extractFromImagesMutation.isPending;
 
   const retryFailed = () => {
     resolveAll(items.filter((item) => item.status === "unresolved" || item.status === "error"));
@@ -639,6 +635,43 @@ export default function AddItems({ params }: AddItemsProps) {
                     </>
                   )}
                 </Button>
+
+                {hasScreenshotImport && (
+                  <div className="max-w-sm mx-auto text-left mt-6 pt-5 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Got a picture instead? Drop in a screenshot or photo and AI will read the {noun.many} out of
+                      it.
+                    </p>
+                    <ImageDropzone
+                      images={images}
+                      onChange={setImages}
+                      onRejected={reportRejections}
+                      disabled={isGenerating}
+                      testId="file-image-dropzone"
+                    />
+                    {images.length > 0 && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-2"
+                        onClick={() => extractNow(images)}
+                        disabled={isGenerating}
+                        data-testid="button-extract-from-file-images"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Reading images...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Read {images.length} image{images.length === 1 ? "" : "s"} with AI
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="paste" className="text-center">
@@ -673,6 +706,43 @@ export default function AddItems({ params }: AddItemsProps) {
                     <ClipboardPaste className="h-4 w-4 mr-2" />
                     Add pasted list
                   </Button>
+
+                  {hasScreenshotImport && (
+                    <div className="pt-4 mt-2 border-t border-border">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Or paste a screenshot — copy an image anywhere on this tab and AI will read the {noun.many}
+                        out of it.
+                      </p>
+                      <ImageDropzone
+                        images={images}
+                        onChange={setImages}
+                        onRejected={reportRejections}
+                        disabled={isGenerating}
+                        testId="paste-image-dropzone"
+                      />
+                      {images.length > 0 && (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-2"
+                          onClick={() => extractNow(images)}
+                          disabled={isGenerating}
+                          data-testid="button-extract-from-paste-images"
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Reading images...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Read {images.length} image{images.length === 1 ? "" : "s"} with AI
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -709,58 +779,30 @@ export default function AddItems({ params }: AddItemsProps) {
                       <Textarea
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={screenshot ? "Optional — add context for the screenshot" : aiPlaceholder}
+                        placeholder={
+                          images.length > 0 ? "Optional — add context for the image(s)" : aiPlaceholder
+                        }
                         rows={3}
                         className="text-sm"
                         data-testid="input-ai-prompt"
                       />
 
                       {hasScreenshotImport && (
-                        <>
-                          <input
-                            ref={screenshotInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif"
-                            className="hidden"
-                            onChange={handleScreenshotInputChange}
-                            data-testid="input-ai-screenshot"
-                          />
-                          {screenshot ? (
-                            <div
-                              className="flex items-center gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs"
-                              data-testid="ai-screenshot-chip"
-                            >
-                              <ImageIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                              <span className="flex-1 truncate text-foreground">{screenshot.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => setScreenshot(null)}
-                                className="text-muted-foreground hover:text-destructive shrink-0"
-                                data-testid="button-remove-screenshot"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="w-full text-muted-foreground"
-                              onClick={() => screenshotInputRef.current?.click()}
-                              data-testid="button-attach-screenshot"
-                            >
-                              <ImageIcon className="h-4 w-4 mr-2" />
-                              Attach a screenshot instead
-                            </Button>
-                          )}
-                        </>
+                        <ImageDropzone
+                          images={images}
+                          onChange={setImages}
+                          onRejected={reportRejections}
+                          disabled={isGenerating}
+                          label="Paste a screenshot, drop an image, or click to browse"
+                          testId="ai-image-dropzone"
+                        />
                       )}
 
                       <Button
                         variant="outline"
                         className="w-full"
                         onClick={handleGenerateSuggestions}
-                        disabled={(!aiPrompt.trim() && !screenshot) || isGenerating}
+                        disabled={(!aiPrompt.trim() && images.length === 0) || isGenerating}
                         data-testid="button-generate-suggestions"
                       >
                         {isGenerating ? (
