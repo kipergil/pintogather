@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateMapForm } from "@/components/create-map-form";
 import { TemplatePicker } from "@/components/template-picker";
+import { ItemTypePicker } from "@/components/item-type-picker";
 import { useAuth } from "@/contexts/AuthContext";
 import { TIER_LIMITS } from "@shared/limits";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 import type { MapTemplate } from "@shared/schema";
 
 interface MapFormProps {
@@ -30,6 +31,7 @@ interface MapCollection {
   requirePinApproval?: boolean;
   defaultPinColor?: PinColor | null;
   defaultPinIcon?: PinIcon | null;
+  itemType?: ItemType;
 }
 
 export default function MapForm({ params }: MapFormProps) {
@@ -37,6 +39,9 @@ export default function MapForm({ params }: MapFormProps) {
   const { user, loading: authLoading } = useAuth();
   const shareUrl = params?.shareUrl;
   const isEditing = !!shareUrl;
+  // undefined = not chosen yet (show the picker). Only relevant when creating —
+  // an existing map's itemType is fixed and never re-chosen here.
+  const [itemType, setItemType] = useState<ItemType | undefined>(undefined);
   // undefined = not chosen yet (show the picker), null = "start from scratch", otherwise the picked template.
   const [template, setTemplate] = useState<MapTemplate | null | undefined>(undefined);
   const hasPinCustomization = TIER_LIMITS[user?.userGroup ?? "freemium"].pinCustomization;
@@ -148,7 +153,13 @@ export default function MapForm({ params }: MapFormProps) {
         </Button>
       </div>
 
-      {!isEditing && template === undefined ? (
+      {!isEditing && itemType === undefined ? (
+        <Card className="border-border">
+          <CardContent className="p-6">
+            <ItemTypePicker onSelect={setItemType} />
+          </CardContent>
+        </Card>
+      ) : !isEditing && itemType === "location" && template === undefined ? (
         <Card className="border-border">
           <CardContent className="p-6">
             <TemplatePicker onSelect={setTemplate} />
@@ -160,15 +171,16 @@ export default function MapForm({ params }: MapFormProps) {
             {!isEditing && (
               <button
                 type="button"
-                onClick={() => setTemplate(undefined)}
+                onClick={() => (itemType === "location" ? setTemplate(undefined) : setItemType(undefined))}
                 className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="button-change-template"
               >
-                ← Choose a different template
+                ← {itemType === "location" ? "Choose a different template" : "Choose a different type"}
               </button>
             )}
             <CreateMapForm
               mapId={mapCollection?.id}
+              itemType={isEditing ? mapCollection?.itemType : itemType}
               initialValues={
                 isEditing && mapCollection
                   ? {

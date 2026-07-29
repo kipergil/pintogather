@@ -62,7 +62,7 @@ function FeedCard({ map }: { map: FeedMapItem }) {
         <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" />
-            {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+            {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
           </span>
           <LikeButton
             mapId={map.id}

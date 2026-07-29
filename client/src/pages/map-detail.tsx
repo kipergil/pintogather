@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2 } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Plus } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,10 @@ import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { downloadPinsCsv } from "@/lib/csv-export";
 import { countDistinctContributors } from "@/lib/map-utils";
 import { cn } from "@/lib/utils";
-import type { CuratedCategory, PinColor, PinIcon } from "@shared/enums";
+import type { CuratedCategory, ItemType, PinColor, PinIcon } from "@shared/enums";
 import { CURATED_CATEGORY_LABELS } from "@/lib/curated-maps";
+import { AddItemModal } from "@/components/add-item-modal";
+import { hasCoordinates } from "@shared/geo";
 
 interface MapDetailProps {
   params: {
@@ -59,13 +61,16 @@ interface MapCollection {
   defaultPinIcon?: PinIcon | null;
   /** Whether the map owner's current tier includes pin colors/icons — gates showing the picker to anyone adding/editing a pin here. */
   hasPinCustomization?: boolean;
+  /** What kind of thing this collection holds — fixed at creation. "location" (a map of pins) is the default and only kind that predates this field. */
+  itemType: ItemType;
   pins: Array<{
     id: string;
     title: string;
     contributorName?: string | null;
     userId?: string;
-    latitude: string;
-    longitude: string;
+    itemType?: ItemType;
+    latitude: string | null;
+    longitude: string | null;
     address?: string;
     city?: string;
     town?: string;
@@ -78,6 +83,7 @@ interface MapCollection {
     linkedinHandle?: string;
     note?: string;
     googleMapsUrl?: string | null;
+    url?: string | null;
     photoUrl?: string | null;
     venueType?: string | null;
     priceLevel?: number | null;
@@ -94,6 +100,7 @@ interface MapCollection {
 export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
   // Portal target for PinTable's selected-pins bar, so it renders next to
   // the "Pins" title instead of pushing the pin list down when pins are selected.
@@ -218,7 +225,7 @@ export default function MapDetail({ params }: MapDetailProps) {
       return;
     }
 
-    downloadPinsCsv(mapCollection.pins, mapCollection.noteLabel || "Note");
+    downloadPinsCsv(mapCollection.pins, mapCollection.noteLabel || "Note", mapCollection.itemType);
 
     toast({
       title: "CSV exported",
@@ -252,7 +259,9 @@ export default function MapDetail({ params }: MapDetailProps) {
               <MapPin className="h-4 w-4" />
               {mapCollection.pinCount}
               {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
-              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
+              {mapCollection.itemType === "location"
+                ? !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"
+                : !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "item" : "items"}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" />
@@ -366,15 +375,21 @@ export default function MapDetail({ params }: MapDetailProps) {
           </CardContent>
         </Card>
 
-        {/* Map View */}
-        <SimpleGoogleMap mapCollection={mapCollection} focusRequest={focusRequest} />
+        {/* Map View — only "location" collections have one; "link"/"recommendation" collections skip straight to the card list below. Every pin on a "location" collection has coordinates in practice; hasCoordinates just lets TS see that. */}
+        {mapCollection.itemType === "location" && (
+          <SimpleGoogleMap
+            mapCollection={{ ...mapCollection, pins: mapCollection.pins.filter(hasCoordinates) }}
+            focusRequest={focusRequest}
+          />
+        )}
 
-        {/* Pins management */}
+        {/* Pins/items management */}
         <Card className="border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
-                Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+                {mapCollection.itemType === "location" ? "Pins" : "Items"}{" "}
+                <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
                 {isOwner && pendingCount > 0 && (
                   <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
                     <Clock className="h-3 w-3" />
@@ -382,14 +397,23 @@ export default function MapDetail({ params }: MapDetailProps) {
                   </Badge>
                 )}
               </h2>
-              <div ref={setPinHeaderSlot} className="flex items-center" />
+              <div className="flex items-center gap-2">
+                {mapCollection.itemType !== "location" && (
+                  <Button size="sm" onClick={() => setIsAddItemModalOpen(true)} data-testid="button-add-item">
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Add {mapCollection.itemType === "link" ? "link" : "recommendation"}
+                  </Button>
+                )}
+                <div ref={setPinHeaderSlot} className="flex items-center" />
+              </div>
             </div>
             <PinTable
               pins={mapCollection.pins}
               mapOwnerId={mapCollection.ownerId}
               shareUrl={mapCollection.shareUrl}
               noteLabel={mapCollection.noteLabel}
-              onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
+              itemType={mapCollection.itemType}
+              onPinSelect={mapCollection.itemType === "location" ? (pinId) => setFocusRequest({ pinId, nonce: Date.now() }) : undefined}
               headerActionsSlot={pinHeaderSlot}
               initialApprovalFilter={initialApprovalFilter}
             />
@@ -412,6 +436,19 @@ export default function MapDetail({ params }: MapDetailProps) {
           onClose={() => setIsAuthModalOpen(false)}
           returnUrl={`/map/${params.shareUrl}`}
         />
+
+        {mapCollection.itemType !== "location" && (
+          <AddItemModal
+            isOpen={isAddItemModalOpen}
+            onClose={() => setIsAddItemModalOpen(false)}
+            mapCollection={{
+              shareUrl: mapCollection.shareUrl,
+              noteLabel: mapCollection.noteLabel,
+              notePrompt: mapCollection.notePrompt,
+              itemType: mapCollection.itemType,
+            }}
+          />
+        )}
       </main>
     </>
   );

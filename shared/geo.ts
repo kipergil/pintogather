@@ -4,6 +4,19 @@ export interface GeoPoint {
   longitude: string;
 }
 
+/**
+ * Type guard for a pin/item that actually has coordinates — true for every
+ * "location"-type item, never for "link"/"recommendation" ones (see
+ * shared/enums.ts's ITEM_TYPE). Route/distance calculations only make sense
+ * for the former, so callers filter with this before reaching for GeoPoint
+ * functions below.
+ */
+export function hasCoordinates<T extends { latitude: string | null; longitude: string | null }>(
+  point: T,
+): point is T & { latitude: string; longitude: string } {
+  return point.latitude != null && point.longitude != null;
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 /** Great-circle distance between two points, in kilometers. */

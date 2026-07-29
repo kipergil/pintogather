@@ -38,15 +38,15 @@ import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin"
 import { buildSocialUrl } from "@/lib/social-links";
 import { PinStyleSwatch } from "@/components/pin-style-picker";
 import { formatVenueType, formatPriceLevel } from "@/lib/venue-type";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 
 interface Pin {
   id: string;
   title: string;
   contributorName?: string | null;
   userId?: string;
-  latitude: string;
-  longitude: string;
+  latitude: string | null;
+  longitude: string | null;
   address?: string;
   city?: string;
   state?: string;
@@ -59,6 +59,7 @@ interface Pin {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  url?: string | null;
   photoUrl?: string | null;
   venueType?: string | null;
   priceLevel?: number | null;
@@ -79,6 +80,8 @@ interface PinTableProps {
   shareUrl?: string;
   /** Custom label for the note field configured on this map, e.g. "Favourite dish". Falls back to "Note". */
   noteLabel?: string | null;
+  /** What kind of thing this collection holds — governs the empty-state copy and whether a "Visit link" footer action shows. Defaults to "location" for callers that haven't been updated yet. */
+  itemType?: ItemType;
   /** Public/embedded views: no edit/delete actions, regardless of who's viewing. */
   readOnly?: boolean;
   /** Called when a row is clicked, so the map can pan/zoom to that pin. */
@@ -159,6 +162,7 @@ export function PinTable({
   mapOwnerId,
   shareUrl,
   noteLabel,
+  itemType = "location",
   readOnly = false,
   onPinSelect,
   headerActionsSlot,
@@ -550,13 +554,21 @@ export function PinTable({
         <div className="text-center py-12 rounded-2xl border border-dashed border-border bg-muted/30">
           <MapPin className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
           <h3 className="text-base font-medium text-foreground mb-1">
-            {pins.length === 0 ? "No pins yet" : "No pins match your search"}
+            {pins.length === 0
+              ? itemType === "location"
+                ? "No pins yet"
+                : "No items yet"
+              : itemType === "location"
+                ? "No pins match your search"
+                : "No items match your search"}
           </h3>
           <p className="text-sm text-muted-foreground">
             {pins.length === 0
               ? readOnly
-                ? "This map doesn't have any pins yet."
-                : "Click on the map to add the first pin to this collection."
+                ? `This ${itemType === "location" ? "map" : "collection"} doesn't have any ${itemType === "location" ? "pins" : "items"} yet.`
+                : itemType === "location"
+                  ? "Click on the map to add the first pin to this collection."
+                  : `Use the "Add ${itemType === "link" ? "link" : "recommendation"}" button above to add the first item.`
               : "Try adjusting your search terms."
             }
           </p>
@@ -565,7 +577,7 @@ export function PinTable({
         <div className="space-y-3">
           {filteredPins.map((pin) => {
             const hasSocials = !!(pin.website || pin.twitterHandle || pin.instagramHandle || pin.linkedinHandle);
-            const hasFooter = hasSocials || canApprovePin(pin) || !!pin.googleMapsUrl;
+            const hasFooter = hasSocials || canApprovePin(pin) || !!pin.googleMapsUrl || !!pin.url;
             return (
             <Card
               key={pin.id}
@@ -728,6 +740,24 @@ export function PinTable({
                           >
                             <ExternalLink className="h-3.5 w-3.5 mr-1" />
                             View in Maps
+                          </a>
+                        </Button>
+                      )}
+                      {pin.url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs"
+                          asChild
+                        >
+                          <a
+                            href={pin.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid={`link-item-url-${pin.id}`}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                            Visit link
                           </a>
                         </Button>
                       )}

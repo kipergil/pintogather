@@ -152,7 +152,7 @@ export default function Home() {
         });
         return;
       }
-      downloadPinsCsv(pins, data.noteLabel || "Note");
+      downloadPinsCsv(pins, data.noteLabel || "Note", data.itemType);
       toast({
         title: "CSV exported",
         description: `${pins.length} pin${pins.length === 1 ? "" : "s"} exported.`,

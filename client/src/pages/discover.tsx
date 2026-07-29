@@ -25,6 +25,7 @@ interface DiscoverMap {
   curatedTagline: string | null;
   ownerName: string | null;
   pinCount: number;
+  itemType: ItemType;
   likeCount: number;
   /** Whether the signed-in viewer has liked this map. Always false for anonymous visitors. */
   likedByViewer: boolean;
@@ -94,7 +95,7 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
           <span className="inline-flex items-center gap-1">
             <MapPin className="h-3 w-3" />
-            {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+            {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
           </span>
           <div className="flex items-center gap-3">
             {map.ownerName && <span>Curated by {map.ownerName}</span>}

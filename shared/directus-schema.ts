@@ -2,6 +2,7 @@ import type {
   CuratedCategory,
   CuratedCountry,
   InvitationStatus,
+  ItemType,
   MapViewerRole,
   Permission,
   PinColor,
@@ -63,6 +64,7 @@ export interface MapCollection {
   default_pin_color: PinColor | null;
   default_pin_icon: PinIcon | null;
   require_pin_approval: boolean;
+  item_type: ItemType;
   curated: boolean;
   curated_category: CuratedCategory | null;
   curated_country: CuratedCountry | null;
@@ -82,8 +84,9 @@ export interface Pin {
   user: string | null;
   user_name: string;
   contributor_name: string | null;
-  latitude: string;
-  longitude: string;
+  item_type: ItemType;
+  latitude: string | null;
+  longitude: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -96,6 +99,7 @@ export interface Pin {
   linkedin_handle: string | null;
   note: string | null;
   google_maps_url: string | null;
+  url: string | null;
   photo_url: string | null;
   venue_type: VenueType | null;
   price_level: number | null;

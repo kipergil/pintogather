@@ -20,15 +20,25 @@ function FeedCard({ map }: { map: FeedMapItem }) {
     <View className="mb-3 gap-3 rounded-xl border border-slate-200 bg-white p-4">
       {map.ownerUsername && (
         <Link href={`/u/${map.ownerUsername}`} asChild>
-          <Pressable className="flex-row items-center gap-2" testID={`link-feed-owner-${map.id}`}>
+          <Pressable
+            className="flex-row items-center gap-2"
+            testID={`link-feed-owner-${map.id}`}
+          >
             {map.ownerAvatarUrl ? (
-              <Image source={{ uri: map.ownerAvatarUrl }} className="h-6 w-6 rounded-full" />
+              <Image
+                source={{ uri: map.ownerAvatarUrl }}
+                className="h-6 w-6 rounded-full"
+              />
             ) : (
               <View className="h-6 w-6 items-center justify-center rounded-full bg-primary/10">
-                <Text className="text-[10px] font-semibold text-primary">{initials}</Text>
+                <Text className="text-[10px] font-semibold text-primary">
+                  {initials}
+                </Text>
               </View>
             )}
-            <Text className="text-sm font-medium text-slate-600">{map.ownerName || `@${map.ownerUsername}`}</Text>
+            <Text className="text-sm font-medium text-slate-600">
+              {map.ownerName || `@${map.ownerUsername}`}
+            </Text>
           </Pressable>
         </Link>
       )}
@@ -38,7 +48,10 @@ function FeedCard({ map }: { map: FeedMapItem }) {
           <View className="flex-row items-start gap-3">
             <View className="h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-primary/10">
               {map.brandingLogoUrl ? (
-                <Image source={{ uri: map.brandingLogoUrl }} className="h-full w-full" />
+                <Image
+                  source={{ uri: map.brandingLogoUrl }}
+                  className="h-full w-full"
+                />
               ) : (
                 <Ionicons name="location" size={18} color="#2563EB" />
               )}
@@ -48,11 +61,16 @@ function FeedCard({ map }: { map: FeedMapItem }) {
                 {map.name}
               </Text>
               {map.description ? (
-                <Text className="mt-0.5 text-sm text-slate-500" numberOfLines={2}>
+                <Text
+                  className="mt-0.5 text-sm text-slate-500"
+                  numberOfLines={2}
+                >
                   {map.description}
                 </Text>
               ) : (
-                <Text className="mt-0.5 text-sm italic text-slate-400">No description</Text>
+                <Text className="mt-0.5 text-sm italic text-slate-400">
+                  No description
+                </Text>
               )}
             </View>
           </View>
@@ -61,9 +79,21 @@ function FeedCard({ map }: { map: FeedMapItem }) {
 
       <View className="flex-row items-center justify-between pt-1">
         <Text className="text-xs text-slate-400">
-          {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+          {map.pinCount}{" "}
+          {map.itemType === "location"
+            ? map.pinCount === 1
+              ? "pin"
+              : "pins"
+            : map.pinCount === 1
+              ? "item"
+              : "items"}
         </Text>
-        <LikeButton mapId={map.id} liked={map.likedByViewer} likeCount={map.likeCount} invalidateKeys={[FEED_QUERY_KEY]} />
+        <LikeButton
+          mapId={map.id}
+          liked={map.likedByViewer}
+          likeCount={map.likeCount}
+          invalidateKeys={[FEED_QUERY_KEY]}
+        />
       </View>
     </View>
   );
@@ -82,16 +112,26 @@ export default function FeedScreen() {
         onRefresh={refetch}
         ListHeaderComponent={
           <View className="gap-1 pb-4 pt-2">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-primary">Feed</Text>
-            <Text className="text-xl font-bold text-slate-900">Recently added maps</Text>
-            <Text className="text-sm text-slate-500">From people you follow and {APP_NAME}'s curated collections.</Text>
+            <Text className="text-xs font-semibold uppercase tracking-wide text-primary">
+              Feed
+            </Text>
+            <Text className="text-xl font-bold text-slate-900">
+              Recently added maps
+            </Text>
+            <Text className="text-sm text-slate-500">
+              From people you follow and {APP_NAME}'s curated collections.
+            </Text>
           </View>
         }
         ListEmptyComponent={
           !isLoading ? (
             <EmptyState
               icon="albums-outline"
-              title={data && data.followingCount === 0 ? "You're not following anyone yet" : "No new maps yet"}
+              title={
+                data && data.followingCount === 0
+                  ? "You're not following anyone yet"
+                  : "No new maps yet"
+              }
               description={
                 data && data.followingCount === 0
                   ? "Follow other users from their public profile to see their maps here."

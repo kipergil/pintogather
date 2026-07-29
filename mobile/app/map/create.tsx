@@ -7,12 +7,13 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { PinStylePicker } from "@/components/ui/PinStylePicker";
 import { TemplatePicker } from "@/components/TemplatePicker";
+import { ItemTypePicker } from "@/components/ItemTypePicker";
 import { useCreateMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { isUpgradeableError } from "@/lib/upgradeError";
 import { TIER_LIMITS } from "../../../shared/limits";
-import type { PinColor, PinIcon } from "../../../shared/enums";
+import type { ItemType, PinColor, PinIcon } from "../../../shared/enums";
 import type { MapTemplate } from "../../../shared/schema";
 
 export default function CreateMapScreen() {
@@ -20,10 +21,15 @@ export default function CreateMapScreen() {
   const router = useRouter();
   const createMap = useCreateMap();
   const { data: currentUser } = useCurrentUser();
-  const hasPinCustomization = TIER_LIMITS[currentUser?.userGroup ?? "freemium"].pinCustomization;
+  const hasPinCustomization =
+    TIER_LIMITS[currentUser?.userGroup ?? "freemium"].pinCustomization;
 
+  // undefined = not chosen yet (show the picker). Fixed at creation, never re-chosen afterward.
+  const [itemType, setItemType] = useState<ItemType | undefined>(undefined);
   // undefined = not chosen yet (show the picker), null = "start from scratch", otherwise the picked template.
-  const [template, setTemplate] = useState<MapTemplate | null | undefined>(undefined);
+  const [template, setTemplate] = useState<MapTemplate | null | undefined>(
+    undefined,
+  );
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -57,7 +63,18 @@ export default function CreateMapScreen() {
     }
   };
 
-  if (template === undefined) {
+  if (itemType === undefined) {
+    return (
+      <Screen scroll>
+        <Stack.Screen
+          options={{ title: "New collection", presentation: "modal" }}
+        />
+        <ItemTypePicker onSelect={setItemType} />
+      </Screen>
+    );
+  }
+
+  if (itemType === "location" && template === undefined) {
     return (
       <Screen scroll>
         <Stack.Screen options={{ title: "New map", presentation: "modal" }} />
@@ -78,6 +95,7 @@ export default function CreateMapScreen() {
         requirePinApproval,
         defaultPinColor: hasPinCustomization ? defaultPinColor : null,
         defaultPinIcon: hasPinCustomization ? defaultPinIcon : null,
+        itemType,
       });
       router.replace(`/map/${map.shareUrl}`);
     } catch (err: any) {
@@ -88,18 +106,35 @@ export default function CreateMapScreen() {
 
   return (
     <Screen scroll>
-      <Stack.Screen options={{ title: "New map", presentation: "modal" }} />
+      <Stack.Screen
+        options={{
+          title: itemType === "location" ? "New map" : "New collection",
+          presentation: "modal",
+        }}
+      />
       <View className="gap-4 py-6">
         <Button
           variant="ghost"
           size="sm"
           className="self-start px-0"
-          onPress={() => setTemplate(undefined)}
+          onPress={() =>
+            itemType === "location"
+              ? setTemplate(undefined)
+              : setItemType(undefined)
+          }
           testID="button-change-template"
         >
-          ← Choose a different template
+          {itemType === "location"
+            ? "← Choose a different template"
+            : "← Choose a different type"}
         </Button>
-        <TextField label="Name" value={name} onChangeText={setName} placeholder="Best coffee in town" testID="input-map-name" />
+        <TextField
+          label={itemType === "location" ? "Name" : "Collection name"}
+          value={name}
+          onChangeText={setName}
+          placeholder="Best coffee in town"
+          testID="input-map-name"
+        />
         <TextField
           label="Description (optional)"
           value={description}
@@ -112,12 +147,19 @@ export default function CreateMapScreen() {
 
         <View className="flex-row items-center justify-between gap-3 rounded-xl border border-slate-200 p-3.5">
           <View className="flex-1 gap-0.5">
-            <Text className="text-sm font-medium text-slate-700">Require approval for new pins</Text>
+            <Text className="text-sm font-medium text-slate-700">
+              Require approval for new pins
+            </Text>
             <Text className="text-xs text-slate-500">
-              Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
+              Pins from anyone but you stay hidden until you approve them. Turn
+              this off to have them go live right away.
             </Text>
           </View>
-          <Switch value={requirePinApproval} onValueChange={setRequirePinApproval} testID="switch-require-pin-approval" />
+          <Switch
+            value={requirePinApproval}
+            onValueChange={setRequirePinApproval}
+            testID="switch-require-pin-approval"
+          />
         </View>
 
         <View className="gap-3">
@@ -152,51 +194,66 @@ export default function CreateMapScreen() {
           )}
         </View>
 
-        <View className="gap-3">
-          <Button
-            variant="ghost"
-            className="justify-start px-0"
-            onPress={() => setShowPinStyle((v) => !v)}
-            testID="button-toggle-pin-style"
-          >
-            {`${showPinStyle ? "▾" : "▸"}  Default pin color & icon`}
-          </Button>
-          {showPinStyle &&
-            (hasPinCustomization ? (
-              <PinStylePicker
-                color={defaultPinColor}
-                icon={defaultPinIcon}
-                onChange={({ color, icon }) => {
-                  setDefaultPinColor(color);
-                  setDefaultPinIcon(icon);
-                }}
-                noneLabel="Default"
-              />
-            ) : (
-              <View
-                className="flex-row items-center gap-2.5 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5"
-                testID="pin-style-locked-notice"
-              >
-                <Ionicons name="lock-closed" size={14} color="#64748b" />
-                <Text className="flex-1 text-xs text-slate-500">Custom pin colors & icons are a Basic/Premium feature.</Text>
-                <Link href="/pricing" className="text-xs font-medium text-primary">
-                  Upgrade
-                </Link>
-              </View>
-            ))}
-        </View>
+        {itemType === "location" && (
+          <View className="gap-3">
+            <Button
+              variant="ghost"
+              className="justify-start px-0"
+              onPress={() => setShowPinStyle((v) => !v)}
+              testID="button-toggle-pin-style"
+            >
+              {`${showPinStyle ? "▾" : "▸"}  Default pin color & icon`}
+            </Button>
+            {showPinStyle &&
+              (hasPinCustomization ? (
+                <PinStylePicker
+                  color={defaultPinColor}
+                  icon={defaultPinIcon}
+                  onChange={({ color, icon }) => {
+                    setDefaultPinColor(color);
+                    setDefaultPinIcon(icon);
+                  }}
+                  noneLabel="Default"
+                />
+              ) : (
+                <View
+                  className="flex-row items-center gap-2.5 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5"
+                  testID="pin-style-locked-notice"
+                >
+                  <Ionicons name="lock-closed" size={14} color="#64748b" />
+                  <Text className="flex-1 text-xs text-slate-500">
+                    Custom pin colors & icons are a Basic/Premium feature.
+                  </Text>
+                  <Link
+                    href="/pricing"
+                    className="text-xs font-medium text-primary"
+                  >
+                    Upgrade
+                  </Link>
+                </View>
+              ))}
+          </View>
+        )}
 
         {error && (
           <View className="gap-1">
             <Text className="text-sm text-red-600">{error}</Text>
             {upgradeable && (
-              <Link href="/pricing" className="text-sm font-medium text-primary">
+              <Link
+                href="/pricing"
+                className="text-sm font-medium text-primary"
+              >
                 View plans
               </Link>
             )}
           </View>
         )}
-        <Button onPress={onSubmit} loading={createMap.isPending} disabled={!name.trim()} testID="button-submit-create-map">
+        <Button
+          onPress={onSubmit}
+          loading={createMap.isPending}
+          disabled={!name.trim()}
+          testID="button-submit-create-map"
+        >
           Create map
         </Button>
       </View>

@@ -5,7 +5,8 @@ import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { PinTable } from "@/components/pin-table";
 import { ForkedFromBadge } from "@/components/forked-from-badge";
 import { countDistinctContributors } from "@/lib/map-utils";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { ItemType, PinColor, PinIcon } from "@shared/enums";
+import { hasCoordinates } from "@shared/geo";
 
 interface PublicMapProps {
   params: {
@@ -28,13 +29,15 @@ interface MapCollection {
   /** Non-null iff this map is a clone of another. Used to gate the credit banner below — forkedFrom alone can't tell "never forked" apart from "forked but original deleted" since both resolve to null. */
   forkedFromMapId?: string | null;
   forkedFrom?: { name: string; shareUrl: string; ownerName: string | null } | null;
+  /** What kind of thing this collection holds — fixed at creation. "location" (a map of pins) is the default and only kind that predates this field. */
+  itemType: ItemType;
   pins: Array<{
     id: string;
     title: string;
     contributorName?: string | null;
     userId?: string;
-    latitude: string;
-    longitude: string;
+    latitude: string | null;
+    longitude: string | null;
     address?: string;
     city?: string;
     state?: string;
@@ -46,6 +49,8 @@ interface MapCollection {
     linkedinHandle?: string;
     note?: string;
     googleMapsUrl?: string | null;
+    url?: string | null;
+    photoUrl?: string | null;
     approved?: boolean;
     pinColor?: PinColor | null;
     pinIcon?: PinIcon | null;
@@ -120,7 +125,7 @@ export default function PublicMap({ params }: PublicMapProps) {
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
-                {mapCollection.pinCount} {mapCollection.pinCount === 1 ? "pin" : "pins"}
+                {mapCollection.pinCount} {mapCollection.itemType === "location" ? (mapCollection.pinCount === 1 ? "pin" : "pins") : (mapCollection.pinCount === 1 ? "item" : "items")}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
@@ -130,18 +135,26 @@ export default function PublicMap({ params }: PublicMapProps) {
           </div>
         </div>
 
-        <SimpleGoogleMap mapCollection={mapCollection} readOnly focusRequest={focusRequest} />
+        {mapCollection.itemType === "location" && (
+          <SimpleGoogleMap
+            mapCollection={{ ...mapCollection, pins: mapCollection.pins.filter(hasCoordinates) }}
+            readOnly
+            focusRequest={focusRequest}
+          />
+        )}
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">
-            Pins <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
+            {mapCollection.itemType === "location" ? "Pins" : "Items"}{" "}
+            <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
           </h2>
           <PinTable
             pins={mapCollection.pins}
             mapOwnerId={mapCollection.ownerId}
             noteLabel={mapCollection.noteLabel}
+            itemType={mapCollection.itemType}
             readOnly
-            onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
+            onPinSelect={mapCollection.itemType === "location" ? (pinId) => setFocusRequest({ pinId, nonce: Date.now() }) : undefined}
           />
         </div>
       </div>

@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/api";
-import type { CuratedCategory, CuratedCountry } from "../../../shared/enums";
+import type {
+  CuratedCategory,
+  CuratedCountry,
+  ItemType,
+} from "../../../shared/enums";
 
 interface DiscoverMap {
   id: string;
@@ -13,6 +17,7 @@ interface DiscoverMap {
   curatedTagline: string | null;
   ownerName: string | null;
   pinCount: number;
+  itemType: ItemType;
   createdAt: string;
 }
 
@@ -29,7 +34,11 @@ interface DiscoverResponse {
   };
 }
 
-export function useDiscover(category: string | null, country: string | null, city: string | null) {
+export function useDiscover(
+  category: string | null,
+  country: string | null,
+  city: string | null,
+) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   if (country) params.set("country", country);

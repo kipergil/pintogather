@@ -3,6 +3,8 @@ import {
   CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
   INVITATION_STATUS,
+  ITEM_TYPE,
+  ITEM_TYPE_LABELS,
   MAP_VIEWER_ROLE,
   PERMISSION,
   PIN_COLOR,
@@ -104,7 +106,7 @@ const mapFolder = m2o("map_collections", "folder", "map_folders", {
 export const mapCollectionsCollection: CollectionDefinition = {
   collection: "map_collections",
   icon: "map",
-  note: "A named, shareable container for pins.",
+  note: "A named, shareable container for pins/items. item_type determines whether it's a map of locations or a card list of links/recommendations.",
   displayTemplate: "{{name}}",
   fields: [
     idField(),
@@ -154,6 +156,12 @@ export const mapCollectionsCollection: CollectionDefinition = {
       true,
       "Whether a pin added by anyone other than the owner needs the owner's approval before it's visible to others. Defaults to true (the historical, previously-hardcoded behavior) — the owner can turn this off in the map's settings to auto-approve new pins instead.",
     ),
+    selectField("item_type", ITEM_TYPE, {
+      defaultValue: "location",
+      nullable: false,
+      labels: ITEM_TYPE_LABELS,
+      note: "What kind of thing this collection holds. Set once at creation (via the create-map item-type picker) and never editable afterward — every pin added inherits this value. 'location' is the original map-of-pins behavior; every collection created before this field existed defaults here.",
+    }),
     booleanField(
       "curated",
       false,
@@ -243,8 +251,21 @@ export const pinsCollection: CollectionDefinition = {
       maxLength: 100,
       note: "The anonymous contributor's own name, captured only when no account is signed in. Null for a signed-in contributor's pins, whose identity is the linked user account instead.",
     }),
-    decimalField("latitude", { precision: 10, scale: 8, nullable: false }),
-    decimalField("longitude", { precision: 11, scale: 8, nullable: false }),
+    selectField("item_type", ITEM_TYPE, {
+      defaultValue: "location",
+      nullable: false,
+      labels: ITEM_TYPE_LABELS,
+      note: "Inherited from the owning map's item_type at add time — never independently chosen. 'location' pins always have latitude/longitude; 'link'/'recommendation' pins never do (see url below instead).",
+    }),
+    // Required for "location" pins (the original, and only, kind before
+    // item_type existed) but null for "link"/"recommendation" pins — see
+    // shared/schema.ts's insertPinSchema refinement, which enforces this at
+    // the application layer since a single DB column can't conditionally
+    // require itself based on a sibling field's value. Already-provisioned
+    // instances need backfill-nullable-geo.ts to actually drop the existing
+    // NOT NULL constraint (this default only applies to a fresh instance).
+    decimalField("latitude", { precision: 10, scale: 8, nullable: true }),
+    decimalField("longitude", { precision: 11, scale: 8, nullable: true }),
     textField("address", { nullable: true }),
     textField("city", { nullable: true }),
     textField("state", { nullable: true }),
@@ -260,6 +281,11 @@ export const pinsCollection: CollectionDefinition = {
       nullable: true,
       maxLength: 2048,
       note: "Link to this venue on Google Maps, captured at import/creation time.",
+    }),
+    textField("url", {
+      nullable: true,
+      maxLength: 2048,
+      note: "The item's own link — a 'link'-type item's URL, or a 'recommendation'-type item's optional supporting link. Distinct from google_maps_url, which is always a Google Maps place link. Null for 'location' items.",
     }),
     textField("photo_url", {
       nullable: true,

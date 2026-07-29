@@ -5,6 +5,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
+import { TextField } from "@/components/ui/TextField";
 import { useDeletePin, useMap, usePin, useUpdatePin } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -24,7 +25,10 @@ const EMPTY_PIN_FORM: PinFormValue = {
 export default function EditPinScreen() {
   const { isSignedIn } = useRequireAuth();
   const router = useRouter();
-  const { shareUrl, pinId } = useLocalSearchParams<{ shareUrl: string; pinId: string }>();
+  const { shareUrl, pinId } = useLocalSearchParams<{
+    shareUrl: string;
+    pinId: string;
+  }>();
   const { data: pin, isLoading: pinLoading } = usePin(pinId);
   const { data: map, isLoading: mapLoading } = useMap(shareUrl);
   const { data: currentUser } = useCurrentUser();
@@ -32,6 +36,7 @@ export default function EditPinScreen() {
   const deletePin = useDeletePin(shareUrl);
 
   const [form, setForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
+  const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,11 +52,15 @@ export default function EditPinScreen() {
       pinColor: pin.pinColor ?? null,
       pinIcon: pin.pinIcon ?? null,
     });
+    setUrl(pin.url ?? "");
   }, [pin]);
 
   if (!isSignedIn) return null;
 
-  const canModify = !!pin && !!currentUser && (currentUser.id === pin.userId || currentUser.id === map?.ownerId);
+  const canModify =
+    !!pin &&
+    !!currentUser &&
+    (currentUser.id === pin.userId || currentUser.id === map?.ownerId);
 
   const onSave = async () => {
     if (!form.title.trim()) {
@@ -62,13 +71,18 @@ export default function EditPinScreen() {
     try {
       await updatePin.mutateAsync({
         title: form.title.trim(),
+        url: url.trim() || null,
         twitterHandle: form.twitterHandle.trim() || null,
         instagramHandle: form.instagramHandle.trim() || null,
         linkedinHandle: form.linkedinHandle.trim() || null,
         note: form.note.trim() || null,
         photoUrl: form.photoUrl,
-        pinColor: map?.hasPinCustomization ? form.pinColor : pin?.pinColor ?? null,
-        pinIcon: map?.hasPinCustomization ? form.pinIcon : pin?.pinIcon ?? null,
+        pinColor: map?.hasPinCustomization
+          ? form.pinColor
+          : (pin?.pinColor ?? null),
+        pinIcon: map?.hasPinCustomization
+          ? form.pinIcon
+          : (pin?.pinIcon ?? null),
       });
       router.back();
     } catch (err: any) {
@@ -88,7 +102,10 @@ export default function EditPinScreen() {
             await deletePin.mutateAsync(pin.id);
             router.replace(`/map/${shareUrl}`);
           } catch (err: any) {
-            Alert.alert("Couldn't delete pin", err?.message ?? "Please try again.");
+            Alert.alert(
+              "Couldn't delete pin",
+              err?.message ?? "Please try again.",
+            );
           }
         },
       },
@@ -103,12 +120,33 @@ export default function EditPinScreen() {
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : !pin || !map ? (
-        <EmptyState icon="alert-circle-outline" title="Pin not found" description="This pin doesn't exist, or the link is no longer valid." />
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Pin not found"
+          description="This pin doesn't exist, or the link is no longer valid."
+        />
       ) : !canModify ? (
-        <EmptyState icon="lock-closed-outline" title="You can't edit this pin" description="Only the pin's creator or the map owner can edit it." />
+        <EmptyState
+          icon="lock-closed-outline"
+          title="You can't edit this pin"
+          description="Only the pin's creator or the map owner can edit it."
+        />
       ) : (
         <View className="gap-4 py-6">
-          {pin.address && <Text className="-mt-2 text-sm text-slate-500">{pin.address}</Text>}
+          {pin.address && (
+            <Text className="-mt-2 text-sm text-slate-500">{pin.address}</Text>
+          )}
+          {pin.itemType && pin.itemType !== "location" && (
+            <TextField
+              label={pin.itemType === "link" ? "URL" : "Link (optional)"}
+              value={url}
+              onChangeText={setUrl}
+              placeholder="https://..."
+              autoCapitalize="none"
+              keyboardType="url"
+              testID="input-item-url"
+            />
+          )}
           <PinForm
             value={form}
             onChange={setForm}
@@ -126,10 +164,20 @@ export default function EditPinScreen() {
             }
           />
           {error && <Text className="text-sm text-red-600">{error}</Text>}
-          <Button onPress={onSave} loading={updatePin.isPending} disabled={!form.title.trim()} testID="button-save-pin">
+          <Button
+            onPress={onSave}
+            loading={updatePin.isPending}
+            disabled={!form.title.trim()}
+            testID="button-save-pin"
+          >
             Save changes
           </Button>
-          <Button variant="destructive" onPress={onDelete} loading={deletePin.isPending} testID="button-delete-pin">
+          <Button
+            variant="destructive"
+            onPress={onDelete}
+            loading={deletePin.isPending}
+            testID="button-delete-pin"
+          >
             Delete pin
           </Button>
         </View>

@@ -5,17 +5,33 @@ import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Screen } from "@/components/ui/Screen";
 import { useDiscover } from "@/hooks/useDiscover";
-import { CURATED_CATEGORY_COLOR, CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS } from "@/lib/curated-maps";
+import {
+  CURATED_CATEGORY_COLOR,
+  CURATED_CATEGORY_LABELS,
+  CURATED_COUNTRY_LABELS,
+} from "@/lib/curated-maps";
 import { APP_NAME } from "@/lib/config";
 import type { CuratedCategory, CuratedCountry } from "../../../shared/enums";
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function Chip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
       className={`mr-2 rounded-full border px-3.5 py-1.5 ${active ? "border-primary bg-primary" : "border-slate-300 bg-white"}`}
     >
-      <Text className={`text-sm font-medium ${active ? "text-white" : "text-slate-600"}`}>{label}</Text>
+      <Text
+        className={`text-sm font-medium ${active ? "text-white" : "text-slate-600"}`}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -28,7 +44,8 @@ export default function DiscoverScreen() {
 
   const citiesForCountry = useMemo(() => {
     if (!data) return [];
-    if (country === null) return Object.values(data.filters.citiesByCountry).flat();
+    if (country === null)
+      return Object.values(data.filters.citiesByCountry).flat();
     return data.filters.citiesByCountry[country] ?? [];
   }, [data, country]);
 
@@ -40,30 +57,63 @@ export default function DiscoverScreen() {
   return (
     <Screen>
       <View className="gap-1 pb-3 pt-2">
-        <Text className="text-xs font-semibold uppercase tracking-wide text-primary">Discover</Text>
-        <Text className="text-xl font-bold text-slate-900">Curated maps, ready to explore</Text>
-        <Text className="text-sm text-slate-500">Hand-picked collections from the {APP_NAME} team and the community.</Text>
+        <Text className="text-xs font-semibold uppercase tracking-wide text-primary">
+          Discover
+        </Text>
+        <Text className="text-xl font-bold text-slate-900">
+          Curated maps, ready to explore
+        </Text>
+        <Text className="text-sm text-slate-500">
+          Hand-picked collections from the {APP_NAME} team and the community.
+        </Text>
       </View>
 
       {data && (
         <View className="gap-2 pb-3">
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Chip label="All categories" active={category === null} onPress={() => setCategory(null)} />
+            <Chip
+              label="All categories"
+              active={category === null}
+              onPress={() => setCategory(null)}
+            />
             {data.filters.categories.map((c) => (
-              <Chip key={c} label={CURATED_CATEGORY_LABELS[c]} active={category === c} onPress={() => setCategory(c)} />
+              <Chip
+                key={c}
+                label={CURATED_CATEGORY_LABELS[c]}
+                active={category === c}
+                onPress={() => setCategory(c)}
+              />
             ))}
           </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Chip label="All countries" active={country === null} onPress={() => setCountry(null)} />
+            <Chip
+              label="All countries"
+              active={country === null}
+              onPress={() => setCountry(null)}
+            />
             {data.filters.countries.map((c) => (
-              <Chip key={c} label={CURATED_COUNTRY_LABELS[c]} active={country === c} onPress={() => setCountry(c)} />
+              <Chip
+                key={c}
+                label={CURATED_COUNTRY_LABELS[c]}
+                active={country === c}
+                onPress={() => setCountry(c)}
+              />
             ))}
           </ScrollView>
           {citiesForCountry.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <Chip label="All cities" active={city === null} onPress={() => setCity(null)} />
+              <Chip
+                label="All cities"
+                active={city === null}
+                onPress={() => setCity(null)}
+              />
               {citiesForCountry.map((c) => (
-                <Chip key={c} label={c} active={city === c} onPress={() => setCity(c)} />
+                <Chip
+                  key={c}
+                  label={c}
+                  active={city === c}
+                  onPress={() => setCity(c)}
+                />
               ))}
             </ScrollView>
           )}
@@ -81,7 +131,12 @@ export default function DiscoverScreen() {
             <View className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white">
               <View
                 className="aspect-[8/5] items-center justify-center"
-                style={{ backgroundColor: map.curatedCategory ? CURATED_CATEGORY_COLOR[map.curatedCategory] : "#3B82F6", opacity: map.locked ? 0.4 : 1 }}
+                style={{
+                  backgroundColor: map.curatedCategory
+                    ? CURATED_CATEGORY_COLOR[map.curatedCategory]
+                    : "#3B82F6",
+                  opacity: map.locked ? 0.4 : 1,
+                }}
               >
                 <Ionicons name="location" size={28} color="#ffffff" />
                 {map.locked && (
@@ -92,9 +147,14 @@ export default function DiscoverScreen() {
               </View>
               <View className={`gap-1 p-3 ${map.locked ? "opacity-50" : ""}`}>
                 {map.curatedCategory && (
-                  <Text className="text-xs font-medium text-slate-500">{CURATED_CATEGORY_LABELS[map.curatedCategory]}</Text>
+                  <Text className="text-xs font-medium text-slate-500">
+                    {CURATED_CATEGORY_LABELS[map.curatedCategory]}
+                  </Text>
                 )}
-                <Text className="font-semibold text-slate-900" numberOfLines={1}>
+                <Text
+                  className="font-semibold text-slate-900"
+                  numberOfLines={1}
+                >
                   {map.name}
                 </Text>
                 {map.curatedTagline && (
@@ -103,18 +163,32 @@ export default function DiscoverScreen() {
                   </Text>
                 )}
                 <Text className="text-xs text-slate-400">
-                  {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+                  {map.pinCount}{" "}
+                  {map.itemType === "location"
+                    ? map.pinCount === 1
+                      ? "pin"
+                      : "pins"
+                    : map.pinCount === 1
+                      ? "item"
+                      : "items"}
                 </Text>
               </View>
             </View>
           );
 
           if (map.locked || !map.shareUrl) {
-            return <View className="flex-1" testID={`card-discover-map-${map.id}`}>{card}</View>;
+            return (
+              <View className="flex-1" testID={`card-discover-map-${map.id}`}>
+                {card}
+              </View>
+            );
           }
           return (
             <Link href={`/map/${map.shareUrl}`} asChild>
-              <Pressable className="flex-1" testID={`card-discover-map-${map.id}`}>
+              <Pressable
+                className="flex-1"
+                testID={`card-discover-map-${map.id}`}
+              >
                 {card}
               </Pressable>
             </Link>
@@ -122,7 +196,11 @@ export default function DiscoverScreen() {
         }}
         ListEmptyComponent={
           !isLoading ? (
-            <EmptyState icon="compass-outline" title="No curated maps match these filters yet" description="Try a different category or city, or check back soon." />
+            <EmptyState
+              icon="compass-outline"
+              title="No curated maps match these filters yet"
+              description="Try a different category or city, or check back soon."
+            />
           ) : null
         }
         ListFooterComponent={
@@ -132,7 +210,10 @@ export default function DiscoverScreen() {
               <Text className="flex-1 text-sm text-slate-700">
                 Showing {data.visibleCount} of {data.totalCount} curated maps.
               </Text>
-              <Link href="/pricing" className="text-sm font-medium text-primary">
+              <Link
+                href="/pricing"
+                className="text-sm font-medium text-primary"
+              >
                 Upgrade
               </Link>
             </View>
