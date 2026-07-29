@@ -25,6 +25,7 @@ import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
 import { sensitiveWriteRateLimiter } from "./lib/security.js";
 import { APP_NAME, CURATED_MAPS_SYSTEM_USERNAME } from "./lib/branding.js";
+import { fetchLinkPreview, LinkPreviewError } from "./lib/link-preview.js";
 
 // SVG deliberately excluded: it's an XML format that can carry <script>,
 // and this app has no server-side SVG sanitizer — an uploaded SVG would be
@@ -1917,6 +1918,29 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error bulk deleting pins:", error);
       res.status(500).json({ message: "Failed to delete pins" });
+    }
+  });
+
+  // --- Link preview (for "link"-type item add forms) --------------------------------
+
+  // Fan-out to an arbitrary third-party URL per request, so this gets the
+  // same tighter throttle as the other third-party-per-request routes
+  // (invitation emails, anonymous pin adds) — see sensitiveWriteRateLimiter's
+  // own comment.
+  app.post("/api/link-preview", sensitiveWriteRateLimiter, async (req, res) => {
+    try {
+      const { url } = z.object({ url: z.string().trim().min(1).max(2048) }).parse(req.body);
+      const preview = await fetchLinkPreview(url);
+      res.json(preview);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "A URL is required." });
+      }
+      if (error instanceof LinkPreviewError) {
+        return res.status(400).json({ message: error.message });
+      }
+      console.error("Link preview error:", error);
+      res.status(500).json({ message: "Failed to fetch a preview for that URL." });
     }
   });
 
