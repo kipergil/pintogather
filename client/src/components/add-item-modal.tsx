@@ -1,6 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,7 +67,11 @@ function looksLikeUrl(value: string): boolean {
  * everything else — including the URL, which still triggers the same
  * preview fetch — optional.
  */
-export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalProps) {
+export function AddItemModal({
+  isOpen,
+  onClose,
+  mapCollection,
+}: AddItemModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -83,7 +93,11 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
     setPreviewError(null);
     try {
       const response = await apiRequest("POST", "/api/link-preview", { url });
-      const preview = (await response.json()) as { title: string | null; description: string | null; imageUrl: string | null };
+      const preview = (await response.json()) as {
+        title: string | null;
+        description: string | null;
+        imageUrl: string | null;
+      };
       // Only fills fields the user hasn't already typed something into —
       // a paste-then-fetch shouldn't clobber edits made in the meantime.
       setFormData((prev) => ({
@@ -93,19 +107,39 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
         photoUrl: prev.photoUrl || preview.imageUrl,
       }));
     } catch (error: any) {
-      setPreviewError(error.message || "Couldn't fetch a preview for that URL.");
+      setPreviewError(
+        error.message || "Couldn't fetch a preview for that URL.",
+      );
     } finally {
       setIsFetchingPreview(false);
     }
   };
 
-  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Debounced on every change to the URL field (typing, paste, or browser
+  // autofill) rather than only on blur — a paste followed immediately by
+  // clicking elsewhere (or the submit button) doesn't reliably fire a blur
+  // event before the click registers, which was silently skipping the fetch.
+  useEffect(() => {
+    const url = formData.url.trim();
+    if (!looksLikeUrl(url)) return;
+    const timeout = setTimeout(() => fetchPreview(url), 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.url]);
+
+  const handlePhotoFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
 
     if (file.size > PHOTO_MAX_BYTES) {
-      toast({ title: "File too large", description: "Please choose an image under 5MB.", variant: "destructive" });
+      toast({
+        title: "File too large",
+        description: "Please choose an image under 5MB.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -115,7 +149,11 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
       const { url } = await response.json();
       setFormData((prev) => ({ ...prev, photoUrl: url }));
     } catch (error: any) {
-      toast({ title: "Couldn't upload photo", description: error.message || "Please try again", variant: "destructive" });
+      toast({
+        title: "Couldn't upload photo",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -123,17 +161,27 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
 
   const createItemMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", `/api/maps/${mapCollection.shareUrl}/pins`, data);
+      const response = await apiRequest(
+        "POST",
+        `/api/maps/${mapCollection.shareUrl}/pins`,
+        data,
+      );
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Item added", description: "It's now live in this collection.", variant: "success" });
-      queryClient.invalidateQueries({ queryKey: [`/api/maps/${mapCollection.shareUrl}`] });
+      toast({
+        title: isLink ? "Link added" : "Recommendation added",
+        description: `Your ${isLink ? "link" : "recommendation"} is now live in this collection.`,
+        variant: "success",
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/maps/${mapCollection.shareUrl}`],
+      });
       handleClose();
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't add item",
+        title: isLink ? "Couldn't add link" : "Couldn't add recommendation",
         description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
@@ -145,7 +193,11 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      toast({ title: "Title required", description: "Please enter a title for this item", variant: "destructive" });
+      toast({
+        title: "Title required",
+        description: "Please enter a title for this item",
+        variant: "destructive",
+      });
       return;
     }
     if (!user && !formData.contributorName.trim()) {
@@ -157,7 +209,11 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
       return;
     }
     if (isLink && !formData.url.trim()) {
-      toast({ title: "URL required", description: "Please paste a link for this item", variant: "destructive" });
+      toast({
+        title: "URL required",
+        description: "Please paste a link for this item",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -180,33 +236,43 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className="inset-0 sm:inset-auto sm:left-[50%] sm:top-[50%] translate-x-0 sm:translate-x-[-50%] translate-y-0 sm:translate-y-[-50%] w-full h-full sm:h-auto max-w-full sm:max-w-lg max-h-full sm:max-h-[90vh] rounded-none sm:rounded-lg z-[9999] p-0 gap-0 flex flex-col overflow-hidden"
-      >
+      <DialogContent className="inset-0 sm:inset-auto sm:left-[50%] sm:top-[50%] translate-x-0 sm:translate-x-[-50%] translate-y-0 sm:translate-y-[-50%] w-full h-full sm:h-auto max-w-full sm:max-w-lg max-h-full sm:max-h-[90vh] rounded-none sm:rounded-lg z-[9999] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 min-w-0 shrink-0 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              {isLink ? <Link2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+              {isLink ? (
+                <Link2 className="h-4 w-4" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
             </div>
             Add {isLink ? "a link" : "a recommendation"}
           </DialogTitle>
           <DialogDescription>
-            {isLink ? "Paste a URL — the title, description, and image fill in automatically." : "Tell people what you're recommending."}
+            {isLink
+              ? "Paste a URL — the title, description, and image fill in automatically."
+              : "Tell people what you're recommending."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 min-w-0">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 min-h-0 min-w-0"
+        >
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-w-0">
             <div className="space-y-2">
-              <Label htmlFor="itemUrl">{isLink ? "URL" : "Link (optional)"}</Label>
+              <Label htmlFor="itemUrl">
+                {isLink ? "URL" : "Link (optional)"}
+              </Label>
               <div className="relative">
                 <Input
                   id="itemUrl"
                   type="url"
                   placeholder="https://..."
                   value={formData.url}
-                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                  onBlur={(e) => fetchPreview(e.target.value.trim())}
+                  onChange={(e) =>
+                    setFormData({ ...formData, url: e.target.value })
+                  }
                   required={isLink}
                   data-testid="input-item-url"
                 />
@@ -214,7 +280,9 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
-              {previewError && <p className="text-xs text-destructive">{previewError}</p>}
+              {previewError && (
+                <p className="text-xs text-destructive">{previewError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -222,9 +290,13 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
               <Input
                 id="itemTitle"
                 type="text"
-                placeholder={isLink ? "Title of the page" : "What are you recommending?"}
+                placeholder={
+                  isLink ? "Title of the page" : "What are you recommending?"
+                }
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 required
                 data-testid="input-item-title"
               />
@@ -238,7 +310,12 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
                   type="text"
                   placeholder="So the map owner knows who added this"
                   value={formData.contributorName}
-                  onChange={(e) => setFormData({ ...formData, contributorName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      contributorName: e.target.value,
+                    })
+                  }
                   required
                   data-testid="input-item-contributor-name"
                 />
@@ -252,12 +329,26 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
                   {formData.note.length}/{NOTE_MAX_LENGTH}
                 </span>
               </div>
-              {notePrompt && <p className="text-xs text-muted-foreground -mt-1.5">{notePrompt}</p>}
+              {notePrompt && (
+                <p className="text-xs text-muted-foreground -mt-1.5">
+                  {notePrompt}
+                </p>
+              )}
               <Textarea
                 id="itemNote"
-                placeholder={notePrompt || (isLink ? "Why is this worth reading?" : "Why are you recommending this?")}
+                placeholder={
+                  notePrompt ||
+                  (isLink
+                    ? "Why is this worth reading?"
+                    : "Why are you recommending this?")
+                }
                 value={formData.note}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    note: e.target.value.slice(0, NOTE_MAX_LENGTH),
+                  })
+                }
                 rows={2}
                 data-testid="input-item-note"
               />
@@ -317,7 +408,11 @@ export function AddItemModal({ isOpen, onClose, mapCollection }: AddItemModalPro
             <Button
               type="submit"
               className="w-full"
-              disabled={createItemMutation.isPending || isUploadingPhoto || isFetchingPreview}
+              disabled={
+                createItemMutation.isPending ||
+                isUploadingPhoto ||
+                isFetchingPreview
+              }
               data-testid="button-submit-add-item"
             >
               {createItemMutation.isPending ? (

@@ -160,10 +160,11 @@ export default function MapDetailWebFallback() {
         photoUrl: itemForm.photoUrl,
       });
       closeAddItemSheet();
+      const label = map?.itemType === "link" ? "link" : "recommendation";
       if (!pin.approved) {
         Alert.alert(
-          "Item added",
-          "Your item is pending the map owner's approval before it's visible to others.",
+          `${label === "link" ? "Link" : "Recommendation"} added`,
+          `Your ${label} is pending the map owner's approval before it's visible to others.`,
         );
       }
     } catch (err: any) {
