@@ -16,9 +16,13 @@ import { useUsage } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
 import { getPrimaryVenueType } from "@/lib/venue-type";
+import { cn } from "@/lib/utils";
 import { TIER_LIMITS } from "@shared/limits";
-import type { ItemType } from "@shared/enums";
+import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 import { ImageDropzone, type ImageRejection } from "@/components/image-dropzone";
+import { PlacesSearch } from "@/components/places-search";
+import { SimpleGoogleMap } from "@/components/simple-google-map";
+import { hasCoordinates } from "@shared/geo";
 import {
   ArrowLeft,
   ArrowUp,
@@ -29,7 +33,9 @@ import {
   Link2,
   Loader2,
   MapPin,
+  MousePointerClick,
   RefreshCw,
+  Search,
   Sparkles,
   Upload,
   X,
@@ -41,12 +47,15 @@ interface AddItemsProps {
   };
 }
 
-/** Tab ids for the add-method picker, also accepted as ?method= for deep links from the map page's empty state. */
-const ADD_METHODS = ["file", "paste", "ai"] as const;
+/** Tab ids for the add-method picker, also accepted as ?method= for deep links from the map page and its toolbar. */
+const ADD_METHODS = ["file", "paste", "ai", "venue", "map"] as const;
 type AddMethod = (typeof ADD_METHODS)[number];
+/** Venue search and drop-a-pin only mean anything on a map of locations. */
+const LOCATION_ONLY_METHODS = new Set<AddMethod>(["venue", "map"]);
 
-function parseMethod(value: string | null): AddMethod {
-  return ADD_METHODS.includes(value as AddMethod) ? (value as AddMethod) : "file";
+function parseMethod(value: string | null, itemType: ItemType): AddMethod {
+  const method = ADD_METHODS.includes(value as AddMethod) ? (value as AddMethod) : "file";
+  return itemType !== "location" && LOCATION_ONLY_METHODS.has(method) ? "file" : method;
 }
 
 const ITEM_NOUN: Record<ItemType, { one: string; many: string }> = {
@@ -75,6 +84,35 @@ interface StagedItem {
   selectedIndex: number;
   /** A link whose preview fetch failed. Still importable — the URL is fine, we just couldn't read the page. */
   previewFailed?: boolean;
+}
+
+/** Just enough of the collection for the hub: how to parse/resolve, and enough to render the embedded drop-a-pin map. */
+interface MapForAdding {
+  id: string;
+  name: string;
+  shareUrl: string;
+  itemType: ItemType;
+  noteLabel?: string | null;
+  notePrompt?: string | null;
+  hasPinCustomization?: boolean;
+  defaultPinColor?: PinColor | null;
+  defaultPinIcon?: PinIcon | null;
+  /** Existing pins, drawn on the embedded map for context so a dropped spot can be placed relative to them. */
+  pins: Array<{
+    id: string;
+    title: string;
+    latitude: string | null;
+    longitude: string | null;
+    address?: string;
+    note?: string;
+    googleMapsUrl?: string | null;
+    photoUrl?: string | null;
+    approved?: boolean;
+    pinColor?: PinColor | null;
+    pinIcon?: PinIcon | null;
+    sequence?: number | null;
+    createdAt: string;
+  }>;
 }
 
 /** The minimal shape every source produces, matching what the AI extraction endpoint returns. */
@@ -171,7 +209,6 @@ export default function AddItems({ params }: AddItemsProps) {
   // ?new=1 comes from the just-created-a-collection redirect, so the page can
   // introduce itself as the next step rather than reading like a detour.
   const isFirstRun = searchParams.get("new") === "1";
-  const initialMethod = parseMethod(searchParams.get("method"));
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { usage } = useUsage();
@@ -180,12 +217,13 @@ export default function AddItems({ params }: AddItemsProps) {
 
   // What this collection holds decides how pasted text is parsed, how each
   // item resolves, and what gets sent to the bulk endpoint.
-  const { data: mapCollection } = useQuery<{ itemType: ItemType; name: string }>({
+  const { data: mapCollection } = useQuery<MapForAdding>({
     queryKey: [`/api/maps/${shareUrl}`],
   });
   const itemType: ItemType = mapCollection?.itemType ?? "location";
   const noun = ITEM_NOUN[itemType];
   const isLocation = itemType === "location";
+  const initialMethod = parseMethod(searchParams.get("method"), itemType);
 
   const [items, setItems] = useState<StagedItem[]>([]);
   const [isParsing, setIsParsing] = useState(false);
@@ -324,8 +362,30 @@ export default function AddItems({ params }: AddItemsProps) {
       matches: [],
       selectedIndex: 0,
     }));
-    setItems(staged);
+    // Appended, not replaced: the method tabs stay open, so a paste can be
+    // topped up with a venue search or a dropped pin before saving.
+    setItems((prev) => [...prev, ...staged]);
     resolveAll(staged);
+  };
+
+  /**
+   * Venue search and map-drop already know exactly which place they mean, so
+   * they enter the list resolved rather than going back out to Places.
+   */
+  const stageResolvedVenue = (match: VenueResult, title?: string) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: nanoid(),
+        name: title ?? match.name,
+        url: "",
+        note: "",
+        photoUrl: null,
+        status: "resolved" as const,
+        matches: [match],
+        selectedIndex: 0,
+      },
+    ]);
   };
 
   const handleFile = async (file: File) => {
@@ -584,11 +644,13 @@ export default function AddItems({ params }: AddItemsProps) {
         </Link>
       </div>
 
-      {items.length === 0 ? (
-        <Card className="border-dashed border-2 border-border">
+      {/* The method picker stays on screen once items are staged: venue search
+          and drop-a-pin are inherently one-at-a-time, so hiding the tabs after
+          the first one would make them unusable for their whole purpose. */}
+      <Card className="border-dashed border-2 border-border">
           <CardContent className="p-6 sm:p-10">
             <Tabs defaultValue={initialMethod} className="w-full">
-              <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-8">
+              <TabsList className={cn("grid w-full mx-auto mb-8", isLocation ? "grid-cols-5 max-w-2xl" : "grid-cols-3 max-w-md")}>
                 <TabsTrigger value="file" data-testid="tab-file">
                   <FileUp className="h-4 w-4 mr-1.5 hidden sm:inline" />
                   Upload file
@@ -599,8 +661,20 @@ export default function AddItems({ params }: AddItemsProps) {
                 </TabsTrigger>
                 <TabsTrigger value="ai" data-testid="tab-ai">
                   <Sparkles className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                  Generate with AI
+                  {isLocation ? "AI" : "Generate with AI"}
                 </TabsTrigger>
+                {isLocation && (
+                  <>
+                    <TabsTrigger value="venue" data-testid="tab-venue">
+                      <Search className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                      Search venue
+                    </TabsTrigger>
+                    <TabsTrigger value="map" data-testid="tab-map">
+                      <MousePointerClick className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                      Drop on map
+                    </TabsTrigger>
+                  </>
+                )}
               </TabsList>
 
               <TabsContent value="file" className="text-center">
@@ -821,10 +895,66 @@ export default function AddItems({ params }: AddItemsProps) {
                   )}
                 </div>
               </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      ) : (
+
+              {isLocation && (
+                <>
+                  <TabsContent value="venue" className="text-center">
+                    <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                      <Search className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground mb-1.5">Search for a venue</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                      Look one up and it joins the list below — keep going to add as many as you like, then save
+                      them together.
+                    </p>
+                    <div className="max-w-sm mx-auto text-left">
+                      <PlacesSearch
+                        placeholder="Search for a place..."
+                        onPlaceSelect={(place) =>
+                          stageResolvedVenue({
+                            id: place.placeId,
+                            name: place.name,
+                            address: place.address,
+                            lat: place.lat,
+                            lng: place.lng,
+                            types: place.venueType ? [place.venueType] : [],
+                            priceLevel: place.priceLevel ?? undefined,
+                          })
+                        }
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="map">
+                    <div className="text-center mb-4">
+                      <h3 className="text-base font-semibold text-foreground mb-1.5">Drop a pin on the map</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                        Turn on &ldquo;Add pin&rdquo;, click a spot, and confirm it. Each one joins the list below
+                        instead of saving straight away, so you can name them before they land.
+                      </p>
+                    </div>
+                    {mapCollection && (
+                      <SimpleGoogleMap
+                        mapCollection={{
+                          ...mapCollection,
+                          pins: mapCollection.pins.filter(hasCoordinates),
+                        }}
+                        onStageLocation={({ lat, lng, address }) =>
+                          stageResolvedVenue(
+                            { id: "", name: address ?? "Dropped pin", address: address ?? "", lat, lng, types: [] },
+                            "",
+                          )
+                        }
+                      />
+                    )}
+                  </TabsContent>
+                </>
+              )}
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {items.length > 0 && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-border bg-card p-4">
             <div className="text-sm text-muted-foreground">

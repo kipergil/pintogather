@@ -127,9 +127,16 @@ interface SimpleMapProps {
   focusRequest?: { pinId: string; nonce: number } | null;
   /** Draws a route line through the pins in their route/itinerary order (see route-view.tsx) — a driving route where possible, falling back to a straight line. */
   showRoute?: boolean;
+  /**
+   * When set, confirming a map click hands the spot to the caller instead of
+   * opening the add-pin dialog — used by the add hub, where a dropped spot
+   * joins the staging list alongside pasted/imported items rather than
+   * saving on its own.
+   */
+  onStageLocation?: (location: { lat: number; lng: number; address?: string }) => void;
 }
 
-export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest, showRoute = false }: SimpleMapProps) {
+export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest, showRoute = false, onStageLocation }: SimpleMapProps) {
   console.log('SimpleGoogleMap component rendering with', mapCollection.pins.length, 'pins');
 
   const mapRef = useRef<HTMLDivElement>(null);
@@ -174,6 +181,10 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
   // add-pin dialog. Read from a ref inside the map's click listener (set up
   // once on mount) so it always sees the latest value instead of a stale one.
   const [isArmedForClick, setIsArmedForClick] = useState(false);
+  // Bound once with the map's click listener, so read through a ref to
+  // avoid capturing the first render's callback.
+  const onStageLocationRef = useRef(onStageLocation);
+  onStageLocationRef.current = onStageLocation;
   const isArmedForClickRef = useRef(isArmedForClick);
   useEffect(() => {
     isArmedForClickRef.current = isArmedForClick;
@@ -401,8 +412,13 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
 
     infoWindow.addListener('domready', () => {
       document.getElementById('pending-pin-confirm')?.addEventListener('click', () => {
-        setSelectedLocation({ lat, lng, address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
-        setIsAddPinModalOpen(true);
+        const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        if (onStageLocationRef.current) {
+          onStageLocationRef.current({ lat, lng, address });
+        } else {
+          setSelectedLocation({ lat, lng, address });
+          setIsAddPinModalOpen(true);
+        }
         clearPendingLocation();
       });
       document.getElementById('pending-pin-cancel')?.addEventListener('click', () => {
@@ -778,13 +794,15 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
               <Search className="h-4 w-4 mr-1.5" />
               Add venue
             </Button>
-            {/* Shortcut into the add hub, where a whole list can arrive at once — the map toolbar is where people already come to add things, so the bulk/AI path has to be visible from here too. */}
+            {/* Shortcut into the add hub, where a whole list can arrive at once — the map toolbar is where people already come to add things, so the bulk/AI path has to be visible from here too. Hidden when this map *is* the hub's own drop-a-pin tab, where it would link to itself. */}
+            {!onStageLocation && (
             <Link href={`/map/${mapCollection.shareUrl}/add?method=ai`}>
               <Button type="button" size="sm" variant="outline" data-testid="button-bulk-add">
                 <Sparkles className="h-4 w-4 mr-1.5" />
                 Bulk add with AI
               </Button>
             </Link>
+            )}
           </div>
           {isArmedForClick ? (
             <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mt-2.5">
@@ -895,8 +913,8 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         </Card>
       </div>
 
-      {/* Add Pin Modal */}
-      {!readOnly && (
+      {/* Add Pin Modal — skipped when staging, since the caller collects the spot itself */}
+      {!readOnly && !onStageLocation && (
         <AddPinModal
           isOpen={isAddPinModalOpen}
           onClose={() => {
