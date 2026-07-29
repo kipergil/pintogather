@@ -616,6 +616,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await getCurrentUser(req);
       const maxVisible = TIER_LIMITS[user?.userGroup ?? "freemium"].maxCuratedMapsVisible;
 
+      const filteredMapIds = filtered.map((map) => map.id);
+      const [likeCounts, viewerLikedMapIds] = await Promise.all([
+        storage.getMapLikeCounts(filteredMapIds),
+        user ? storage.getUserLikedMapIds(user.id, filteredMapIds) : Promise.resolve(new Set<string>()),
+      ]);
+
       const maps = await Promise.all(
         filtered.map(async (map, index) => {
           const locked = Number.isFinite(maxVisible) && index >= maxVisible;
@@ -631,6 +637,8 @@ export async function registerRoutes(app: Express): Promise<void> {
             curatedTagline: map.curatedTagline,
             ownerName,
             pinCount: pins.filter((pin) => pin.approved).length,
+            likeCount: likeCounts[map.id] ?? 0,
+            likedByViewer: viewerLikedMapIds.has(map.id),
             createdAt: map.createdAt,
           };
         }),
