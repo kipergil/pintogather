@@ -1,43 +1,13 @@
 import { Link } from "wouter";
-import { ClipboardPaste, FileUp, Sparkles, type LucideIcon } from "lucide-react";
 import type { ItemType } from "@shared/enums";
+// Descriptions come from the picker so the two surfaces can't drift apart.
+import { methodMeta } from "@/components/add-method-picker";
 
 interface AddMethodsEmptyStateProps {
   shareUrl: string;
   itemType: ItemType;
   /** Contributors who can't bulk-add (signed-out visitors) get the plain message instead of method cards that would dead-end at a sign-in wall. */
   canAdd: boolean;
-}
-
-interface Method {
-  method: "paste" | "file" | "ai";
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}
-
-function methodsFor(itemType: ItemType): Method[] {
-  const noun = itemType === "location" ? "places" : itemType === "link" ? "links" : "recommendations";
-  return [
-    {
-      method: "paste",
-      icon: ClipboardPaste,
-      title: "Paste a list",
-      description: `Drop in ${noun} one per line — we'll look each one up.`,
-    },
-    {
-      method: "file",
-      icon: FileUp,
-      title: "Upload a file",
-      description: "A .txt, .csv, or .xlsx export you already have.",
-    },
-    {
-      method: "ai",
-      icon: Sparkles,
-      title: "Generate with AI",
-      description: `Describe a theme, or hand us a screenshot, and get ${noun} back.`,
-    },
-  ];
 }
 
 /**
@@ -64,21 +34,24 @@ export function AddMethodsEmptyState({ shareUrl, itemType, canAdd }: AddMethodsE
         <p className="text-sm text-muted-foreground mt-1">Pick whichever way suits what you've already got.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3 max-w-3xl mx-auto">
-        {methodsFor(itemType).map(({ method, icon: Icon, title, description }) => (
-          <Link key={method} href={`/map/${shareUrl}/add?method=${method}`}>
-            <button
-              type="button"
-              className="h-full w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent"
-              data-testid={`button-empty-method-${method}`}
-            >
-              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2.5">
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="font-medium text-sm text-foreground">{title}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
-            </button>
-          </Link>
-        ))}
+        {(["paste", "file", "ai"] as const).map((method) => {
+          const { icon: Icon, title, description } = methodMeta(method, itemType);
+            return (
+            <Link key={method} href={`/map/${shareUrl}/add?method=${method}`}>
+              <button
+                type="button"
+                className="h-full w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent"
+                data-testid={`button-empty-method-${method}`}
+              >
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2.5">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="font-medium text-sm text-foreground">{title}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+              </button>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

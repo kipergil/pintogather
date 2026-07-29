@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
@@ -16,7 +15,6 @@ import { useUsage } from "@/hooks/useUsage";
 import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
 import { getPrimaryVenueType } from "@/lib/venue-type";
-import { cn } from "@/lib/utils";
 import { TIER_LIMITS } from "@shared/limits";
 import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 import {
@@ -28,6 +26,7 @@ import {
   type ItemSeed,
 } from "@/lib/item-parsing";
 import { ImageDropzone, type ImageRejection } from "@/components/image-dropzone";
+import { AddMethodPicker, methodTitle, parseMethodParam, type AddMethod } from "@/components/add-method-picker";
 import { PlacesSearch } from "@/components/places-search";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
 import { hasCoordinates } from "@shared/geo";
@@ -41,7 +40,6 @@ import {
   Link2,
   Loader2,
   MapPin,
-  MousePointerClick,
   RefreshCw,
   Search,
   Sparkles,
@@ -53,17 +51,6 @@ interface AddItemsProps {
   params: {
     shareUrl: string;
   };
-}
-
-/** Tab ids for the add-method picker, also accepted as ?method= for deep links from the map page and its toolbar. */
-const ADD_METHODS = ["file", "paste", "ai", "venue", "map"] as const;
-type AddMethod = (typeof ADD_METHODS)[number];
-/** Venue search and drop-a-pin only mean anything on a map of locations. */
-const LOCATION_ONLY_METHODS = new Set<AddMethod>(["venue", "map"]);
-
-function parseMethod(value: string | null, itemType: ItemType): AddMethod {
-  const method = ADD_METHODS.includes(value as AddMethod) ? (value as AddMethod) : "file";
-  return itemType !== "location" && LOCATION_ONLY_METHODS.has(method) ? "file" : method;
 }
 
 /**
@@ -154,7 +141,18 @@ export default function AddItems({ params }: AddItemsProps) {
   const itemType: ItemType = mapCollection?.itemType ?? "location";
   const noun = ITEM_NOUN[itemType];
   const isLocation = itemType === "location";
-  const initialMethod = parseMethod(searchParams.get("method"), itemType);
+  // The chosen method lives in the URL, not component state, so the browser's
+  // own back button steps back to the picker and a deep link (from the map
+  // page's empty state or toolbar) opens straight into a method.
+  const method = parseMethodParam(searchParams.get("method"), itemType);
+
+  const goToMethod = (next: AddMethod | undefined) => {
+    const params = new URLSearchParams(search);
+    if (next) params.set("method", next);
+    else params.delete("method");
+    const query = params.toString();
+    setLocation(`/map/${shareUrl}/add${query ? `?${query}` : ""}`);
+  };
 
   const [items, setItems] = useState<StagedItem[]>([]);
   const [isParsing, setIsParsing] = useState(false);
@@ -554,7 +552,16 @@ export default function AddItems({ params }: AddItemsProps) {
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="space-y-3">
+        {/* Above the title rather than beside it: at phone width a
+            right-aligned button sat mid-paragraph and collided with the
+            wrapped description. */}
+        <Link href={`/map/${shareUrl}`}>
+          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2 text-muted-foreground">
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            {isFirstRun ? "Skip for now" : "Back to collection"}
+          </Button>
+        </Link>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {isFirstRun ? `Add your first ${noun.many}` : "Add items"}
@@ -567,48 +574,33 @@ export default function AddItems({ params }: AddItemsProps) {
                 : "Paste a list, upload a file or screenshot, or let AI suggest things to recommend."}
           </p>
         </div>
-        <Link href={`/map/${shareUrl}`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {isFirstRun ? "Skip for now" : "Back to collection"}
-          </Button>
-        </Link>
       </div>
 
-      {/* The method picker stays on screen once items are staged: venue search
-          and drop-a-pin are inherently one-at-a-time, so hiding the tabs after
-          the first one would make them unusable for their whole purpose. */}
-      <Card className="border-dashed border-2 border-border">
-          <CardContent className="p-6 sm:p-10">
-            <Tabs defaultValue={initialMethod} className="w-full">
-              <TabsList className={cn("grid w-full mx-auto mb-8", isLocation ? "grid-cols-5 max-w-2xl" : "grid-cols-3 max-w-md")}>
-                <TabsTrigger value="file" data-testid="tab-file">
-                  <FileUp className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                  Upload file
-                </TabsTrigger>
-                <TabsTrigger value="paste" data-testid="tab-paste">
-                  <ClipboardPaste className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                  Paste list
-                </TabsTrigger>
-                <TabsTrigger value="ai" data-testid="tab-ai">
-                  <Sparkles className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                  {isLocation ? "AI" : "Generate with AI"}
-                </TabsTrigger>
-                {isLocation && (
-                  <>
-                    <TabsTrigger value="venue" data-testid="tab-venue">
-                      <Search className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                      Search venue
-                    </TabsTrigger>
-                    <TabsTrigger value="map" data-testid="tab-map">
-                      <MousePointerClick className="h-4 w-4 mr-1.5 hidden sm:inline" />
-                      Drop on map
-                    </TabsTrigger>
-                  </>
-                )}
-              </TabsList>
+      {method === undefined ? (
+        <Card className="border-dashed border-2 border-border">
+          <CardContent className="p-5 sm:p-8">
+            <AddMethodPicker itemType={itemType} onSelect={goToMethod} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-border">
+          <CardContent className="p-5 sm:p-8">
+            <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground truncate">{methodTitle(method)}</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-muted-foreground"
+                onClick={() => goToMethod(undefined)}
+                data-testid="button-change-method"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Another way
+              </Button>
+            </div>
 
-              <TabsContent value="file" className="text-center">
+            {method === "file" && (
+              <div className="text-center">
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <FileUp className="h-6 w-6" />
                 </div>
@@ -677,9 +669,11 @@ export default function AddItems({ params }: AddItemsProps) {
                     )}
                   </div>
                 )}
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="paste" className="text-center">
+            {method === "paste" && (
+              <div className="text-center">
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <ClipboardPaste className="h-6 w-6" />
                 </div>
@@ -749,9 +743,11 @@ export default function AddItems({ params }: AddItemsProps) {
                     </div>
                   )}
                 </div>
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="ai" className="text-center">
+            {method === "ai" && (
+              <div className="text-center">
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <Sparkles className="h-6 w-6" />
                 </div>
@@ -825,65 +821,66 @@ export default function AddItems({ params }: AddItemsProps) {
                     </>
                   )}
                 </div>
-              </TabsContent>
+              </div>
+            )}
 
-              {isLocation && (
-                <>
-                  <TabsContent value="venue" className="text-center">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                      <Search className="h-6 w-6" />
-                    </div>
-                    <h3 className="text-base font-semibold text-foreground mb-1.5">Search for a venue</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-                      Look one up and it joins the list below — keep going to add as many as you like, then save
-                      them together.
-                    </p>
-                    <div className="max-w-sm mx-auto text-left">
-                      <PlacesSearch
-                        placeholder="Search for a place..."
-                        onPlaceSelect={(place) =>
-                          stageResolvedVenue({
-                            id: place.placeId,
-                            name: place.name,
-                            address: place.address,
-                            lat: place.lat,
-                            lng: place.lng,
-                            types: place.venueType ? [place.venueType] : [],
-                            priceLevel: place.priceLevel ?? undefined,
-                          })
-                        }
-                      />
-                    </div>
-                  </TabsContent>
+            {method === "venue" && (
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <Search className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Search for a venue</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  Look one up and it joins the list below — keep going to add as many as you like, then save
+                  them together.
+                </p>
+                <div className="max-w-sm mx-auto text-left">
+                  <PlacesSearch
+                    placeholder="Search for a place..."
+                    onPlaceSelect={(place) =>
+                      stageResolvedVenue({
+                        id: place.placeId,
+                        name: place.name,
+                        address: place.address,
+                        lat: place.lat,
+                        lng: place.lng,
+                        types: place.venueType ? [place.venueType] : [],
+                        priceLevel: place.priceLevel ?? undefined,
+                      })
+                    }
+                  />
+                </div>
+                  </div>
+            )}
 
-                  <TabsContent value="map">
-                    <div className="text-center mb-4">
-                      <h3 className="text-base font-semibold text-foreground mb-1.5">Drop a pin on the map</h3>
-                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                        Turn on &ldquo;Add pin&rdquo;, click a spot, and confirm it. Each one joins the list below
-                        instead of saving straight away, so you can name them before they land.
-                      </p>
-                    </div>
-                    {mapCollection && (
-                      <SimpleGoogleMap
-                        mapCollection={{
-                          ...mapCollection,
-                          pins: mapCollection.pins.filter(hasCoordinates),
-                        }}
-                        onStageLocation={({ lat, lng, address }) =>
-                          stageResolvedVenue(
-                            { id: "", name: address ?? "Dropped pin", address: address ?? "", lat, lng, types: [] },
-                            "",
-                          )
-                        }
-                      />
+            {method === "map" && (
+              <div>
+                <div className="text-center mb-4">
+                  <h3 className="text-base font-semibold text-foreground mb-1.5">Drop a pin on the map</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Turn on &ldquo;Add pin&rdquo;, click a spot, and confirm it. Each one joins the list below
+                    instead of saving straight away, so you can name them before they land.
+                  </p>
+                </div>
+                {mapCollection && (
+                  <SimpleGoogleMap
+                    mapCollection={{
+                      ...mapCollection,
+                      pins: mapCollection.pins.filter(hasCoordinates),
+                    }}
+                    onStageLocation={({ lat, lng, address }) =>
+                      stageResolvedVenue(
+                        { id: "", name: address ?? "Dropped pin", address: address ?? "", lat, lng, types: [] },
+                        "",
+                      )
+                    }
+                  />
                     )}
-                  </TabsContent>
-                </>
-              )}
-          </Tabs>
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {items.length > 0 && (
         <>

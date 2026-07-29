@@ -4,6 +4,7 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { AddMethodsEmptyState } from "./add-methods-empty-state";
 import { ITEM_TYPE } from "@shared/enums";
+import { methodMeta } from "./add-method-picker";
 
 function renderAt(ui: React.ReactElement) {
   const { hook } = memoryLocation({ path: "/map/abc123" });
@@ -51,6 +52,15 @@ describe("<AddMethodsEmptyState />", () => {
 
   it("describes the paste method using the collection's own vocabulary", () => {
     renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="link" canAdd />);
-    expect(screen.getByTestId("button-empty-method-paste")).toHaveTextContent(/links/i);
+    const card = screen.getByTestId("button-empty-method-paste");
+    expect(card).toHaveTextContent(/link/i);
+    expect(card).not.toHaveTextContent(/pin/i);
+  });
+
+  it("shares its wording with the add hub's picker, so the two can't drift", () => {
+    renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="location" canAdd />);
+    expect(screen.getByTestId("button-empty-method-paste")).toHaveTextContent(
+      methodMeta("paste", "location").description,
+    );
   });
 });
