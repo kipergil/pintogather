@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MapPinned, MessageSquareText, Plus, Save, Upload } from "lucide-react";
 import { Link } from "wouter";
 import { TIER_LIMITS } from "@shared/limits";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 import { PinStylePicker } from "@/components/pin-style-picker";
 import { APP_NAME } from "@/lib/branding";
 
@@ -39,9 +39,11 @@ interface CreateMapFormProps {
   mapId?: string;
   /** shareUrl is only used to show the public branded-page link in edit mode — it's never submitted. */
   initialValues?: Partial<MapDetailsFormData> & { shareUrl?: string };
+  /** Chosen on the item-type-picker step just before this form; undefined when editing (itemType is fixed after creation, never re-chosen). */
+  itemType?: ItemType;
 }
 
-export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapFormProps) {
+export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: CreateMapFormProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -126,6 +128,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         defaultPinColor: data.defaultPinColor,
         defaultPinIcon: data.defaultPinIcon,
         ownerId: user?.id || null,
+        itemType,
       };
       const response = await apiRequest("POST", "/api/maps", mapData);
       return response.json();
@@ -204,7 +207,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="mapName">Map name *</Label>
+        <Label htmlFor="mapName">{isEditing || (itemType ?? "location") === "location" ? "Map name *" : "Collection name *"}</Label>
         <Input
           id="mapName"
           type="text"
@@ -215,7 +218,11 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
           data-testid="input-map-name"
         />
         <p className="text-xs text-muted-foreground">
-          You'll invite people to pin their location or favorite spots here.
+          {isEditing || (itemType ?? "location") === "location"
+            ? "You'll invite people to pin their location or favorite spots here."
+            : itemType === "link"
+              ? "You'll invite people to add links here — paste a URL and it fills itself in."
+              : "You'll invite people to add recommendations here — no location or link required."}
         </p>
       </div>
 
@@ -432,6 +439,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
         </CollapsibleContent>
       </Collapsible>
 
+      {(itemType ?? "location") === "location" && (
       <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
         <CollapsibleTrigger asChild>
           <button
@@ -472,6 +480,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues }: CreateMapForm
           )}
         </CollapsibleContent>
       </Collapsible>
+      )}
 
       <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-submit-map-form">
         {isEditing ? (
