@@ -11,7 +11,7 @@ import { generateDiscoverCoverUrl } from "@/lib/discover-cover";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS, isCuratedCategory, isCuratedCountry } from "@/lib/curated-maps";
 import { APP_NAME } from "@/lib/branding";
 import { LikeButton } from "@/components/like-button";
-import type { CuratedCategory, CuratedCountry } from "@shared/enums";
+import type { CuratedCategory, CuratedCountry, ItemType } from "@shared/enums";
 
 interface DiscoverMap {
   id: string;
