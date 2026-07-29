@@ -4,6 +4,8 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/map/:shareUrl", "destination": "/api" },
+    { "source": "/p/:shareUrl", "destination": "/api" },
     { "source": "/robots.txt", "destination": "/api" },
     { "source": "/sitemap.xml", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }

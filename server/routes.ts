@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage.js";
 import {
   bulkInsertPinsSchema,
@@ -24,6 +24,7 @@ import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
 import { sensitiveWriteRateLimiter } from "./lib/security.js";
 import { APP_NAME, CURATED_MAPS_SYSTEM_USERNAME } from "./lib/branding.js";
+import { injectPageMeta } from "./lib/ogMeta.js";
 
 // SVG deliberately excluded: it's an XML format that can carry <script>,
 // and this app has no server-side SVG sanitizer — an uploaded SVG would be
@@ -193,6 +194,48 @@ async function canAccessMap(map: MapCollection, user: User | null): Promise<bool
 export async function registerRoutes(app: Express): Promise<void> {
   setupAuth(app);
 
+  // --- Dynamic per-map Open Graph share cards ---------------------------------
+  // A shared /map/:shareUrl or /p/:shareUrl link previously always unfurled
+  // with the same generic homepage title/description — link-preview bots
+  // never run JS, so a client-side-only <title> update is invisible to
+  // them. This fetches the app's own current HTML shell — a same-origin
+  // request, so it transparently gets back whatever this environment would
+  // otherwise have served for "/" (Vite-transformed in dev, the built
+  // static file behind `npm start`, or Vercel's static hosting in prod) —
+  // and swaps in the specific map's real name/description before
+  // responding, for crawlers and real visitors alike. og:image stays the
+  // one static branded fallback; per-map cover art would need a real
+  // image-rendering pipeline, deliberately out of scope here.
+  const serveMapPreview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { shareUrl } = req.params;
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const shellResponse = await fetch(`${baseUrl}/`);
+      if (!shellResponse.ok) return next();
+      let html = await shellResponse.text();
+
+      const map = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (map) {
+        const user = await getCurrentUser(req);
+        if (await canAccessMap(map, user)) {
+          const description = map.description?.trim() || `A collaborative map on ${APP_NAME} — see where everyone's gathering.`;
+          html = injectPageMeta(html, {
+            title: `${map.name} - ${APP_NAME}`,
+            description,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+        }
+      }
+
+      res.status(200).type("text/html").send(html);
+    } catch (error) {
+      console.error("Error serving map preview shell:", error);
+      next();
+    }
+  };
+
+  app.get("/map/:shareUrl", serveMapPreview);
+  app.get("/p/:shareUrl", serveMapPreview);
   // --- SEO: robots.txt & sitemap.xml ------------------------------------------
   // Public, unauthenticated. Only content the app itself already treats as
   // intentionally public/promotable goes in the sitemap — curated maps
