@@ -31,7 +31,8 @@ export function getPricingTiers(appName: string): PricingTier[] {
       features: [
         "3 maps",
         "Up to 50 pins per map",
-        "3 AI venue suggestions per day",
+        "3 AI generations per day (prompt or screenshot)",
+        "Screenshot-based AI import",
         "Up to 2 collaborators per map",
         `${appName} branding on public maps`,
       ],
@@ -44,10 +45,9 @@ export function getPricingTiers(appName: string): PricingTier[] {
       features: [
         "10 maps",
         "Up to 200 pins per map",
-        "15 AI venue suggestions per day",
+        "15 AI generations per day (prompt or screenshot)",
         "Up to 8 collaborators per map",
         `${appName} branding on public maps`,
-        "Screenshot-based AI venue import",
         "Archive & restore maps",
         "Custom pin colors & icons",
       ],
@@ -60,10 +60,9 @@ export function getPricingTiers(appName: string): PricingTier[] {
       features: [
         "Unlimited maps",
         "Unlimited pins per map",
-        "200 AI venue suggestions per day",
+        "200 AI generations per day (prompt or screenshot)",
         "Unlimited collaborators per map",
         "Your own branding on public maps",
-        "Screenshot-based AI venue import",
         "Archive & restore maps",
         "Custom pin colors & icons",
       ],

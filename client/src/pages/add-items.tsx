@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch, Link } from "wouter";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { UsageMeter } from "@/components/usage-meter";
 import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google-maps";
 import { getPrimaryVenueType } from "@/lib/venue-type";
 import { TIER_LIMITS } from "@shared/limits";
+import type { ItemType } from "@shared/enums";
 import {
   ArrowLeft,
   ArrowUp,
@@ -25,13 +26,12 @@ import {
   ClipboardPaste,
   FileUp,
   ImageIcon,
+  Link2,
   Loader2,
-  Lock,
   MapPin,
   RefreshCw,
-  Trash2,
+  Sparkles,
   Upload,
-  Wand2,
   X,
 } from "lucide-react";
 
@@ -51,37 +51,106 @@ function parseMethod(value: string | null): AddMethod {
   return ADD_METHODS.includes(value as AddMethod) ? (value as AddMethod) : "file";
 }
 
-interface ImportItem {
+const ITEM_NOUN: Record<ItemType, { one: string; many: string }> = {
+  location: { one: "pin", many: "pins" },
+  link: { one: "link", many: "links" },
+  recommendation: { one: "recommendation", many: "recommendations" },
+};
+
+/**
+ * A candidate before it lands in the collection. Every input method (paste,
+ * file, image, AI, and later venue search) produces these, and every item
+ * type consumes the same shape — only `resolveItem` and the bulk payload
+ * differ per type, which is what keeps adding a new input method cheap.
+ */
+type StageStatus = "idle" | "resolving" | "resolved" | "unresolved" | "error";
+
+interface StagedItem {
   id: string;
   name: string;
-  status: "idle" | "searching" | "found" | "not_found" | "error";
+  url: string;
+  note: string;
+  photoUrl: string | null;
+  status: StageStatus;
+  /** Location items only — candidate venues from Google Places, picked between when there's more than one. */
   matches: VenueResult[];
   selectedIndex: number;
+  /** A link whose preview fetch failed. Still importable — the URL is fine, we just couldn't read the page. */
+  previewFailed?: boolean;
 }
 
-function parseTextLines(text: string): string[] {
+/** The minimal shape every source produces, matching what the AI extraction endpoint returns. */
+interface ItemSeed {
+  name: string;
+  url?: string;
+  note?: string;
+}
+
+const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
+
+function looksLikeUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/** Names, one per line, first CSV column only. */
+function parseNameLines(text: string): ItemSeed[] {
   return text
     .split(/\r?\n/)
     .map((line) => line.split(",")[0]?.trim() ?? "")
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0)
+    .map((name) => ({ name }));
 }
 
-async function parseFile(file: File): Promise<string[]> {
-  const lowerName = file.name.toLowerCase();
+/**
+ * URLs, one per line. Tolerates surrounding text ("Great read: https://…")
+ * since pasted link lists are rarely clean, and keeps the leftover text as
+ * the working title until the preview fetch replaces it.
+ */
+function parseUrlLines(text: string): ItemSeed[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const match = line.match(URL_PATTERN);
+      if (!match) return { name: line };
+      const url = match[0];
+      const leftover = line.replace(url, "").replace(/^[\s\-–—:|,]+|[\s\-–—:|,]+$/g, "");
+      return { name: leftover, url };
+    });
+}
 
-  if (lowerName.endsWith(".xlsx")) {
+function parseText(text: string, itemType: ItemType): ItemSeed[] {
+  return itemType === "link" ? parseUrlLines(text) : parseNameLines(text);
+}
+
+async function parseFile(file: File, itemType: ItemType): Promise<ItemSeed[]> {
+  if (file.name.toLowerCase().endsWith(".xlsx")) {
     const { readSheet } = await import("read-excel-file/browser");
     const rows = await readSheet(file);
-    return rows
+    const cells = rows
       .map((row) => row[0])
       .filter((cell): cell is string => typeof cell === "string" && cell.trim().length > 0)
       .map((cell) => cell.trim());
+    return parseText(cells.join("\n"), itemType);
   }
-
-  return parseTextLines(await file.text());
+  return parseText(await file.text(), itemType);
 }
 
-// Runs `fn` over `items` with limited concurrency, calling `onItem` as each finishes.
+// Runs `fn` over `items` with limited concurrency.
 async function runWithConcurrency<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>) {
   let cursor = 0;
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
@@ -112,64 +181,160 @@ export default function AddItems({ params }: AddItemsProps) {
   const aiLimitReached = usage ? usage.aiSuggestions.used >= usage.aiSuggestions.limit : false;
   const hasScreenshotImport = TIER_LIMITS[user?.userGroup ?? "freemium"].screenshotImport;
 
-  const [items, setItems] = useState<ImportItem[]>([]);
+  // What this collection holds decides how pasted text is parsed, how each
+  // item resolves, and what gets sent to the bulk endpoint.
+  const { data: mapCollection } = useQuery<{ itemType: ItemType; name: string }>({
+    queryKey: [`/api/maps/${shareUrl}`],
+  });
+  const itemType: ItemType = mapCollection?.itemType ?? "location";
+  const noun = ITEM_NOUN[itemType];
+  const isLocation = itemType === "location";
+
+  const [items, setItems] = useState<StagedItem[]>([]);
   const [isParsing, setIsParsing] = useState(false);
-  const [isSearchingAll, setIsSearchingAll] = useState(false);
-  const [searchProgress, setSearchProgress] = useState(0);
+  const [isResolvingAll, setIsResolvingAll] = useState(false);
+  const [resolveProgress, setResolveProgress] = useState(0);
   const [pasteText, setPasteText] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
 
-  const updateItem = useCallback((id: string, patch: Partial<ImportItem>) => {
+  const updateItem = useCallback((id: string, patch: Partial<StagedItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  const searchItem = useCallback(async (id: string, query: string): Promise<ImportItem["status"]> => {
-    updateItem(id, { status: "searching" });
-    try {
-      const matches = await searchVenues(query);
-      if (matches.length === 0) {
-        updateItem(id, { status: "not_found", matches: [] });
-        return "not_found";
+  const resolveLocation = useCallback(
+    async (id: string, query: string): Promise<StageStatus> => {
+      try {
+        const matches = await searchVenues(query);
+        if (matches.length === 0) {
+          updateItem(id, { status: "unresolved", matches: [] });
+          return "unresolved";
+        }
+        updateItem(id, {
+          status: "resolved",
+          matches: matches.slice(0, 8),
+          selectedIndex: 0,
+          name: matches[0].name || query,
+        });
+        return "resolved";
+      } catch (error: any) {
+        const isZeroResults = typeof error?.message === "string" && error.message.includes("ZERO_RESULTS");
+        updateItem(id, { status: isZeroResults ? "unresolved" : "error", matches: [] });
+        return isZeroResults ? "unresolved" : "error";
       }
-      updateItem(id, {
-        status: "found",
-        matches: matches.slice(0, 8),
-        selectedIndex: 0,
-        name: matches[0].name || query,
-      });
-      return "found";
-    } catch (error: any) {
-      const isZeroResults = typeof error?.message === "string" && error.message.includes("ZERO_RESULTS");
-      updateItem(id, { status: isZeroResults ? "not_found" : "error", matches: [] });
-      return isZeroResults ? "not_found" : "error";
-    }
-  }, [updateItem]);
+    },
+    [updateItem],
+  );
 
-  const startImportFromNames = (names: string[]) => {
-    if (names.length === 0) {
+  const resolveLink = useCallback(
+    async (id: string, seed: { name: string; url: string; note: string }): Promise<StageStatus> => {
+      // A bare URL pasted into the name column is still a URL.
+      const url = seed.url.trim() || (looksLikeUrl(seed.name.trim()) ? seed.name.trim() : "");
+      if (!url) {
+        updateItem(id, { status: "unresolved" });
+        return "unresolved";
+      }
+      try {
+        const response = await apiRequest("POST", "/api/link-preview", { url });
+        const preview = (await response.json()) as {
+          title: string | null;
+          description: string | null;
+          imageUrl: string | null;
+        };
+        const currentName = seed.name.trim();
+        updateItem(id, {
+          status: "resolved",
+          url,
+          name: currentName || preview.title || hostnameOf(url),
+          note: seed.note.trim() || preview.description || "",
+          photoUrl: preview.imageUrl,
+          previewFailed: false,
+        });
+        return "resolved";
+      } catch {
+        // The page may block scraping or simply be down — the link itself is
+        // still perfectly importable, so this is a note, not a failure.
+        updateItem(id, {
+          status: "resolved",
+          url,
+          name: seed.name.trim() || hostnameOf(url),
+          previewFailed: true,
+        });
+        return "resolved";
+      }
+    },
+    [updateItem],
+  );
+
+  const resolveItem = useCallback(
+    async (item: StagedItem): Promise<StageStatus> => {
+      updateItem(item.id, { status: "resolving" });
+      if (itemType === "location") return resolveLocation(item.id, item.name);
+      if (itemType === "link") {
+        return resolveLink(item.id, { name: item.name, url: item.url, note: item.note });
+      }
+      // Recommendations carry no external reference to look up — a name is
+      // the whole requirement.
+      const status: StageStatus = item.name.trim() ? "resolved" : "unresolved";
+      updateItem(item.id, { status });
+      return status;
+    },
+    [itemType, resolveLink, resolveLocation, updateItem],
+  );
+
+  const resolveAll = async (list: StagedItem[]) => {
+    setIsResolvingAll(true);
+    setResolveProgress(0);
+    let done = 0;
+    const droppedIds = new Set<string>();
+    await runWithConcurrency(list, 3, async (item) => {
+      const status = await resolveItem(item);
+      if (status === "unresolved") droppedIds.add(item.id);
+      done += 1;
+      setResolveProgress(done);
+    });
+    setIsResolvingAll(false);
+
+    if (droppedIds.size > 0) {
+      setItems((prev) => prev.filter((item) => !droppedIds.has(item.id)));
       toast({
-        title: "No venue names found",
-        description: "Didn't find any readable rows to import.",
+        title: `${droppedIds.size} ${droppedIds.size === 1 ? noun.one : noun.many} skipped`,
+        description: isLocation
+          ? "No matching location was found on Google Maps, so it was left out."
+          : itemType === "link"
+            ? "No usable link was found on those lines, so they were left out."
+            : "Those rows had no title, so they were left out.",
+      });
+    }
+  };
+
+  const startStaging = (seeds: ItemSeed[]) => {
+    if (seeds.length === 0) {
+      toast({
+        title: `No ${noun.many} found`,
+        description: "Didn't find any readable rows to add.",
         variant: "destructive",
       });
       return;
     }
-    const newItems: ImportItem[] = names.map((name) => ({
+    const staged: StagedItem[] = seeds.map((seed) => ({
       id: nanoid(),
-      name,
+      name: seed.name ?? "",
+      url: seed.url ?? "",
+      note: seed.note ?? "",
+      photoUrl: null,
       status: "idle",
       matches: [],
       selectedIndex: 0,
     }));
-    setItems(newItems);
-    searchAll(newItems);
+    setItems(staged);
+    resolveAll(staged);
   };
 
   const handleFile = async (file: File) => {
     setIsParsing(true);
     try {
-      startImportFromNames(await parseFile(file));
+      startStaging(await parseFile(file, itemType));
     } catch (error: any) {
       toast({
         title: "Couldn't read file",
@@ -181,53 +346,53 @@ export default function AddItems({ params }: AddItemsProps) {
     }
   };
 
-  const handlePasteImport = () => {
-    startImportFromNames(parseTextLines(pasteText));
+  type ExtractResponse = {
+    items?: ItemSeed[];
+    suggestions?: string[];
+    usage: { used: number; limit: number };
+  };
+
+  /** Both AI routes return the same shape; `suggestions` is the older name-only fallback. */
+  const seedsFromResponse = (data: ExtractResponse): ItemSeed[] =>
+    data.items?.length ? data.items : (data.suggestions ?? []).map((name) => ({ name }));
+
+  const onGenerateError = (error: any) => {
+    queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
+    toast({
+      title: "Couldn't generate suggestions",
+      description: error.message || "Please try again",
+      variant: "destructive",
+      action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
+    });
   };
 
   const generateSuggestionsMutation = useMutation({
     mutationFn: async (prompt: string) => {
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/venue-suggestions`, { prompt });
-      return response.json() as Promise<{ suggestions: string[]; usage: { used: number; limit: number } }>;
+      return response.json() as Promise<ExtractResponse>;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
-      startImportFromNames(data.suggestions);
+      startStaging(seedsFromResponse(data));
     },
-    onError: (error: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
-      toast({
-        title: "Couldn't generate suggestions",
-        description: error.message || "Please try again",
-        variant: "destructive",
-        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
-      });
-    },
+    onError: onGenerateError,
   });
 
   const generateFromScreenshotMutation = useMutation({
     mutationFn: async ({ file, prompt }: { file: File; prompt: string }) => {
       const response = await apiUpload(
-        `/api/maps/${shareUrl}/venue-suggestions/from-screenshot`,
+        `/api/maps/${shareUrl}/extract-items`,
         file,
         prompt ? { prompt } : undefined,
       );
-      return response.json() as Promise<{ suggestions: string[]; usage: { used: number; limit: number } }>;
+      return response.json() as Promise<ExtractResponse>;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
       setScreenshot(null);
-      startImportFromNames(data.suggestions);
+      startStaging(seedsFromResponse(data));
     },
-    onError: (error: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/usage"] });
-      toast({
-        title: "Couldn't generate suggestions",
-        description: error.message || "Please try again",
-        variant: "destructive",
-        action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
-      });
-    },
+    onError: onGenerateError,
   });
 
   const handleGenerateSuggestions = () => {
@@ -253,7 +418,7 @@ export default function AddItems({ params }: AddItemsProps) {
     }
     if (file.size > 4 * 1024 * 1024) {
       toast({
-        title: "Screenshot too large",
+        title: "Image too large",
         description: "Please upload an image under 4MB.",
         variant: "destructive",
       });
@@ -264,31 +429,8 @@ export default function AddItems({ params }: AddItemsProps) {
 
   const isGenerating = generateSuggestionsMutation.isPending || generateFromScreenshotMutation.isPending;
 
-  const searchAll = async (list: ImportItem[]) => {
-    setIsSearchingAll(true);
-    setSearchProgress(0);
-    let done = 0;
-    const notFoundIds = new Set<string>();
-    await runWithConcurrency(list, 3, async (item) => {
-      const status = await searchItem(item.id, item.name);
-      if (status === "not_found") notFoundIds.add(item.id);
-      done += 1;
-      setSearchProgress(done);
-    });
-    setIsSearchingAll(false);
-
-    if (notFoundIds.size > 0) {
-      setItems((prev) => prev.filter((item) => !notFoundIds.has(item.id)));
-      toast({
-        title: notFoundIds.size === 1 ? "1 venue skipped" : `${notFoundIds.size} venues skipped`,
-        description: "No matching location was found on Google Maps, so it was left out.",
-      });
-    }
-  };
-
   const retryFailed = () => {
-    const failed = items.filter((item) => item.status === "not_found" || item.status === "error");
-    searchAll(failed);
+    resolveAll(items.filter((item) => item.status === "unresolved" || item.status === "error"));
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,22 +454,39 @@ export default function AddItems({ params }: AddItemsProps) {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  /** Turns a resolved staged item into the bulk-endpoint payload for this collection's type. */
+  const toPinPayload = (item: StagedItem) => {
+    if (itemType === "location") {
+      const match = item.matches[item.selectedIndex] ?? item.matches[0];
+      return {
+        title: item.name.trim() || match.name,
+        latitude: String(match.lat),
+        longitude: String(match.lng),
+        address: match.address || null,
+        googleMapsUrl: buildGoogleMapsUrl({
+          lat: match.lat,
+          lng: match.lng,
+          name: match.name,
+          address: match.address,
+          placeId: match.id,
+        }),
+        venueType: getPrimaryVenueType(match.types),
+        priceLevel: match.priceLevel ?? null,
+      };
+    }
+    return {
+      title: item.name.trim(),
+      url: item.url.trim() || null,
+      note: item.note.trim() || undefined,
+      photoUrl: item.photoUrl,
+    };
+  };
+
   const importMutation = useMutation({
     mutationFn: async () => {
       const pins = items
-        .filter((item) => item.status === "found" && item.matches.length > 0)
-        .map((item) => {
-          const match = item.matches[item.selectedIndex] ?? item.matches[0];
-          return {
-            title: item.name.trim() || match.name,
-            latitude: String(match.lat),
-            longitude: String(match.lng),
-            address: match.address || null,
-            googleMapsUrl: buildGoogleMapsUrl({ lat: match.lat, lng: match.lng, name: match.name, address: match.address, placeId: match.id }),
-            venueType: getPrimaryVenueType(match.types),
-            priceLevel: match.priceLevel ?? null,
-          };
-        });
+        .filter((item) => item.status === "resolved" && (!isLocation || item.matches.length > 0))
+        .map(toPinPayload);
       const response = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
       return response.json();
     },
@@ -336,13 +495,15 @@ export default function AddItems({ params }: AddItemsProps) {
       const updatedCount = result.updated.length;
       const skippedCount = result.skippedDueToLimit ?? 0;
       const parts = [];
-      if (createdCount > 0) parts.push(`${createdCount} pin${createdCount === 1 ? "" : "s"} added`);
-      if (updatedCount > 0) parts.push(`${updatedCount} existing pin${updatedCount === 1 ? "" : "s"} updated`);
-      if (skippedCount > 0) parts.push(`${skippedCount} skipped — map pin limit reached`);
+      if (createdCount > 0) parts.push(`${createdCount} ${createdCount === 1 ? noun.one : noun.many} added`);
+      if (updatedCount > 0) {
+        parts.push(`${updatedCount} existing ${updatedCount === 1 ? noun.one : noun.many} updated`);
+      }
+      if (skippedCount > 0) parts.push(`${skippedCount} skipped — collection limit reached`);
 
       toast({
-        title: "Import complete",
-        description: parts.length > 0 ? `${parts.join(", ")}.` : "No pins to import.",
+        title: "All done",
+        description: parts.length > 0 ? `${parts.join(", ")}.` : `No ${noun.many} to add.`,
         variant: skippedCount > 0 && createdCount === 0 && updatedCount === 0 ? "destructive" : "success",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
@@ -351,16 +512,16 @@ export default function AddItems({ params }: AddItemsProps) {
     },
     onError: (error: any) => {
       toast({
-        title: "Import failed",
-        description: error.message || "Failed to import pins",
+        title: "Couldn't add these",
+        description: error.message || `Failed to add ${noun.many}`,
         variant: "destructive",
       });
     },
   });
 
-  const foundCount = items.filter((item) => item.status === "found").length;
-  const notFoundCount = items.filter((item) => item.status === "not_found" || item.status === "error").length;
-  const canImport = foundCount > 0 && !isSearchingAll && !importMutation.isPending;
+  const readyCount = items.filter((item) => item.status === "resolved").length;
+  const failedCount = items.filter((item) => item.status === "unresolved" || item.status === "error").length;
+  const canImport = readyCount > 0 && !isResolvingAll && !importMutation.isPending;
 
   if (authLoading) {
     return (
@@ -392,23 +553,37 @@ export default function AddItems({ params }: AddItemsProps) {
     );
   }
 
+  const pastePlaceholder = isLocation
+    ? "Paste venue names, one per line —\nEiffel Tower\nBritish Museum\nColosseum"
+    : itemType === "link"
+      ? "Paste links, one per line —\nhttps://example.com/article\nhttps://another.site/post"
+      : "Paste one per line —\nDune (the novel)\nThe Bear, season 2\nOxo Tower at sunset";
+
+  const aiPlaceholder = isLocation
+    ? "Describe what you're looking for —\nBest ramen spots in Tokyo"
+    : itemType === "link"
+      ? "Describe what you're looking for —\nEssential essays on typography"
+      : "Describe what you're looking for —\nCosy films for a rainy Sunday";
+
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {isFirstRun ? "Add your first pins" : "Add items"}
+            {isFirstRun ? `Add your first ${noun.many}` : "Add items"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {isFirstRun
+            {isLocation
               ? "Paste a list, upload a file or screenshot, or let AI suggest places — we'll look each one up on Google Maps."
-              : "Upload venue names and we'll look each one up on Google Maps."}
+              : itemType === "link"
+                ? "Paste links, upload a file or screenshot, or let AI suggest pages — we'll fetch a title and image for each."
+                : "Paste a list, upload a file or screenshot, or let AI suggest things to recommend."}
           </p>
         </div>
         <Link href={`/map/${shareUrl}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            {isFirstRun ? "Skip for now" : "Back to map"}
+            {isFirstRun ? "Skip for now" : "Back to collection"}
           </Button>
         </Link>
       </div>
@@ -427,7 +602,7 @@ export default function AddItems({ params }: AddItemsProps) {
                   Paste list
                 </TabsTrigger>
                 <TabsTrigger value="ai" data-testid="tab-ai">
-                  <Wand2 className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                  <Sparkles className="h-4 w-4 mr-1.5 hidden sm:inline" />
                   Generate with AI
                 </TabsTrigger>
               </TabsList>
@@ -436,10 +611,12 @@ export default function AddItems({ params }: AddItemsProps) {
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <FileUp className="h-6 w-6" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground mb-1.5">Upload a list of venue names</h3>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">
+                  Upload a list of {noun.many}
+                </h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-                  A .txt or .csv file with one venue name per line, or an .xlsx spreadsheet with names in the first
-                  column.
+                  A .txt or .csv file with one {isLocation ? "venue name" : itemType === "link" ? "link" : "entry"} per
+                  line, or an .xlsx spreadsheet with them in the first column.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -468,15 +645,20 @@ export default function AddItems({ params }: AddItemsProps) {
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
                   <ClipboardPaste className="h-6 w-6" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground mb-1.5">Paste a list of venue names</h3>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Paste a list of {noun.many}</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-                  One venue per line. We'll look each one up on Google Maps.
+                  One per line.{" "}
+                  {isLocation
+                    ? "We'll look each one up on Google Maps."
+                    : itemType === "link"
+                      ? "We'll fetch each page's title, description, and image."
+                      : "Anything you'd recommend to someone."}
                 </p>
                 <div className="max-w-sm mx-auto text-left space-y-2">
                   <Textarea
                     value={pasteText}
                     onChange={(e) => setPasteText(e.target.value)}
-                    placeholder={"Paste venue names, one per line —\nEiffel Tower\nBritish Museum\nColosseum"}
+                    placeholder={pastePlaceholder}
                     rows={5}
                     className="text-sm"
                     data-testid="input-paste-venues"
@@ -484,28 +666,29 @@ export default function AddItems({ params }: AddItemsProps) {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={handlePasteImport}
+                    onClick={() => startStaging(parseText(pasteText, itemType))}
                     disabled={!pasteText.trim()}
                     data-testid="button-import-pasted"
                   >
                     <ClipboardPaste className="h-4 w-4 mr-2" />
-                    Import pasted list
+                    Add pasted list
                   </Button>
                 </div>
               </TabsContent>
 
               <TabsContent value="ai" className="text-center">
                 <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                  <Wand2 className="h-6 w-6" />
+                  <Sparkles className="h-6 w-6" />
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-1.5">Generate suggestions with AI</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-                  Describe a theme and we'll suggest up to 15 real venues for you to review before importing.
+                  Describe a theme, or attach a screenshot, and we'll suggest up to 15 {noun.many} for you to review
+                  before adding.
                 </p>
                 <div className="max-w-sm mx-auto text-left space-y-3">
                   {usage && (
                     <UsageMeter
-                      label="AI suggestions today"
+                      label="AI generations today"
                       used={usage.aiSuggestions.used}
                       limit={usage.aiSuggestions.limit}
                     />
@@ -515,8 +698,8 @@ export default function AddItems({ params }: AddItemsProps) {
                       className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
                       data-testid="ai-limit-locked-notice"
                     >
-                      <Wand2 className="h-3.5 w-3.5 shrink-0" />
-                      <span className="flex-1">You've used today's AI suggestions on the {usage?.userGroup ?? "current"} plan.</span>
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">You've used today's AI generations on the {usage?.userGroup ?? "current"} plan.</span>
                       <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
                         Upgrade
                       </Link>
@@ -526,17 +709,13 @@ export default function AddItems({ params }: AddItemsProps) {
                       <Textarea
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={
-                          screenshot
-                            ? "Optional — add context for the screenshot"
-                            : "Describe what you're looking for —\nBest ramen spots in Tokyo"
-                        }
+                        placeholder={screenshot ? "Optional — add context for the screenshot" : aiPlaceholder}
                         rows={3}
                         className="text-sm"
                         data-testid="input-ai-prompt"
                       />
 
-                      {hasScreenshotImport ? (
+                      {hasScreenshotImport && (
                         <>
                           <input
                             ref={screenshotInputRef}
@@ -575,17 +754,6 @@ export default function AddItems({ params }: AddItemsProps) {
                             </Button>
                           )}
                         </>
-                      ) : (
-                        <div
-                          className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
-                          data-testid="screenshot-import-locked-notice"
-                        >
-                          <Lock className="h-3.5 w-3.5 shrink-0" />
-                          <span className="flex-1">Importing from a screenshot is a Basic/Premium feature.</span>
-                          <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
-                            Upgrade
-                          </Link>
-                        </div>
                       )}
 
                       <Button
@@ -602,7 +770,7 @@ export default function AddItems({ params }: AddItemsProps) {
                           </>
                         ) : (
                           <>
-                            <Wand2 className="h-4 w-4 mr-2" />
+                            <Sparkles className="h-4 w-4 mr-2" />
                             Generate with AI
                           </>
                         )}
@@ -618,26 +786,27 @@ export default function AddItems({ params }: AddItemsProps) {
         <>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-border bg-card p-4">
             <div className="text-sm text-muted-foreground">
-              {isSearchingAll ? (
+              {isResolvingAll ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Looking up venues... ({searchProgress}/{items.length})
+                  {isLocation ? "Looking up venues" : itemType === "link" ? "Fetching previews" : "Preparing"}... (
+                  {resolveProgress}/{items.length})
                 </span>
               ) : (
                 <span>
-                  <span className="font-medium text-foreground">{items.length}</span> venues ·{" "}
-                  <span className="font-medium text-emerald-600">{foundCount} matched</span>
-                  {notFoundCount > 0 && (
+                  <span className="font-medium text-foreground">{items.length}</span> {noun.many} ·{" "}
+                  <span className="font-medium text-emerald-600">{readyCount} ready</span>
+                  {failedCount > 0 && (
                     <>
                       {" "}
-                      · <span className="font-medium text-destructive">{notFoundCount} not found</span>
+                      · <span className="font-medium text-destructive">{failedCount} need attention</span>
                     </>
                   )}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              {notFoundCount > 0 && !isSearchingAll && (
+              {failedCount > 0 && !isResolvingAll && (
                 <Button variant="outline" size="sm" onClick={retryFailed} data-testid="button-retry-failed">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Retry failed
@@ -675,11 +844,21 @@ export default function AddItems({ params }: AddItemsProps) {
                       </button>
                     </div>
 
+                    {item.photoUrl && (
+                      <img
+                        src={item.photoUrl}
+                        alt=""
+                        className="h-12 w-12 rounded-md object-cover shrink-0"
+                        data-testid={`img-item-preview-${item.id}`}
+                      />
+                    )}
+
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2">
                         <Input
                           value={item.name}
                           onChange={(e) => updateItem(item.id, { name: e.target.value })}
+                          placeholder={isLocation ? "Venue name" : "Title"}
                           className="h-9"
                           data-testid={`input-item-name-${item.id}`}
                         />
@@ -688,12 +867,12 @@ export default function AddItems({ params }: AddItemsProps) {
                           variant="outline"
                           size="icon"
                           className="h-9 w-9 shrink-0"
-                          onClick={() => searchItem(item.id, item.name)}
-                          disabled={item.status === "searching" || !item.name.trim()}
-                          title="Search again"
+                          onClick={() => resolveItem(item)}
+                          disabled={item.status === "resolving" || (!item.name.trim() && !item.url.trim())}
+                          title={isLocation ? "Search again" : "Fetch again"}
                           data-testid={`button-search-item-${item.id}`}
                         >
-                          {item.status === "searching" ? (
+                          {item.status === "resolving" ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <RefreshCw className="h-4 w-4" />
@@ -711,7 +890,17 @@ export default function AddItems({ params }: AddItemsProps) {
                         </Button>
                       </div>
 
-                      {item.status === "found" && (
+                      {!isLocation && (
+                        <Input
+                          value={item.url}
+                          onChange={(e) => updateItem(item.id, { url: e.target.value })}
+                          placeholder={itemType === "link" ? "https://..." : "Link (optional)"}
+                          className="h-8 text-xs"
+                          data-testid={`input-item-url-${item.id}`}
+                        />
+                      )}
+
+                      {isLocation && item.status === "resolved" && (
                         <div className="space-y-1.5">
                           {item.matches.length > 1 && (
                             <div className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
@@ -758,17 +947,32 @@ export default function AddItems({ params }: AddItemsProps) {
                         </div>
                       )}
 
-                      {item.status === "not_found" && (
+                      {!isLocation && item.note && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{item.note}</p>
+                      )}
+
+                      {!isLocation && item.previewFailed && (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                          <Link2 className="h-3.5 w-3.5 shrink-0" />
+                          Couldn't read that page — the link still works, edit the title above if you like
+                        </div>
+                      )}
+
+                      {item.status === "unresolved" && (
                         <div className="flex items-center gap-2 text-xs text-destructive">
                           <MapPin className="h-3.5 w-3.5" />
-                          No match found — try editing the name and searching again
+                          {isLocation
+                            ? "No match found — try editing the name and searching again"
+                            : itemType === "link"
+                              ? "No usable link — paste a full https:// URL above"
+                              : "Needs a title before it can be added"}
                         </div>
                       )}
 
                       {item.status === "error" && (
                         <div className="flex items-center gap-2 text-xs text-destructive">
                           <MapPin className="h-3.5 w-3.5" />
-                          Search failed — try again
+                          Lookup failed — try again
                         </div>
                       )}
                     </div>
@@ -789,12 +993,12 @@ export default function AddItems({ params }: AddItemsProps) {
               {importMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importing...
+                  Adding...
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Import {foundCount} pin{foundCount === 1 ? "" : "s"}
+                  Add {readyCount} {readyCount === 1 ? noun.one : noun.many}
                 </>
               )}
             </Button>
