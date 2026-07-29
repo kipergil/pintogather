@@ -34,7 +34,6 @@ import {
   X,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { getInitials } from "@/lib/map-utils";
 import { useDirectusAdminUrl, buildDirectusAdminUrl } from "@/lib/directusAdmin";
 import { buildSocialUrl } from "@/lib/social-links";
 import { PinStyleSwatch } from "@/components/pin-style-picker";
@@ -85,21 +84,6 @@ interface PinTableProps {
   onPinSelect?: (pinId: string) => void;
   /** When set, the selected-pins bar (count + Clear/Delete) renders here instead of inline above the pin list — lets the parent place it next to the "Pins" title instead of pushing the list down. */
   headerActionsSlot?: HTMLElement | null;
-}
-
-const AVATAR_PALETTE = [
-  "bg-blue-100 text-blue-700",
-  "bg-violet-100 text-violet-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-amber-100 text-amber-700",
-  "bg-rose-100 text-rose-700",
-  "bg-cyan-100 text-cyan-700",
-];
-
-function avatarClasses(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
 function SocialLinks({ pin }: { pin: Pin }) {
@@ -478,121 +462,77 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredPins.map((pin) => (
+          {filteredPins.map((pin) => {
+            const hasSocials = !!(pin.website || pin.twitterHandle || pin.instagramHandle || pin.linkedinHandle);
+            const hasFooter = hasSocials || canApprovePin(pin) || !!pin.googleMapsUrl;
+            return (
             <Card
               key={pin.id}
-              className={`border-border ${onPinSelect ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
+              className={`border-border overflow-hidden ${onPinSelect ? "cursor-pointer hover:border-primary/40 transition-colors" : ""}`}
               onClick={() => onPinSelect?.(pin.id)}
               data-testid={`row-pin-${pin.id}`}
             >
-              <CardContent className="p-4 flex flex-col gap-3 lg:flex-row lg:items-start">
-                {/* Identity */}
-                <div className="flex items-start gap-3 lg:w-64 lg:shrink-0">
-                  {canDeletePin(pin) && (
-                    <Checkbox
-                      checked={selectedPinIds.has(pin.id)}
-                      onCheckedChange={() => togglePinSelected(pin.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`Select ${pin.title}`}
-                      className="mt-1 shrink-0"
-                      data-testid={`checkbox-pin-${pin.id}`}
-                    />
-                  )}
-                  {pin.photoUrl ? (
-                    <a href={pin.photoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="shrink-0">
-                      <img
-                        src={pin.photoUrl}
-                        alt={`Photo for ${pin.title}`}
-                        className="w-9 h-9 rounded-md object-cover"
-                        data-testid={`img-pin-photo-${pin.id}`}
-                      />
-                    </a>
-                  ) : (
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${avatarClasses(pin.title)}`}>
-                      <span className="text-sm font-semibold">{getInitials(pin.title)}</span>
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-medium text-foreground text-sm break-words">{pin.title}</h4>
-                      <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
-                      {pin.venueType && (
-                        <Badge variant="secondary" className="shrink-0 font-normal">
-                          {formatVenueType(pin.venueType)}
-                        </Badge>
-                      )}
-                      {pin.priceLevel != null && (
-                        <span className="text-xs text-muted-foreground shrink-0" title="Price level">
-                          {formatPriceLevel(pin.priceLevel)}
-                        </span>
-                      )}
-                      {pin.approved === false && (
-                        <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
-                          <Clock className="h-3 w-3" />
-                          Pending
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDate(pin.createdAt)}
-                      {pin.contributorName && ` · Added by ${pin.contributorName}`}
-                    </p>
-                    {(pin.city || pin.town || pin.country || pin.postcode) && (
-                      <div className="flex items-start gap-1.5 mt-1">
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                        <p className="text-xs text-muted-foreground break-words">
-                          {[pin.city, pin.town, pin.country, pin.postcode].filter(Boolean).join(', ')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Editorial summary + note */}
-                <div className="flex-1 min-w-0 space-y-2">
-                  {pin.editorialSummary && (
-                    <p className="text-xs text-muted-foreground italic">{pin.editorialSummary}</p>
-                  )}
-                  {pin.note && <NoteContent label={resolvedNoteLabel} note={pin.note} />}
-                </div>
-
-                {/* Social + actions */}
-                <div
-                  className="flex items-center justify-between gap-2 lg:flex-col lg:items-end lg:justify-start lg:w-44 lg:shrink-0"
+              {pin.photoUrl && (
+                <a
+                  href={pin.photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
+                  className="block"
                 >
-                  <SocialLinks pin={pin} />
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                    {canApprovePin(pin) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                        onClick={() => approvePinMutation.mutate(pin.id)}
-                        disabled={approvePinMutation.isPending}
-                        data-testid={`button-approve-pin-${pin.id}`}
-                      >
-                        <Check className="h-3.5 w-3.5 mr-1" />
-                        Approve
-                      </Button>
+                  <img
+                    src={pin.photoUrl}
+                    alt={`Photo for ${pin.title}`}
+                    className="w-full h-40 object-cover"
+                    data-testid={`img-pin-photo-${pin.id}`}
+                  />
+                </a>
+              )}
+              <CardContent className="p-4 space-y-3">
+                {/* Head: title/meta on the left, venue type + actions menu stacked in the corner */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    {canDeletePin(pin) && (
+                      <Checkbox
+                        checked={selectedPinIds.has(pin.id)}
+                        onCheckedChange={() => togglePinSelected(pin.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${pin.title}`}
+                        className="mt-1 shrink-0"
+                        data-testid={`checkbox-pin-${pin.id}`}
+                      />
                     )}
-                    {pin.googleMapsUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-2.5 text-xs"
-                        asChild
-                      >
-                        <a
-                          href={pin.googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          data-testid="link-google-maps"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                          View in Maps
-                        </a>
-                      </Button>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-medium text-foreground text-sm break-words">{pin.title}</h4>
+                        <PinStyleSwatch color={pin.pinColor} icon={pin.pinIcon} />
+                        {pin.approved === false && (
+                          <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 shrink-0">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {pin.priceLevel != null && `${formatPriceLevel(pin.priceLevel)} · `}
+                        {formatDate(pin.createdAt)}
+                        {pin.contributorName && ` · Added by ${pin.contributorName}`}
+                      </p>
+                      {(pin.city || pin.town || pin.country || pin.postcode) && (
+                        <div className="flex items-start gap-1.5 mt-1">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground break-words">
+                            {[pin.city, pin.town, pin.country, pin.postcode].filter(Boolean).join(', ')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {pin.venueType && (
+                      <Badge variant="secondary" className="font-normal">
+                        {formatVenueType(pin.venueType)}
+                      </Badge>
                     )}
                     {(canEditPin(pin) || canDeletePin(pin) || directusUrl) && (
                       <DropdownMenu>
@@ -640,9 +580,63 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
                     )}
                   </div>
                 </div>
+
+                {/* Editorial summary + note */}
+                {(pin.editorialSummary || pin.note) && (
+                  <div className="space-y-2">
+                    {pin.editorialSummary && (
+                      <p className="text-xs text-muted-foreground italic">{pin.editorialSummary}</p>
+                    )}
+                    {pin.note && <NoteContent label={resolvedNoteLabel} note={pin.note} />}
+                  </div>
+                )}
+
+                {/* Social links + Approve/View in Maps */}
+                {hasFooter && (
+                  <div
+                    className="flex items-center justify-between gap-2 pt-3 border-t border-border"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <SocialLinks pin={pin} />
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {canApprovePin(pin) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                          onClick={() => approvePinMutation.mutate(pin.id)}
+                          disabled={approvePinMutation.isPending}
+                          data-testid={`button-approve-pin-${pin.id}`}
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                          Approve
+                        </Button>
+                      )}
+                      {pin.googleMapsUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs"
+                          asChild
+                        >
+                          <a
+                            href={pin.googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="link-google-maps"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                            View in Maps
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
