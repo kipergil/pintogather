@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search } from 'lucide-react';
+import { Expand, Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search, X } from 'lucide-react';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 import { sortPinsForRoute } from '@shared/geo';
@@ -181,6 +181,57 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isArmedForClick]);
+
+  // Full-screen mode: the browser's native Fullscreen API (not a CSS-only
+  // fake) so ESC-to-exit and other OS/browser affordances work for free.
+  // fullscreenContainerRef wraps the map card + the pin-title legend that's
+  // only shown while full-screen, since requestFullscreen() blows up a
+  // single element to fill the viewport.
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const active = document.fullscreenElement === fullscreenContainerRef.current;
+      setIsFullscreen(active);
+      // Google Maps doesn't observe container resizes on its own — nudge it
+      // once the fullscreen transition (and the browser's own layout pass)
+      // has actually happened.
+      setTimeout(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+        google.maps.event.trigger(map, 'resize');
+        fitToAllPins();
+      }, 50);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      fullscreenContainerRef.current?.requestFullscreen();
+    }
+  };
+
+  // Pans/zooms to a pin and opens its info window — shared by the
+  // full-screen legend's click handler and the focusRequest effect below.
+  const focusOnPin = (pinId: string) => {
+    const map = mapInstanceRef.current;
+    const marker = markersByPinIdRef.current.get(pinId);
+    const position = marker?.getPosition();
+    if (!map || !marker || !position) return;
+    map.panTo(position);
+    if ((map.getZoom() ?? 0) < 16) {
+      map.setZoom(16);
+    }
+    google.maps.event.addListenerOnce(map, 'idle', () => {
+      google.maps.event.trigger(marker, 'click');
+    });
+  };
 
   useEffect(() => {
     console.log('SimpleGoogleMap useEffect triggered');
@@ -739,55 +790,92 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         </div>
       )}
 
-      <Card>
-        <div className="relative">
-          <div
-            ref={mapRef}
-            className="w-full h-96 rounded-lg bg-gray-100"
-            style={{
-              height: '400px',
-              minHeight: '400px',
-              width: '100%',
-              position: 'relative'
-            }}
-          />
-          {!isLoading && !error && mapCollection.pins.length > 0 && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="absolute top-2 left-2 shadow-md"
-              onClick={fitToAllPins}
-              title="Show all pins"
-              data-testid="button-reset-map-view"
-            >
-              <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
-              Reset view
-            </Button>
-          )}
-          {!isLoading && !error && (
-            <Button
-              type="button"
-              variant={myLocationStatus === 'on' ? 'default' : 'secondary'}
-              size="sm"
-              className="absolute top-2 right-2 shadow-md"
-              onClick={handleToggleMyLocation}
-              disabled={myLocationStatus === 'locating'}
-              title={myLocationStatus === 'on' ? 'Hide your location' : 'Show your location'}
-              data-testid="button-toggle-my-location"
-            >
-              {myLocationStatus === 'locating' ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              ) : myLocationStatus === 'on' ? (
-                <LocateFixed className="h-3.5 w-3.5 mr-1.5" />
-              ) : (
-                <Locate className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              My location
-            </Button>
-          )}
-        </div>
-      </Card>
+      <div ref={fullscreenContainerRef} className={isFullscreen ? 'h-screen bg-background' : ''}>
+        <Card className={isFullscreen ? 'h-full rounded-none border-0' : undefined}>
+          <div className={isFullscreen ? 'relative h-full' : 'relative'}>
+            <div
+              ref={mapRef}
+              className={isFullscreen ? 'w-full h-full' : 'w-full h-96 rounded-lg bg-gray-100'}
+              style={
+                isFullscreen
+                  ? undefined
+                  : { height: '400px', minHeight: '400px', width: '100%', position: 'relative' }
+              }
+            />
+            {!isLoading && !error && mapCollection.pins.length > 0 && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute top-2 left-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                onClick={fitToAllPins}
+                title="Show all pins"
+                data-testid="button-reset-map-view"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {!isLoading && !error && (
+              <Button
+                type="button"
+                variant={myLocationStatus === 'on' ? 'default' : 'secondary'}
+                size="icon"
+                className="absolute top-2 right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                onClick={handleToggleMyLocation}
+                disabled={myLocationStatus === 'locating'}
+                title={myLocationStatus === 'on' ? 'Hide your location' : 'Show your location'}
+                data-testid="button-toggle-my-location"
+              >
+                {myLocationStatus === 'locating' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : myLocationStatus === 'on' ? (
+                  <LocateFixed className="h-3.5 w-3.5" />
+                ) : (
+                  <Locate className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            )}
+            {!isLoading && !error && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute top-11 right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Exit full screen' : 'View full screen'}
+                data-testid="button-toggle-fullscreen"
+              >
+                {isFullscreen ? <X className="h-3.5 w-3.5" /> : <Expand className="h-3.5 w-3.5" />}
+              </Button>
+            )}
+            {isFullscreen && mapCollection.pins.length > 0 && (
+              <div
+                className="absolute top-2 right-11 max-h-[calc(100%-1rem)] w-56 overflow-y-auto rounded-lg border border-border bg-background/95 shadow-md backdrop-blur-sm"
+                data-testid="map-fullscreen-legend"
+              >
+                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
+                  Pins ({mapCollection.pins.length})
+                </div>
+                <ul>
+                  {mapCollection.pins.map((pin) => (
+                    <li key={pin.id}>
+                      <button
+                        type="button"
+                        className="w-full truncate px-3 py-1.5 text-left text-sm hover:bg-muted"
+                        onClick={() => focusOnPin(pin.id)}
+                        title={pin.title}
+                        data-testid={`legend-item-${pin.id}`}
+                      >
+                        {pin.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
       {/* Add Pin Modal */}
       {!readOnly && (
