@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage.js";
 import {
   bulkInsertPinsSchema,
@@ -18,7 +18,7 @@ import { nanoid } from "nanoid";
 import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
-import { getUserByUsername, searchUsers } from "./services/users.js";
+import { getUserByUsername, searchUsers, getAllPublicUsernames } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
@@ -26,6 +26,7 @@ import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js
 import { sensitiveWriteRateLimiter } from "./lib/security.js";
 import { APP_NAME, CURATED_MAPS_SYSTEM_USERNAME } from "./lib/branding.js";
 import { fetchLinkPreview, LinkPreviewError } from "./lib/link-preview.js";
+import { injectPageMeta } from "./lib/ogMeta.js";
 
 // SVG deliberately excluded: it's an XML format that can carry <script>,
 // and this app has no server-side SVG sanitizer — an uploaded SVG would be
@@ -194,6 +195,122 @@ async function canAccessMap(map: MapCollection, user: User | null): Promise<bool
 
 export async function registerRoutes(app: Express): Promise<void> {
   setupAuth(app);
+
+  // --- Dynamic per-map Open Graph share cards ---------------------------------
+  // A shared /map/:shareUrl or /p/:shareUrl link previously always unfurled
+  // with the same generic homepage title/description — link-preview bots
+  // never run JS, so a client-side-only <title> update is invisible to
+  // them. This fetches the app's own current HTML shell — a same-origin
+  // request, so it transparently gets back whatever this environment would
+  // otherwise have served for "/" (Vite-transformed in dev, the built
+  // static file behind `npm start`, or Vercel's static hosting in prod) —
+  // and swaps in the specific map's real name/description before
+  // responding, for crawlers and real visitors alike. og:image stays the
+  // one static branded fallback; per-map cover art would need a real
+  // image-rendering pipeline, deliberately out of scope here.
+  const serveMapPreview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { shareUrl } = req.params;
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const shellResponse = await fetch(`${baseUrl}/`);
+      if (!shellResponse.ok) return next();
+      let html = await shellResponse.text();
+
+      const map = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (map) {
+        const user = await getCurrentUser(req);
+        if (await canAccessMap(map, user)) {
+          const description = map.description?.trim() || `A collaborative map on ${APP_NAME} — see where everyone's gathering.`;
+          html = injectPageMeta(html, {
+            title: `${map.name} - ${APP_NAME}`,
+            description,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+        }
+      }
+
+      res.status(200).type("text/html").send(html);
+    } catch (error) {
+      console.error("Error serving map preview shell:", error);
+      next();
+    }
+  };
+
+  app.get("/map/:shareUrl", serveMapPreview);
+  app.get("/p/:shareUrl", serveMapPreview);
+  // --- SEO: robots.txt & sitemap.xml ------------------------------------------
+  // Public, unauthenticated. Only content the app itself already treats as
+  // intentionally public/promotable goes in the sitemap — curated maps
+  // (already linked from /discover) and claimed public profiles (the "make
+  // yourself discoverable" opt-in) — not every private/shared-link map,
+  // which was never meant for search indexing.
+
+  app.get("/robots.txt", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    res.type("text/plain").send(
+      [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /admin",
+        "Disallow: /auth",
+        "Disallow: /profile",
+        "Disallow: /feed",
+        "Disallow: /invitations/",
+        "",
+        `Sitemap: ${baseUrl}/sitemap.xml`,
+        "",
+      ].join("\n"),
+    );
+  });
+
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const escapeXml = (value: string) =>
+        value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
+      const urls: Array<{ loc: string; lastmod?: string }> = [
+        { loc: "/" },
+        { loc: "/discover" },
+        { loc: "/how-it-works" },
+        { loc: "/who-its-for" },
+        { loc: "/features" },
+        { loc: "/use-cases" },
+        { loc: "/pricing" },
+      ];
+
+      const [pages, curatedMaps, usernames] = await Promise.all([
+        storage.getPublishedPages(),
+        storage.getCuratedMapCollections(),
+        getAllPublicUsernames(),
+      ]);
+
+      for (const page of pages) {
+        urls.push({ loc: `/pages/${page.slug}`, lastmod: (page.updatedAt ?? page.createdAt).toISOString() });
+      }
+      for (const map of curatedMaps) {
+        urls.push({ loc: `/map/${map.shareUrl}`, lastmod: map.createdAt.toISOString() });
+      }
+      for (const username of usernames) {
+        urls.push({ loc: `/u/${username}` });
+      }
+
+      const body = urls
+        .map(
+          ({ loc, lastmod }) =>
+            `  <url>\n    <loc>${escapeXml(`${baseUrl}${loc}`)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ""}\n  </url>`,
+        )
+        .join("\n");
+
+      res
+        .type("application/xml")
+        .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`);
+    } catch (error) {
+      console.error("Error generating sitemap:", error);
+      res.status(500).type("text/plain").send("Failed to generate sitemap");
+    }
+  });
 
   // --- Health & configuration -------------------------------------------------
 
@@ -620,6 +737,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const user = await getCurrentUser(req);
       const maxVisible = TIER_LIMITS[user?.userGroup ?? "freemium"].maxCuratedMapsVisible;
 
+      const filteredMapIds = filtered.map((map) => map.id);
+      const [likeCounts, viewerLikedMapIds] = await Promise.all([
+        storage.getMapLikeCounts(filteredMapIds),
+        user ? storage.getUserLikedMapIds(user.id, filteredMapIds) : Promise.resolve(new Set<string>()),
+      ]);
+
       const maps = await Promise.all(
         filtered.map(async (map, index) => {
           const locked = Number.isFinite(maxVisible) && index >= maxVisible;
@@ -636,6 +759,8 @@ export async function registerRoutes(app: Express): Promise<void> {
             ownerName,
             pinCount: pins.filter((pin) => pin.approved).length,
             itemType: map.itemType,
+            likeCount: likeCounts[map.id] ?? 0,
+            likedByViewer: viewerLikedMapIds.has(map.id),
             createdAt: map.createdAt,
           };
         }),
@@ -1944,6 +2069,37 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       console.error("Link preview error:", error);
       res.status(500).json({ message: "Failed to fetch a preview for that URL." });
+     }
+  });
+  
+  // Bulk approve, for the pin table's multi-select in "Pending only" view.
+  // Owner-only per pin, same authorization as the single-approve route above,
+  // just applied to each requested id — a request can partially succeed if
+  // some ids belong to a different map (shouldn't happen from the UI, but the
+  // API doesn't assume it).
+  app.post("/api/pins/bulk-approve", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = z.array(z.string()).min(1).max(200).safeParse(req.body?.pinIds);
+      if (!parsed.success) return res.status(400).json({ message: "pinIds must be a non-empty array of pin ids" });
+
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const results = await Promise.all(
+        parsed.data.map(async (id) => {
+          const pin = await storage.getPinById(id);
+          if (!pin) return false;
+          const map = await storage.getMapCollectionById(pin.mapId);
+          if (map?.ownerId !== user.id) return false;
+          return storage.updatePin(id, { approved: true });
+        }),
+      );
+
+      const approvedCount = results.filter(Boolean).length;
+      res.json({ approvedCount, skippedCount: parsed.data.length - approvedCount });
+    } catch (error) {
+      console.error("Error bulk approving pins:", error);
+      res.status(500).json({ message: "Failed to approve pins" });
     }
   });
 

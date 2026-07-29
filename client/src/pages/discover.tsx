@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Compass, Lock, MapPin, X } from "lucide-react";
+import { Compass, Lock, MapPin, Search, X } from "lucide-react";
 import { generateDiscoverCoverUrl } from "@/lib/discover-cover";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS, isCuratedCategory, isCuratedCountry } from "@/lib/curated-maps";
 import { APP_NAME } from "@/lib/branding";
-import type { CuratedCategory, CuratedCountry, ItemType } from "@shared/enums";
+import { LikeButton } from "@/components/like-button";
+import type { CuratedCategory, CuratedCountry } from "@shared/enums";
 
 interface DiscoverMap {
   id: string;
@@ -24,6 +26,9 @@ interface DiscoverMap {
   ownerName: string | null;
   pinCount: number;
   itemType: ItemType;
+  likeCount: number;
+  /** Whether the signed-in viewer has liked this map. Always false for anonymous visitors. */
+  likedByViewer: boolean;
   createdAt: string;
 }
 
@@ -92,7 +97,10 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
             <MapPin className="h-3 w-3" />
             {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
           </span>
-          {map.ownerName && <span>Curated by {map.ownerName}</span>}
+          <div className="flex items-center gap-3">
+            {map.ownerName && <span>Curated by {map.ownerName}</span>}
+            {!map.locked && <LikeButton mapId={map.id} liked={map.likedByViewer} likeCount={map.likeCount} className="text-xs" />}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -109,11 +117,16 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
   );
 }
 
+// Reads the page's initial filter state from the URL (?category=&country=&city=&q=)
+// once at mount, so a shared or bookmarked Discover link reopens to the same view.
+const initialParam = (key: string, fallback: string) => new URLSearchParams(window.location.search).get(key) ?? fallback;
+
 export default function Discover() {
   const [, setLocation] = useLocation();
-  const [category, setCategory] = useState<string>(ALL);
-  const [country, setCountry] = useState<string>(ALL);
-  const [city, setCity] = useState<string>(ALL);
+  const [category, setCategory] = useState<string>(() => initialParam("category", ALL));
+  const [country, setCountry] = useState<string>(() => initialParam("country", ALL));
+  const [city, setCity] = useState<string>(() => initialParam("city", ALL));
+  const [searchQuery, setSearchQuery] = useState<string>(() => initialParam("q", ""));
 
   useEffect(() => {
     document.title = `Discover curated maps — ${APP_NAME}`;
@@ -141,11 +154,33 @@ export default function Discover() {
     if (city !== ALL && !citiesForCountry.includes(city)) setCity(ALL);
   }, [citiesForCountry, city]);
 
-  const hasActiveFilters = category !== ALL || country !== ALL || city !== ALL;
+  // Keeps the URL in sync with the current filters/search so this view is
+  // bookmarkable and shareable — replace (not push) so typing in the search
+  // box doesn't spam browser history with one entry per keystroke.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (category !== ALL) params.set("category", category);
+    if (country !== ALL) params.set("country", country);
+    if (city !== ALL) params.set("city", city);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    const qs = params.toString();
+    setLocation(`/discover${qs ? `?${qs}` : ""}`, { replace: true });
+  }, [category, country, city, searchQuery, setLocation]);
+
+  const filteredMaps = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return data?.maps ?? [];
+    return (data?.maps ?? []).filter(
+      (map) => map.name.toLowerCase().includes(q) || map.curatedTagline?.toLowerCase().includes(q),
+    );
+  }, [data?.maps, searchQuery]);
+
+  const hasActiveFilters = category !== ALL || country !== ALL || city !== ALL || searchQuery.trim().length > 0;
   const clearFilters = () => {
     setCategory(ALL);
     setCountry(ALL);
     setCity(ALL);
+    setSearchQuery("");
   };
 
   return (
@@ -162,6 +197,17 @@ export default function Discover() {
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="relative w-full max-w-64">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search curated maps…"
+            className="pl-9"
+            data-testid="input-discover-search"
+          />
+        </div>
+
         <Select value={category} onValueChange={setCategory}>
           <SelectTrigger className="w-48" data-testid="select-discover-category">
             <SelectValue placeholder="Category" />
@@ -224,10 +270,16 @@ export default function Discover() {
           <h3 className="text-base font-medium text-foreground mb-1">No curated maps match these filters yet</h3>
           <p className="text-sm text-muted-foreground">Try a different category or city, or check back soon.</p>
         </div>
+      ) : filteredMaps.length === 0 ? (
+        <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-muted/30" data-testid="discover-no-search-results">
+          <Search className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+          <h3 className="text-base font-medium text-foreground mb-1">No curated maps match "{searchQuery}"</h3>
+          <p className="text-sm text-muted-foreground">Try a different search, or clear it to browse everything.</p>
+        </div>
       ) : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {data.maps.map((map) => (
+            {filteredMaps.map((map) => (
               <DiscoverCard key={map.id} map={map} />
             ))}
           </div>

@@ -263,6 +263,49 @@ export function PinTable({
     },
   });
 
+  // Patches approved pins directly into this map's cached query data. A
+  // plain invalidateQueries() here doesn't reliably trigger a visible
+  // refetch of the currently-mounted map-detail query (observed empirically:
+  // the invalidated query's refetch never resolves when called from inside
+  // a mutation's onSuccess), so we update the cache with the known-correct
+  // result instead of waiting on a refetch that may never land.
+  const markPinsApproved = (approvedShareUrl: string | undefined, approvedPinIds: string[]) => {
+    if (!approvedShareUrl) return;
+    const idSet = new Set(approvedPinIds);
+    queryClient.setQueryData([`/api/maps/${approvedShareUrl}`], (old: unknown) => {
+      if (!old || typeof old !== "object" || !("pins" in old)) return old;
+      const typed = old as { pins: Pin[] };
+      return { ...typed, pins: typed.pins.map((p) => (idSet.has(p.id) ? { ...p, approved: true } : p)) };
+    });
+  };
+
+  const bulkApprovePinsMutation = useMutation({
+    mutationFn: async (pinIds: string[]) => {
+      const response = await apiRequest("POST", "/api/pins/bulk-approve", { pinIds });
+      return response.json() as Promise<{ approvedCount: number; skippedCount: number }>;
+    },
+    onSuccess: (result, pinIds) => {
+      setSelectedPinIds(new Set());
+      toast({
+        title: result.approvedCount === 1 ? "Pin approved" : `${result.approvedCount} pins approved`,
+        description:
+          result.skippedCount > 0
+            ? `${result.skippedCount} pin${result.skippedCount === 1 ? "" : "s"} couldn't be approved.`
+            : "They're now visible to everyone on this map.",
+        variant: result.approvedCount > 0 ? "success" : "destructive",
+      });
+      markPinsApproved(shareUrl, pinIds);
+      queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve pins",
+        variant: "destructive",
+      });
+    },
+  });
+
   const togglePinSelected = (pinId: string) => {
     setSelectedPinIds((prev) => {
       const next = new Set(prev);
@@ -280,19 +323,22 @@ export function PinTable({
     }
   };
 
+  const handleBulkApprove = (pendingIds: string[]) => {
+    if (pendingIds.length === 0) return;
+    bulkApprovePinsMutation.mutate(pendingIds);
+  };
+
   const approvePinMutation = useMutation({
     mutationFn: async (pinId: string) => {
       await apiRequest("PUT", `/api/pins/${pinId}/approve`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, pinId) => {
       toast({
         title: "Pin approved",
         description: "It's now visible to everyone on this map.",
         variant: "success",
       });
-      if (shareUrl) {
-        queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
-      }
+      markPinsApproved(shareUrl, [pinId]);
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
     },
     onError: (error: any) => {
@@ -330,6 +376,9 @@ export function PinTable({
   // that silently no-ops on some selections would be confusing.
   const selectablePinIds = filteredPins.filter(canDeletePin).map((pin) => pin.id);
   const allSelected = selectablePinIds.length > 0 && selectablePinIds.every((id) => selectedPinIds.has(id));
+  const selectedPendingIds = isOwner
+    ? pins.filter((pin) => selectedPinIds.has(pin.id) && pin.approved === false).map((pin) => pin.id)
+    : [];
 
   const toggleSelectAll = () => {
     setSelectedPinIds((prev) => {
@@ -463,6 +512,23 @@ export function PinTable({
                   <X className="h-3.5 w-3.5 mr-1" />
                   Clear
                 </Button>
+                {selectedPendingIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 min-h-0 px-2.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                    onClick={() => handleBulkApprove(selectedPendingIds)}
+                    disabled={bulkApprovePinsMutation.isPending}
+                    data-testid="button-bulk-approve-pins"
+                  >
+                    {bulkApprovePinsMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Approve selected{selectedPendingIds.length < selectedPinIds.size ? ` (${selectedPendingIds.length})` : ""}
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   size="sm"
