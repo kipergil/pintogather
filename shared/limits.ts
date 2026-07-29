@@ -27,7 +27,10 @@ export const TIER_LIMITS: Record<
     aiSuggestionsPerDay: 3,
     customBranding: false,
     maxCollaboratorsPerMap: 2,
-    screenshotImport: false,
+    // Deliberately on for free accounts: extracting items from a screenshot
+    // is the product's headline trick, and a lock icon sells it far worse
+    // than actually doing it once. aiSuggestionsPerDay still caps the cost.
+    screenshotImport: true,
     mapArchiving: false,
     pinCustomization: false,
     maxCuratedMapsVisible: 3,

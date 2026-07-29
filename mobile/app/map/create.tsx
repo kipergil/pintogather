@@ -137,7 +137,8 @@ export default function CreateMapScreen() {
         defaultPinIcon: hasPinCustomization ? defaultPinIcon : null,
         itemType,
       });
-      router.replace(`/map/${map.shareUrl}`);
+      // Straight into adding items, not an empty collection — same as web.
+      router.replace(`/map/import/${map.shareUrl}`);
     } catch (err: any) {
       setError(err?.message ?? "Couldn't create the map.");
       setUpgradeable(isUpgradeableError(err));

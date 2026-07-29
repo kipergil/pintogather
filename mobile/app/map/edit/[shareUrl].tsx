@@ -281,7 +281,7 @@ export default function EditMapScreen() {
           </Button>
           <Link href={`/map/import/${shareUrl}`} asChild>
             <Button variant="outline" testID="button-open-import">
-              Import pins from a list
+              Add items in bulk
             </Button>
           </Link>
           <Link href={`/map/pins/${shareUrl}`} asChild>

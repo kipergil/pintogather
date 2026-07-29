@@ -19,10 +19,32 @@ export const queryClient = client.queryClient;
  * Native's fetch needs the `{ uri, name, type }` file-object shape instead
  * of a browser File/Blob.
  */
-export async function apiUpload(path: string, file: { uri: string; name: string; mimeType: string }): Promise<Response> {
+export interface UploadFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+
+export async function apiUpload(
+  path: string,
+  file: UploadFile | UploadFile[],
+  fields?: Record<string, string>,
+): Promise<Response> {
   const token = await getClerkToken();
   const formData = new FormData();
-  formData.append("file", { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
+  // One file goes up as "file" (what every existing endpoint expects);
+  // several go up as repeated "files" entries, matching the web client and
+  // the extraction endpoint's array field.
+  const asBlob = (entry: UploadFile) =>
+    ({ uri: entry.uri, name: entry.name, type: entry.mimeType }) as unknown as Blob;
+  if (Array.isArray(file)) {
+    for (const entry of file) formData.append("files", asBlob(entry));
+  } else {
+    formData.append("file", asBlob(file));
+  }
+  if (fields) {
+    for (const [key, value] of Object.entries(fields)) formData.append(key, value);
+  }
 
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",

@@ -19,7 +19,7 @@ import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
 import { getUserByUsername, searchUsers, getAllPublicUsernames } from "./services/users.js";
-import { USER_GROUP } from "../shared/enums.js";
+import { USER_GROUP, type ItemType } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
 import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js";
@@ -40,18 +40,107 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 const VENUE_SUGGESTIONS_MODEL = "claude-haiku-4-5-20251001";
-const VENUE_SUGGESTIONS_SYSTEM_PROMPT =
-  "You suggest real, specific, well-known venues or places for a collaborative map-pinning app. " +
-  "Given the user's theme, respond with ONLY a JSON array of up to 15 strings — no explanation, no markdown fences. " +
-  "Each string must be a real place specific enough to find on Google Maps; include the city or neighborhood in " +
-  "the name if it helps disambiguate (e.g. \"Ichiran Ramen Shibuya\" rather than just \"Ichiran\").";
-const VENUE_SCREENSHOT_SYSTEM_PROMPT =
-  "You extract real, specific, well-known venues or places mentioned or shown in an image for a collaborative " +
-  "map-pinning app. The image may be a screenshot of a text conversation, a social media post, a list, or a photo " +
-  "with visible signage — find every distinct venue or place name in it. Respond with ONLY a JSON array of up to 15 " +
-  "strings — no explanation, no markdown fences. Each string must be a real place specific enough to find on Google " +
-  "Maps; include the city or neighborhood in the name if it helps disambiguate (e.g. \"Ichiran Ramen Shibuya\" rather " +
-  "than just \"Ichiran\"). If the image contains no identifiable venues or places, respond with an empty JSON array.";
+
+/**
+ * Extraction prompts per collection item type. All three return the same
+ * JSON-object shape so the client's staging pipeline can treat every source
+ * (prompt, screenshot, pasted text) identically — `name` is the only
+ * required key, `url`/`note` fill in when the source actually carries them.
+ */
+const EXTRACT_SHAPE_INSTRUCTION =
+  'Respond with ONLY a JSON array of up to 15 objects — no explanation, no markdown fences. Each object has ' +
+  '"name" (required, a short title) and optionally "url" (an absolute http/https link) and "note" (one sentence ' +
+  "of context). Omit a key entirely rather than sending an empty string. If you find nothing, respond with [].";
+
+const EXTRACT_SYSTEM_PROMPTS: Record<ItemType, { fromPrompt: string; fromImages: string }> = {
+  location: {
+    fromPrompt:
+      "You suggest real, specific, well-known venues or places for a collaborative map-pinning app. Given the " +
+      'user\'s theme, each "name" must be a real place specific enough to find on Google Maps; include the city ' +
+      'or neighborhood if it helps disambiguate (e.g. "Ichiran Ramen Shibuya" rather than just "Ichiran"). ' +
+      EXTRACT_SHAPE_INSTRUCTION,
+    fromImages:
+      "You extract real, specific venues or places mentioned or shown in images for a collaborative map-pinning " +
+      "app. The images may be screenshots of a text conversation, a social media post, a list, or photos with " +
+      'visible signage — find every distinct venue or place across all of them. Each "name" must be specific ' +
+      'enough to find on Google Maps; include the city or neighborhood if it helps disambiguate (e.g. "Ichiran ' +
+      'Ramen Shibuya" rather than just "Ichiran"). ' +
+      EXTRACT_SHAPE_INSTRUCTION,
+  },
+  link: {
+    fromPrompt:
+      "You suggest real, specific web pages, articles, or resources for a collection of saved links. Given the " +
+      'user\'s theme, each object should carry a "url" pointing at a real, canonical page you are confident ' +
+      'exists, a "name" that is the page\'s actual title, and a "note" saying why it is worth reading. Never ' +
+      "invent a URL you are not confident about — omit the url rather than guessing. " +
+      EXTRACT_SHAPE_INSTRUCTION,
+    fromImages:
+      "You extract web links and the pages they point at from images for a collection of saved links. The images " +
+      "may be screenshots of a browser, a chat, a bookmarks list, or a social feed — find every distinct URL or " +
+      'clearly-identified page. Put the link in "url" (reconstruct it exactly as shown; do not guess at parts ' +
+      'that are cut off), the page or post title in "name", and any visible context in "note". ' +
+      EXTRACT_SHAPE_INSTRUCTION,
+  },
+  recommendation: {
+    fromPrompt:
+      "You suggest specific things a person could recommend to others — books, films, products, tools, dishes, " +
+      'anything nameable — for a free-form recommendations list. Given the user\'s theme, "name" is the thing ' +
+      'itself and "note" is a short reason it is worth recommending. Include a "url" only when there is an ' +
+      "obvious canonical page for it. " +
+      EXTRACT_SHAPE_INSTRUCTION,
+    fromImages:
+      "You extract recommendable things — books, films, products, tools, dishes, places, anything nameable — " +
+      "mentioned or shown in images, for a free-form recommendations list. The images may be screenshots of a " +
+      'conversation, a list, a shelf, a menu, or a social post. "name" is the thing itself, "note" is any ' +
+      "visible context about why it came up. " +
+      EXTRACT_SHAPE_INSTRUCTION,
+  },
+};
+
+/** One extracted candidate, before the client resolves it against Google Places / a link preview. */
+interface ExtractedItem {
+  name: string;
+  url?: string;
+  note?: string;
+}
+
+/**
+ * Parses Claude's reply into ExtractedItems. Accepts both the object array
+ * the prompts ask for and a bare string array, since older clients and the
+ * occasional stubborn model response still produce the latter.
+ */
+function parseExtractedItems(raw: string): ExtractedItem[] {
+  let parsed: unknown;
+  try {
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  const items: ExtractedItem[] = [];
+  for (const entry of parsed) {
+    if (typeof entry === "string") {
+      const name = entry.trim();
+      if (name) items.push({ name });
+      continue;
+    }
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    if (!name) continue;
+    const item: ExtractedItem = { name };
+    // Only absolute http(s) URLs survive — a relative or malformed one would
+    // just fail the client's preview fetch with a confusing error later.
+    if (typeof record.url === "string" && /^https?:\/\/\S+$/i.test(record.url.trim())) {
+      item.url = record.url.trim();
+    }
+    if (typeof record.note === "string" && record.note.trim()) item.note = record.note.trim();
+    items.push(item);
+  }
+  return items;
+}
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
@@ -1708,7 +1797,17 @@ export async function registerRoutes(app: Express): Promise<void> {
       const maxPins = await getMapOwnerMaxPins(mapCollection);
       const currentPinCount = (await storage.getPinsByMapId(mapCollection.id)).length;
 
-      const { pins } = bulkInsertPinsSchema.parse(req.body);
+      // itemType has to be stamped on *before* validation, not after: the
+      // schema's geo refinement treats a missing itemType as "location" and
+      // would reject an entire link/recommendation batch for having no
+      // coordinates, which those types never have.
+      const { pins } = bulkInsertPinsSchema.parse({
+        pins: Array.isArray(req.body?.pins)
+          ? req.body.pins.map((pin: unknown) =>
+              pin && typeof pin === "object" ? { ...pin, itemType: mapCollection.itemType } : pin,
+            )
+          : req.body?.pins,
+      });
       const data = pins.map((pin) => ({
         ...pin,
         mapId: mapCollection.id,
@@ -1765,6 +1864,11 @@ export async function registerRoutes(app: Express): Promise<void> {
   // AI-assisted import: turns a free-text theme ("best ramen spots in
   // Tokyo") into up to 15 candidate venue names, which the client then runs
   // through the exact same search/review/import pipeline as a pasted list.
+  /**
+   * Suggest items from a text prompt. What "an item" means depends on the
+   * collection's own itemType, so a link collection gets pages and a
+   * recommendation collection gets things — not venue names for everything.
+   */
   app.post("/api/maps/:shareUrl/venue-suggestions", isAuthenticated, async (req, res) => {
     try {
       if (!anthropic) {
@@ -1779,147 +1883,170 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
 
       const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-      if (!prompt) return res.status(400).json({ message: "Describe what kind of places you're looking for" });
+      if (!prompt) return res.status(400).json({ message: "Describe what kind of items you're looking for" });
       if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
 
       const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
       if (!usage.allowed) {
         return res.status(429).json({
-          message: `You've used all ${usage.limit} AI suggestion generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
+          message: `You've used all ${usage.limit} AI generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
           limit: usage.limit,
           used: usage.used,
         });
       }
 
+      const itemType: ItemType = mapCollection.itemType ?? "location";
       const message = await anthropic.messages.create({
         model: VENUE_SUGGESTIONS_MODEL,
         max_tokens: 1024,
-        system: VENUE_SUGGESTIONS_SYSTEM_PROMPT,
+        system: EXTRACT_SYSTEM_PROMPTS[itemType].fromPrompt,
         messages: [{ role: "user", content: prompt }],
       });
 
       const textBlock = message.content.find((block) => block.type === "text");
-      const raw = textBlock?.type === "text" ? textBlock.text : "";
+      const items = parseExtractedItems(textBlock?.type === "text" ? textBlock.text : "");
 
-      let suggestions: string[] = [];
-      try {
-        const jsonMatch = raw.match(/\[[\s\S]*\]/);
-        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
-        if (Array.isArray(parsed)) {
-          suggestions = parsed
-            .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-            .map((item) => item.trim());
-        }
-      } catch {
-        // suggestions stays empty; handled below
-      }
-
-      if (suggestions.length === 0) {
+      if (items.length === 0) {
         return res.status(502).json({ message: "Couldn't generate suggestions — try rephrasing your prompt." });
       }
 
-      res.json({ suggestions: suggestions.slice(0, 15), usage: { used: usage.used, limit: usage.limit } });
+      res.json({
+        items: items.slice(0, 15),
+        // Retained so an older client still reading `suggestions` keeps working.
+        suggestions: items.slice(0, 15).map((item) => item.name),
+        usage: { used: usage.used, limit: usage.limit },
+      });
     } catch (error) {
-      console.error("Venue suggestion error:", error);
+      console.error("Item suggestion error:", error);
       res.status(500).json({ message: "Failed to generate suggestions" });
     }
   });
 
+  /**
+   * Extract items from one or more uploaded images. Accepts the modern
+   * `files` field (up to 4 images) and the original single `file` field, so
+   * the older single-screenshot clients keep working unchanged.
+   */
+  const extractFromImages: (req: Request, res: Response) => Promise<void> = async (req, res) => {
+    try {
+      if (!anthropic) {
+        res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
+        return;
+      }
+
+      const user = await getCurrentUser(req);
+      if (!user) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (!TIER_LIMITS[user.userGroup].screenshotImport) {
+        res.status(403).json({
+          message: `Image-based AI import isn't available on the ${user.userGroup} plan. Upgrade at /pricing to use it.`,
+        });
+        return;
+      }
+
+      const { shareUrl } = req.params;
+      const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
+      if (!mapCollection) {
+        res.status(404).json({ message: "Map collection not found" });
+        return;
+      }
+
+      const files = (req.files as Express.Multer.File[] | undefined) ?? (req.file ? [req.file] : []);
+      if (files.length === 0) {
+        res.status(400).json({ message: "No image uploaded" });
+        return;
+      }
+
+      const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+      if (prompt.length > 300) {
+        res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
+        return;
+      }
+
+      // One charge per request regardless of image count — the batch is a
+      // single generation from the user's point of view.
+      const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
+      if (!usage.allowed) {
+        res.status(429).json({
+          message: `You've used all ${usage.limit} AI generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
+          limit: usage.limit,
+          used: usage.used,
+        });
+        return;
+      }
+
+      await Promise.all(files.map((file) => storage.uploadVenueScreenshot(user.id, file)));
+
+      const itemType: ItemType = mapCollection.itemType ?? "location";
+      const message = await anthropic.messages.create({
+        model: VENUE_SUGGESTIONS_MODEL,
+        max_tokens: 1024,
+        system: EXTRACT_SYSTEM_PROMPTS[itemType].fromImages,
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...files.map((file) => ({
+                type: "image" as const,
+                source: {
+                  type: "base64" as const,
+                  media_type: file.mimetype as "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+                  data: file.buffer.toString("base64"),
+                },
+              })),
+              {
+                type: "text" as const,
+                text: prompt || `Find everything relevant across ${files.length === 1 ? "this image" : "these images"}.`,
+              },
+            ],
+          },
+        ],
+      });
+
+      const textBlock = message.content.find((block) => block.type === "text");
+      const items = parseExtractedItems(textBlock?.type === "text" ? textBlock.text : "");
+
+      if (items.length === 0) {
+        res.status(502).json({ message: "Couldn't find anything in that image — try a clearer one." });
+        return;
+      }
+
+      res.json({
+        items: items.slice(0, 15),
+        suggestions: items.slice(0, 15).map((item) => item.name),
+        usage: { used: usage.used, limit: usage.limit },
+      });
+    } catch (error) {
+      console.error("Image extraction error:", error);
+      res.status(500).json({ message: "Failed to extract items from those images" });
+    }
+  };
+
+  const acceptExtractionImages = (req: Request, res: Response, next: NextFunction) => {
+    const handler = screenshotUpload.fields([
+      { name: "files", maxCount: 4 },
+      { name: "file", maxCount: 1 },
+    ]);
+    handler(req, res, (error: unknown) => {
+      if (error) return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid upload" });
+      // .fields() gives a name-keyed record; flatten it so the handler sees a
+      // plain array whichever field name the client used.
+      const grouped = req.files as Record<string, Express.Multer.File[]> | undefined;
+      if (grouped) req.files = [...(grouped.files ?? []), ...(grouped.file ?? [])];
+      next();
+    });
+  };
+
+  app.post("/api/maps/:shareUrl/extract-items", isAuthenticated, acceptExtractionImages, extractFromImages);
+  // Original path, kept so already-deployed clients don't break.
   app.post(
     "/api/maps/:shareUrl/venue-suggestions/from-screenshot",
     isAuthenticated,
-    (req, res, next) => {
-      screenshotUpload.single("file")(req, res, (error: unknown) => {
-        if (error) return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid upload" });
-        next();
-      });
-    },
-    async (req, res) => {
-      try {
-        if (!anthropic) {
-          return res.status(503).json({ message: "AI suggestions aren't configured yet — ask an admin to set ANTHROPIC_API_KEY." });
-        }
-
-        const user = await getCurrentUser(req);
-        if (!user) return res.status(401).json({ message: "Unauthorized" });
-
-        if (!TIER_LIMITS[user.userGroup].screenshotImport) {
-          return res.status(403).json({
-            message: `Screenshot-based AI import isn't available on the ${user.userGroup} plan. Upgrade at /pricing to use it.`,
-          });
-        }
-
-        const { shareUrl } = req.params;
-        const mapCollection = await storage.getMapCollectionByShareUrl(shareUrl);
-        if (!mapCollection) return res.status(404).json({ message: "Map collection not found" });
-
-        if (!req.file) return res.status(400).json({ message: "No screenshot uploaded" });
-
-        const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-        if (prompt.length > 300) return res.status(400).json({ message: "Prompt is too long (max 300 characters)" });
-
-        const usage = await checkAndIncrementAiUsage(user.id, user.userGroup);
-        if (!usage.allowed) {
-          return res.status(429).json({
-            message: `You've used all ${usage.limit} AI suggestion generations for today. Upgrade at /pricing for more, or try again tomorrow.`,
-            limit: usage.limit,
-            used: usage.used,
-          });
-        }
-
-        await storage.uploadVenueScreenshot(user.id, req.file);
-
-        const message = await anthropic.messages.create({
-          model: VENUE_SUGGESTIONS_MODEL,
-          max_tokens: 1024,
-          system: VENUE_SCREENSHOT_SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: req.file.mimetype as "image/png" | "image/jpeg" | "image/webp" | "image/gif",
-                    data: req.file.buffer.toString("base64"),
-                  },
-                },
-                {
-                  type: "text",
-                  text: prompt || "Find every venue or place mentioned or shown in this image.",
-                },
-              ],
-            },
-          ],
-        });
-
-        const textBlock = message.content.find((block) => block.type === "text");
-        const raw = textBlock?.type === "text" ? textBlock.text : "";
-
-        let suggestions: string[] = [];
-        try {
-          const jsonMatch = raw.match(/\[[\s\S]*\]/);
-          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
-          if (Array.isArray(parsed)) {
-            suggestions = parsed
-              .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-              .map((item) => item.trim());
-          }
-        } catch {
-          // suggestions stays empty; handled below
-        }
-
-        if (suggestions.length === 0) {
-          return res.status(502).json({ message: "Couldn't find any venues in that screenshot — try a clearer image." });
-        }
-
-        res.json({ suggestions: suggestions.slice(0, 15), usage: { used: usage.used, limit: usage.limit } });
-      } catch (error) {
-        console.error("Screenshot venue suggestion error:", error);
-        res.status(500).json({ message: "Failed to generate suggestions from screenshot" });
-      }
-    },
+    acceptExtractionImages,
+    extractFromImages,
   );
 
   app.get("/api/pins/:id", async (req, res) => {
