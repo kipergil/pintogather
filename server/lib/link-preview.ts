@@ -52,12 +52,12 @@ function isPrivateIPv6(ip: string): boolean {
   return false;
 }
 
-function isPrivateAddress(ip: string): boolean {
+export function isPrivateAddress(ip: string): boolean {
   return isIP(ip) === 6 ? isPrivateIPv6(ip) : isPrivateIPv4(ip);
 }
 
 /** Resolves the hostname and rejects it if any resolved address is private/internal — the actual SSRF guard, since checking the URL string alone can't catch DNS rebinding to an internal IP. */
-async function assertPublicHost(hostname: string): Promise<void> {
+export async function assertPublicHost(hostname: string): Promise<void> {
   if (isIP(hostname)) {
     if (isPrivateAddress(hostname)) throw new LinkPreviewError("That URL points to a private address.");
     return;
@@ -75,7 +75,7 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-function assertFetchableUrl(url: URL): void {
+export function assertFetchableUrl(url: URL): void {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new LinkPreviewError("Only http/https URLs are supported.");
   }
@@ -174,7 +174,7 @@ function extractMetaContent(html: string, attr: "property" | "name", key: string
   return raw ? decodeHtmlEntities(raw.trim()) : null;
 }
 
-function parseHtmlPreview(html: string, finalUrl: URL): LinkPreview {
+export function parseHtmlPreview(html: string, finalUrl: URL): LinkPreview {
   // Only the <head> is relevant and it keeps the regexes above from ever
   // scanning a multi-megabyte <body> (already capped, but this is cheap
   // insurance against a pathological head-less page).
