@@ -31,7 +31,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Read from .nvmrc rather than pinned here, so CI and local can't
+          # drift apart. The floor is real: jsdom pulls in undici@8, which
+          # needs node >= 22.19 for worker_threads.markAsUncloneable — on
+          # Node 20 every jsdom test file fails to start its worker.
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -44,7 +48,10 @@ jobs:
         run: npm run check
 
       - name: Test
-        run: npm run test -- --reporter=default --reporter=junit --outputFile=test-results.xml
+        # Coverage runs here rather than in a second job: a separate job meant
+        # doubling checkout+install for a number nobody blocks on, and its
+        # red X read like a real failure.
+        run: npm run test -- --coverage --reporter=default --reporter=junit --outputFile=test-results.xml
 
       - name: Build
         run: npm run build
@@ -58,35 +65,13 @@ jobs:
         # it is, typecheck is the mobile app's gate.
         run: npm --prefix mobile run check
 
-      - name: Upload test results
-        # Publish the report even when tests fail — that's exactly when it's
-        # worth reading.
+      - name: Upload test results and coverage
+        # Publish even when tests fail — that's exactly when it's worth reading.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: test-results.xml
-          if-no-files-found: ignore
-
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Informational for now: no threshold is enforced, so this reports the
-    # number without being able to block a merge on it.
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:coverage
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage
-          path: coverage/
+          path: |
+            test-results.xml
+            coverage/
           if-no-files-found: ignore
