@@ -230,11 +230,12 @@ export default function MapDetail({ params }: MapDetailProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-3">
           <button
             onClick={() => setLocation("/")}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background hover:bg-accent transition-colors"
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 hover:bg-accent transition-colors"
             aria-label="Back to home"
             data-testid="button-back-to-home"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="text-sm font-medium">Back</span>
           </button>
           <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
             <span
