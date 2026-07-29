@@ -1917,6 +1917,37 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Bulk approve, for the pin table's multi-select in "Pending only" view.
+  // Owner-only per pin, same authorization as the single-approve route above,
+  // just applied to each requested id — a request can partially succeed if
+  // some ids belong to a different map (shouldn't happen from the UI, but the
+  // API doesn't assume it).
+  app.post("/api/pins/bulk-approve", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = z.array(z.string()).min(1).max(200).safeParse(req.body?.pinIds);
+      if (!parsed.success) return res.status(400).json({ message: "pinIds must be a non-empty array of pin ids" });
+
+      const user = await getCurrentUser(req);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+      const results = await Promise.all(
+        parsed.data.map(async (id) => {
+          const pin = await storage.getPinById(id);
+          if (!pin) return false;
+          const map = await storage.getMapCollectionById(pin.mapId);
+          if (map?.ownerId !== user.id) return false;
+          return storage.updatePin(id, { approved: true });
+        }),
+      );
+
+      const approvedCount = results.filter(Boolean).length;
+      res.json({ approvedCount, skippedCount: parsed.data.length - approvedCount });
+    } catch (error) {
+      console.error("Error bulk approving pins:", error);
+      res.status(500).json({ message: "Failed to approve pins" });
+    }
+  });
+
   // --- Reverse geocoding (OpenStreetMap Nominatim) ---------------------------------
 
   app.get("/api/geocode", async (req, res) => {
