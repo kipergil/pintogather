@@ -122,6 +122,10 @@ export default function MapDetail({ params }: MapDetailProps) {
     }
   }, [mapCollection, search]);
 
+  // Deep link from the home page's pending-approvals banner/badge
+  // (?pinFilter=pending) — seeds PinTable's approval filter once on load.
+  const initialApprovalFilter = new URLSearchParams(search).get("pinFilter") === "pending" ? "pending" : undefined;
+
   const restoreMapMutation = useMutation({
     mutationFn: async (mapId: string) => {
       const response = await apiRequest("POST", "/api/maps/unarchive", { mapIds: [mapId] });
@@ -387,6 +391,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               noteLabel={mapCollection.noteLabel}
               onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
               headerActionsSlot={pinHeaderSlot}
+              initialApprovalFilter={initialApprovalFilter}
             />
           </CardContent>
         </Card>

@@ -71,6 +71,7 @@ interface Pin {
 }
 
 type ContributorFilter = "all" | "mine" | "others";
+type ApprovalFilter = "all" | "pending" | "approved";
 
 interface PinTableProps {
   pins: Pin[];
@@ -84,6 +85,8 @@ interface PinTableProps {
   onPinSelect?: (pinId: string) => void;
   /** When set, the selected-pins bar (count + Clear/Delete) renders here instead of inline above the pin list — lets the parent place it next to the "Pins" title instead of pushing the list down. */
   headerActionsSlot?: HTMLElement | null;
+  /** Seeds the approval-status filter on mount, e.g. from a `?pinFilter=pending` deep link. Owner-only filter, ignored otherwise. */
+  initialApprovalFilter?: ApprovalFilter;
 }
 
 function SocialLinks({ pin }: { pin: Pin }) {
@@ -151,11 +154,21 @@ function NoteContent({ label, note }: { label: string; note: string }) {
   );
 }
 
-export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect, headerActionsSlot }: PinTableProps) {
+export function PinTable({
+  pins,
+  mapOwnerId,
+  shareUrl,
+  noteLabel,
+  readOnly = false,
+  onPinSelect,
+  headerActionsSlot,
+  initialApprovalFilter,
+}: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [contributorFilter, setContributorFilter] = useState<ContributorFilter>("all");
+  const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>(initialApprovalFilter ?? "all");
   const [selectedPinIds, setSelectedPinIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -287,7 +300,16 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     },
   });
 
-  const contributorFilteredPins = pins.filter((pin) => {
+  const hasPendingPins = isOwner && pins.some((pin) => pin.approved === false);
+
+  const approvalFilteredPins = pins.filter((pin) => {
+    if (!isOwner) return true;
+    if (approvalFilter === "pending") return pin.approved === false;
+    if (approvalFilter === "approved") return pin.approved !== false;
+    return true;
+  });
+
+  const contributorFilteredPins = approvalFilteredPins.filter((pin) => {
     if (contributorFilter === "mine") return !!user && pin.userId === user.id;
     if (contributorFilter === "others") return !user || pin.userId !== user.id;
     return true;
@@ -327,6 +349,19 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {hasPendingPins && (
+            <Select value={approvalFilter} onValueChange={(v) => setApprovalFilter(v as ApprovalFilter)}>
+              <SelectTrigger className="h-9 w-36" data-testid="select-approval-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending only</SelectItem>
+                <SelectItem value="approved">Approved only</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           {!readOnly && user && (
             <Select value={contributorFilter} onValueChange={(v) => setContributorFilter(v as ContributorFilter)}>
               <SelectTrigger className="h-9 w-40" data-testid="select-contributor-filter">

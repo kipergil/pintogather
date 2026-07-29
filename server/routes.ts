@@ -869,8 +869,10 @@ export async function registerRoutes(app: Express): Promise<void> {
       const mapsWithPinCount = await Promise.all(
         maps.map(async (map) => {
           const pins = await storage.getPinsByMapId(map.id);
-          const visibleCount = map.ownerId === user.id ? pins.length : pins.filter((pin) => pin.approved).length;
-          return { ...map, pinCount: visibleCount };
+          const isOwner = map.ownerId === user.id;
+          const visibleCount = isOwner ? pins.length : pins.filter((pin) => pin.approved).length;
+          const pendingPinCount = isOwner ? pins.filter((pin) => pin.approved === false).length : 0;
+          return { ...map, pinCount: visibleCount, pendingPinCount };
         }),
       );
       res.json(mapsWithPinCount);
