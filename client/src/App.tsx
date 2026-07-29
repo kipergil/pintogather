@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { APP_NAME } from "@/lib/branding";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -29,7 +29,7 @@ import SearchPage from "@/pages/search";
 import PublicProfilePage from "@/pages/public-profile";
 import Auth from "@/pages/auth";
 import EditPin from "@/pages/edit-pin";
-import ImportPins from "@/pages/import-pins";
+import AddItems from "@/pages/add-items";
 import AcceptInvitation from "@/pages/accept-invitation";
 import AdminPage from "@/pages/admin";
 import AdminCurateMap from "@/pages/admin-curate-map";
@@ -59,7 +59,11 @@ function Router() {
       <Route path="/u/:username" component={PublicProfilePage} />
       <Route path="/map/new" component={MapForm} />
       <Route path="/map/:shareUrl/edit-pin/:pinId" component={EditPin} />
-      <Route path="/map/:shareUrl/import" component={ImportPins} />
+      <Route path="/map/:shareUrl/add" component={AddItems} />
+      {/* Old name for the add hub — kept so existing links and bookmarks still land somewhere useful. */}
+      <Route path="/map/:shareUrl/import">
+        {(params) => <Redirect to={`/map/${params.shareUrl}/add`} replace />}
+      </Route>
       <Route path="/map/:shareUrl/edit" component={MapForm} />
       <Route path="/map/:shareUrl" component={MapDetail} />
       <Route path="/invitations/:token" component={AcceptInvitation} />
