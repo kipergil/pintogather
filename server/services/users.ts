@@ -109,6 +109,21 @@ export async function searchUsers(query: string): Promise<User[]> {
   return (rows as DirectusUser[]).map(toDomainUser);
 }
 
+/** Every claimed username, system-wide — powers the sitemap's public-profile entries (same discoverability bar as GET /api/profile/:username: a claimed username is the only gate). */
+export async function getAllPublicUsernames(): Promise<string[]> {
+  const client = getServiceDirectusClient();
+  const rows = await client.request(
+    readUsers({
+      filter: { username: { _nnull: true } },
+      fields: ["username"],
+      limit: -1,
+    }),
+  );
+  return (rows as Array<{ username: string | null }>)
+    .map((row) => row.username)
+    .filter((username): username is string => !!username);
+}
+
 export async function getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
   const client = getServiceDirectusClient();
   const rows = await client.request(
