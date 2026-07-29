@@ -125,6 +125,7 @@ export function FolderBrowser<TMap extends { folderId?: string | null }>({
         </Button>
       </div>
 
+      {childFolders.length > 0 && (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mb-5">
         {childFolders.map((folder) => (
             <div
@@ -175,17 +176,8 @@ export function FolderBrowser<TMap extends { folderId?: string | null }>({
               </DropdownMenu>
             </div>
           ))}
-          <button
-            className="flex items-center gap-2.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5"
-            onClick={() => openCreate(currentFolderId)}
-            data-testid="tile-new-folder"
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-              <FolderPlus className="h-4 w-4" />
-            </div>
-            <span className="text-sm font-medium">New folder</span>
-          </button>
       </div>
+      )}
 
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
         {currentFolderId === null ? "Unfiled maps" : "Maps in this folder"}

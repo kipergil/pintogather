@@ -95,6 +95,9 @@ export default function MapDetail({ params }: MapDetailProps) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ pinId: string; nonce: number } | null>(null);
+  // Portal target for PinTable's selected-pins bar, so it renders next to
+  // the "Pins" title instead of pushing the pin list down when pins are selected.
+  const [pinHeaderSlot, setPinHeaderSlot] = useState<HTMLDivElement | null>(null);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -376,6 +379,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                   </Badge>
                 )}
               </h2>
+              <div ref={setPinHeaderSlot} className="flex items-center" />
             </div>
             <PinTable
               pins={mapCollection.pins}
@@ -383,6 +387,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               shareUrl={mapCollection.shareUrl}
               noteLabel={mapCollection.noteLabel}
               onPinSelect={(pinId) => setFocusRequest({ pinId, nonce: Date.now() })}
+              headerActionsSlot={pinHeaderSlot}
             />
           </CardContent>
         </Card>

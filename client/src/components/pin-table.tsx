@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,8 @@ interface PinTableProps {
   readOnly?: boolean;
   /** Called when a row is clicked, so the map can pan/zoom to that pin. */
   onPinSelect?: (pinId: string) => void;
+  /** When set, the selected-pins bar (count + Clear/Delete) renders here instead of inline above the pin list — lets the parent place it next to the "Pins" title instead of pushing the list down. */
+  headerActionsSlot?: HTMLElement | null;
 }
 
 const AVATAR_PALETTE = [
@@ -164,7 +167,7 @@ function NoteContent({ label, note }: { label: string; note: string }) {
   );
 }
 
-export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect }: PinTableProps) {
+export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = false, onPinSelect, headerActionsSlot }: PinTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -339,7 +342,7 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
           {!readOnly && user && (
             <Select value={contributorFilter} onValueChange={(v) => setContributorFilter(v as ContributorFilter)}>
               <SelectTrigger className="h-9 w-40" data-testid="select-contributor-filter">
@@ -352,102 +355,111 @@ export function PinTable({ pins, mapOwnerId, shareUrl, noteLabel, readOnly = fal
               </SelectContent>
             </Select>
           )}
-          {!readOnly && selectablePinIds.length > 0 && (
-            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={toggleSelectAll}
-                aria-label="Select all pins"
-                data-testid="checkbox-select-all-pins"
+
+          {searchOpen ? (
+            <div className="relative w-full max-w-64">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search pins..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => {
+                  if (!searchQuery) setSearchOpen(false);
+                }}
+                className="pl-9 pr-8 w-full"
+                data-testid="input-search-pins"
               />
-              Select all
-            </label>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Clear search"
+                  data-testid="button-clear-search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => {
+                setSearchOpen(true);
+                requestAnimationFrame(() => searchInputRef.current?.focus());
+              }}
+              aria-label="Search pins"
+              data-testid="button-open-search"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
           )}
         </div>
 
-        {searchOpen ? (
-          <div className="relative w-full max-w-64">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search pins..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onBlur={() => {
-                if (!searchQuery) setSearchOpen(false);
-              }}
-              className="pl-9 pr-8 w-full"
-              data-testid="input-search-pins"
+        {!readOnly && selectablePinIds.length > 0 && (
+          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none shrink-0">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={toggleSelectAll}
+              aria-label="Select all pins"
+              data-testid="checkbox-select-all-pins"
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  searchInputRef.current?.focus();
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Clear search"
-                data-testid="button-clear-search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 shrink-0"
-            onClick={() => {
-              setSearchOpen(true);
-              requestAnimationFrame(() => searchInputRef.current?.focus());
-            }}
-            aria-label="Search pins"
-            data-testid="button-open-search"
-          >
-            <Search className="h-4 w-4" />
-          </Button>
+            Select all
+          </label>
         )}
       </div>
 
-      {selectedPinIds.size > 0 && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
-          data-testid="pin-bulk-actions-bar"
-        >
-          <span className="text-sm font-medium text-foreground">
-            {selectedPinIds.size} pin{selectedPinIds.size === 1 ? "" : "s"} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 min-h-0 px-2.5 text-xs"
-              onClick={() => setSelectedPinIds(new Set())}
-              data-testid="button-clear-pin-selection"
+      {selectedPinIds.size > 0 &&
+        (() => {
+          const bar = (
+            <div
+              className={
+                headerActionsSlot
+                  ? "flex items-center gap-2"
+                  : "flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5"
+              }
+              data-testid="pin-bulk-actions-bar"
             >
-              <X className="h-3.5 w-3.5 mr-1" />
-              Clear
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 min-h-0 px-2.5 text-xs"
-              onClick={handleBulkDelete}
-              disabled={bulkDeletePinsMutation.isPending}
-              data-testid="button-bulk-delete-pins"
-            >
-              {bulkDeletePinsMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-              )}
-              Delete selected
-            </Button>
-          </div>
-        </div>
-      )}
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">
+                {selectedPinIds.size} pin{selectedPinIds.size === 1 ? "" : "s"} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 min-h-0 px-2.5 text-xs"
+                  onClick={() => setSelectedPinIds(new Set())}
+                  data-testid="button-clear-pin-selection"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 min-h-0 px-2.5 text-xs"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeletePinsMutation.isPending}
+                  data-testid="button-bulk-delete-pins"
+                >
+                  {bulkDeletePinsMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Delete selected
+                </Button>
+              </div>
+            </div>
+          );
+          return headerActionsSlot ? createPortal(bar, headerActionsSlot) : bar;
+        })()}
 
       {filteredPins.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border bg-muted/30">
