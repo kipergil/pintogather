@@ -297,7 +297,7 @@ export default function MapDetail({ params }: MapDetailProps) {
 
         {/* Map Header */}
         <Card className="border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -342,46 +342,51 @@ export default function MapDetail({ params }: MapDetailProps) {
                     Restore
                   </Button>
                 )}
-                {/* Bulk/AI adding used to be buried in the hamburger below, where nobody found it. It's the reason to use the app, so it gets its own primary button. */}
-                {user && (
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
-                    data-testid="button-add-items"
-                  >
-                    <Sparkles className="h-4 w-4 mr-1.5" />
-                    Add {mapCollection.itemType === "location" ? "pins" : "items"}
-                  </Button>
-                )}
-                <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
-                  <LikeButton
-                    mapId={mapCollection.id}
-                    liked={mapCollection.likedByViewer}
-                    likeCount={mapCollection.likeCount}
-                    invalidateKeys={[`/api/maps/${params.shareUrl}`]}
-                    className="h-9 px-3 hover:bg-accent"
-                  />
-                  <SharePopover
-                    mapId={mapCollection.id}
-                    shareUrl={mapCollection.shareUrl}
-                    mapName={mapCollection.name}
-                    ownerName={mapCollection.ownerName}
-                    pinCount={mapCollection.pinCount}
-                    isOwner={isOwner}
-                    onInvite={() => setIsShareModalOpen(true)}
-                    triggerClassName="h-9 rounded-none"
-                  />
-                  <MapActionsMenu
-                    mapId={mapCollection.id}
-                    isOwner={isOwner}
-                    onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
-                    onAddItems={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
-                    onExportCsv={exportPins}
-                    onClone={user ? () => cloneMapMutation.mutate() : undefined}
-                    directusUrl={directusUrl}
-                    triggerClassName="h-9 w-9 rounded-none border-0"
-                  />
+                {/* Bulk/AI adding used to be buried in the hamburger below, where nobody
+                    found it. It's the reason to use the app, so it gets its own primary
+                    button — wrapped with the like/share group so the two sit on one line
+                    instead of the button stacking above them on a phone. */}
+                <div className="flex items-center gap-2">
+                  {user && (
+                    <Button
+                      size="sm"
+                      className="h-9"
+                      onClick={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
+                      data-testid="button-add-items"
+                    >
+                      <Sparkles className="h-4 w-4 mr-1.5" />
+                      Add {mapCollection.itemType === "location" ? "pins" : "items"}
+                    </Button>
+                  )}
+                  <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
+                    <LikeButton
+                      mapId={mapCollection.id}
+                      liked={mapCollection.likedByViewer}
+                      likeCount={mapCollection.likeCount}
+                      invalidateKeys={[`/api/maps/${params.shareUrl}`]}
+                      className="h-9 px-3 hover:bg-accent"
+                    />
+                    <SharePopover
+                      mapId={mapCollection.id}
+                      shareUrl={mapCollection.shareUrl}
+                      mapName={mapCollection.name}
+                      ownerName={mapCollection.ownerName}
+                      pinCount={mapCollection.pinCount}
+                      isOwner={isOwner}
+                      onInvite={() => setIsShareModalOpen(true)}
+                      triggerClassName="h-9 rounded-none"
+                    />
+                    <MapActionsMenu
+                      mapId={mapCollection.id}
+                      isOwner={isOwner}
+                      onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
+                      onAddItems={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
+                      onExportCsv={exportPins}
+                      onClone={user ? () => cloneMapMutation.mutate() : undefined}
+                      directusUrl={directusUrl}
+                      triggerClassName="h-9 w-9 rounded-none border-0"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -398,7 +403,7 @@ export default function MapDetail({ params }: MapDetailProps) {
 
         {/* Pins/items management */}
         <Card className="border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
                 {mapCollection.itemType === "location" ? "Pins" : "Items"}{" "}
