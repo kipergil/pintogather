@@ -17,7 +17,7 @@ import { nanoid } from "nanoid";
 import multer from "multer";
 import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, isAuthenticated, getCurrentUser } from "./clerkAuth.js";
-import { getUserByUsername, searchUsers } from "./services/users.js";
+import { getUserByUsername, searchUsers, getAllPublicUsernames } from "./services/users.js";
 import { USER_GROUP } from "../shared/enums.js";
 import { TIER_LIMITS } from "../shared/limits.js";
 import { stripe, STRIPE_PRICE_IDS } from "./lib/stripe.js";
@@ -236,6 +236,79 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   app.get("/map/:shareUrl", serveMapPreview);
   app.get("/p/:shareUrl", serveMapPreview);
+  // --- SEO: robots.txt & sitemap.xml ------------------------------------------
+  // Public, unauthenticated. Only content the app itself already treats as
+  // intentionally public/promotable goes in the sitemap — curated maps
+  // (already linked from /discover) and claimed public profiles (the "make
+  // yourself discoverable" opt-in) — not every private/shared-link map,
+  // which was never meant for search indexing.
+
+  app.get("/robots.txt", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    res.type("text/plain").send(
+      [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /admin",
+        "Disallow: /auth",
+        "Disallow: /profile",
+        "Disallow: /feed",
+        "Disallow: /invitations/",
+        "",
+        `Sitemap: ${baseUrl}/sitemap.xml`,
+        "",
+      ].join("\n"),
+    );
+  });
+
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const escapeXml = (value: string) =>
+        value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
+      const urls: Array<{ loc: string; lastmod?: string }> = [
+        { loc: "/" },
+        { loc: "/discover" },
+        { loc: "/how-it-works" },
+        { loc: "/who-its-for" },
+        { loc: "/features" },
+        { loc: "/use-cases" },
+        { loc: "/pricing" },
+      ];
+
+      const [pages, curatedMaps, usernames] = await Promise.all([
+        storage.getPublishedPages(),
+        storage.getCuratedMapCollections(),
+        getAllPublicUsernames(),
+      ]);
+
+      for (const page of pages) {
+        urls.push({ loc: `/pages/${page.slug}`, lastmod: (page.updatedAt ?? page.createdAt).toISOString() });
+      }
+      for (const map of curatedMaps) {
+        urls.push({ loc: `/map/${map.shareUrl}`, lastmod: map.createdAt.toISOString() });
+      }
+      for (const username of usernames) {
+        urls.push({ loc: `/u/${username}` });
+      }
+
+      const body = urls
+        .map(
+          ({ loc, lastmod }) =>
+            `  <url>\n    <loc>${escapeXml(`${baseUrl}${loc}`)}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ""}\n  </url>`,
+        )
+        .join("\n");
+
+      res
+        .type("application/xml")
+        .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`);
+    } catch (error) {
+      console.error("Error generating sitemap:", error);
+      res.status(500).type("text/plain").send("Failed to generate sitemap");
+    }
+  });
 
   // --- Health & configuration -------------------------------------------------
 
