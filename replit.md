@@ -29,8 +29,8 @@ PinGather is a full-stack collaborative mapping platform that allows users to cr
 
 ### Data Model (Directus collections)
 - `directus_users`: Directus's built-in user table, extended with `clerk_user_id`, `avatar_url`, `full_name`, `twitter_handle`, `instagram_handle`, `linkedin_handle`, `user_group`, `is_admin`
-- `map_collections`: Map metadata and sharing configuration (owner, share URL, visibility, default permission)
-- `pins`: Location data with social media handles and notes, belonging to one map
+- `map_collections`: Map/collection metadata and sharing configuration (owner, share URL, visibility, default permission, `item_type`)
+- `pins`: Items belonging to one map — a geographic marker with social media handles and notes when the map's `item_type` is "location"; a link or free-form recommendation (with an optional `url`, no coordinates) otherwise
 - `map_viewers`: Per-user role/permission grants on a map
 - `map_invitations`: Email-based map sharing invitations
 

@@ -107,24 +107,37 @@ Stripe Checkout (`/pricing`) and the Stripe Customer Portal handle subscribing, 
 | `isPublic` | Public visibility toggle | Implemented (not yet enforced on read — share URL alone grants access, by design) |
 | `defaultPermission` | Default permission ("readonly"/"editable") | Implemented — gates anonymous pin edits |
 | `defaultPinColor`/`defaultPinIcon` | Default marker color/icon for this map's pins | Implemented — Basic/Premium only, see §2.2 |
+| `itemType` | What kind of thing this collection holds: `location` \| `link` \| `recommendation` | Implemented — set once at creation, never editable afterward; see "Item Types" below |
 | `createdAt` | Creation timestamp | Implemented |
 
 #### Map Operations
 
 | Operation | Status | Notes |
 |-----------|--------|-------|
-| Create Map | Implemented | Requires sign-in; owner set from the verified session |
-| View Maps | Implemented | Dashboard shows owned + contributed maps with pin counts |
+| Create Map | Implemented | Requires sign-in; owner set from the verified session. First step picks the collection's `itemType` |
+| View Maps | Implemented | Dashboard shows owned + contributed maps with pin/item counts |
 | Filter Maps | Implemented | Filter by owned/contributed maps |
 | Delete Map | Implemented | Requires sign-in and ownership; cascades to pins, viewers, invitations |
-| Edit Map | Implemented | Update sharing settings and permissions; requires ownership |
+| Edit Map | Implemented | Update sharing settings and permissions; requires ownership. `itemType` itself is immutable |
+
+#### Item Types
+
+A collection isn't only a map of geographic pins — `itemType`, chosen once when the collection is created, determines what it holds and how it's presented:
+
+| `itemType` | What it holds | Detail page | Add-item flow |
+|------------|---------------|-------------|----------------|
+| `location` | The original behavior: pins with coordinates, rendered on a map | Google Map + pin list | Click the map, or search a venue |
+| `link` | Articles, videos, anything with a URL | Plain card list, no map | Paste a URL — title/description/image auto-fill via `POST /api/link-preview` (SSRF-guarded server-side fetch of the URL's Open Graph tags) |
+| `recommendation` | Anything worth recommending — no location or link required | Plain card list, no map | Title + note, with an optional link (same auto-preview as above) |
+
+Every pin/item still belongs to exactly one map and inherits that map's `itemType` — it's never chosen per-item. Collaboration features (invites, approval, follows/likes, folders, Discover, Feed, CSV export) work identically across all three types since they operate at the collection level, not the pin level.
 
 ---
 
 ### 3.3 Pin Management
 
 #### Pin Properties
-All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonymous pins are allowed), `title` (the pin's own label — a venue name when added via search, or a free-form label for a map-click pin; not the contributor's identity), `contributorName` (optional — the anonymous contributor's own name, captured only when no account is signed in), `latitude`/`longitude`, `address`, `city`, `state`, `town`, `borough`, `postcode`, `country`, `twitterHandle`, `instagramHandle`, `linkedinHandle`, `note`, `pinColor`/`pinIcon` (optional per-pin marker override, Basic/Premium map owners only — see §2.2), `createdAt`.
+All fields below are `Implemented`: `id`, `mapId`, `userId` (optional — anonymous pins are allowed), `itemType` (inherited from the owning map, never chosen per-pin), `title` (the pin's own label — a venue name when added via search, or a free-form label for a map-click pin; not the contributor's identity), `contributorName` (optional — the anonymous contributor's own name, captured only when no account is signed in), `latitude`/`longitude` (required for `location` items, always null otherwise), `address`, `city`, `state`, `town`, `borough`, `postcode`, `country`, `twitterHandle`, `instagramHandle`, `linkedinHandle`, `note`, `url` (the item's own link — a `link` item's URL, or a `recommendation` item's optional supporting link; distinct from `googleMapsUrl`, which is always a Google Maps place link), `pinColor`/`pinIcon` (optional per-pin marker override, Basic/Premium map owners only, `location` items only — see §2.2), `createdAt`.
 
 **Pin approval mode.** Each map has a `requirePinApproval` flag (default `true`, matching the historical hardcoded behavior). A pin submitted by anyone other than the map's owner is auto-approved (`approved: true`) when the owner has turned this off in the map's settings; otherwise it starts unapproved (`approved: false`) and stays hidden from other viewers until the owner approves it in `PinTable`. The owner's own pins are always auto-approved regardless of this setting. An anonymous (signed-out) contributor must supply `contributorName` when adding a pin — enforced server-side — since there's no account to otherwise attribute the pin to.
 
@@ -285,8 +298,8 @@ The browser never talks to Directus directly — every request goes through the 
 | Collection | Purpose |
 |-------|---------|
 | `directus_users` | Accounts, synced from Clerk; carries profile + admin fields |
-| `map_collections` | Map metadata and settings |
-| `pins` | Location markers with metadata |
+| `map_collections` | Map/collection metadata and settings |
+| `pins` | Items with metadata — a geographic marker, link, or free-form recommendation depending on the owning collection's `item_type` |
 | `map_viewers` | Permission grants for maps (populated on invitation accept) |
 | `map_invitations` | Email invitation tracking |
 
@@ -359,9 +372,10 @@ These are real, enforced foreign keys in Postgres (unlike the previous Drizzle s
 
 ### 6.7 Utilities
 
-| Method | Endpoint | Auth |
-|--------|----------|------|
-| GET | `/api/geocode` | None |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/api/geocode` | None | |
+| POST | `/api/link-preview` | None (rate-limited) | Fetches a user-supplied URL server-side and extracts title/description/image for the `link`/`recommendation` add-item form; SSRF-guarded (public hosts only, capped/re-validated redirects, size/time limits) |
 
 ---
 
@@ -413,8 +427,9 @@ Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Dir
 ## 10. Appendix
 
 ### 10.1 Glossary
-- **Map Collection**: A named container for pins
-- **Pin**: A geographic marker with metadata
+- **Map Collection**: A named container for pins/items — a map of locations, or (see Item Type) a card list of links/recommendations
+- **Pin**: An item within a collection — a geographic marker when the collection's item type is `location`; a link or free-form recommendation otherwise
+- **Item Type**: What kind of thing a collection holds (`location` \| `link` \| `recommendation`), set once at creation and inherited by every pin in it
 - **Share URL**: Unique identifier for accessing a map
 - **Viewer**: User with access to a shared map
 - **Contributor**: User who can edit a shared map
@@ -423,5 +438,6 @@ Directus can be a local stack (`docker compose up -d` — Postgres + Redis + Dir
 ### 10.2 Version History
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.1 | Jul 29, 2026 | Generalized collections beyond map pins via a new `itemType` (`location`/`link`/`recommendation`) on both maps and pins — link/recommendation collections skip the map entirely in favor of a card list, with a new SSRF-guarded link-preview endpoint auto-filling a pasted URL's title/description/image. Web and mobile parity; existing maps unaffected (default to `location`) |
 | 2.0 | Jul 20, 2026 | Backend migrated from Supabase/Drizzle to Directus; authentication migrated from Replit Auth to Clerk; several security gaps closed (see §8.1) |
 | 1.0 | Nov 25, 2025 | Initial PRD documenting current state with accurate implementation status |
