@@ -829,7 +829,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                 type="button"
                 variant={myLocationStatus === 'on' ? 'default' : 'secondary'}
                 size="icon"
-                className={`absolute right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-11' : 'top-2'}`}
+                className={`absolute left-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-20' : 'top-11'}`}
                 onClick={handleToggleMyLocation}
                 disabled={myLocationStatus === 'locating'}
                 title={myLocationStatus === 'on' ? 'Hide your location' : 'Show your location'}
@@ -849,7 +849,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                 type="button"
                 variant="secondary"
                 size="icon"
-                className={`absolute right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-20' : 'top-11'}`}
+                className={`absolute right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-11' : 'top-2'}`}
                 onClick={toggleFullscreen}
                 title={isFullscreen ? 'Exit full screen' : 'View full screen'}
                 data-testid="button-toggle-fullscreen"
