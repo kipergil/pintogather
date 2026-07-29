@@ -441,15 +441,15 @@ function SignedInDashboard({
             />
           ) : (
             <>
-              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <div className="relative w-full max-w-56">
+              <div className="flex flex-col gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 min-w-0">
                     <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={mapSearchQuery}
                       onChange={(e) => setMapSearchQuery(e.target.value)}
                       placeholder="Search your maps…"
-                      className="pl-9 pr-8 h-9"
+                      className="pl-9 pr-8 h-9 w-full"
                       data-testid="input-search-maps"
                     />
                     {mapSearchQuery && (
@@ -466,7 +466,7 @@ function SignedInDashboard({
                   </div>
 
                   <Select value={mapSortBy} onValueChange={(v) => setMapSortBy(v as typeof mapSortBy)}>
-                    <SelectTrigger className="h-9 w-40 shrink-0" data-testid="select-map-sort">
+                    <SelectTrigger className="h-9 w-36 sm:w-40 shrink-0" data-testid="select-map-sort">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -475,7 +475,9 @@ function SignedInDashboard({
                       <SelectItem value="pins">Most pins</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
 
+                <div className="flex items-center justify-between gap-2">
                   <ToggleGroup
                     type="single"
                     value={ownedViewMode}
@@ -501,52 +503,54 @@ function SignedInDashboard({
                       Folders
                     </ToggleGroupItem>
                   </ToggleGroup>
-                </div>
 
-                {hasMapArchiving && (
-                  <div className="flex items-center gap-2">
-                    {ownedSelectMode && selectedOwnedIds.size > 0 && (
-                      <>
-                        <span className="text-sm font-medium text-foreground">{selectedOwnedIds.size} selected</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleArchiveSelected}
-                          disabled={isArchiving}
-                          data-testid="button-archive-selected"
-                        >
-                          {isArchiving ? (
-                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                          ) : (
-                            <Archive className="h-3.5 w-3.5 mr-1.5" />
-                          )}
-                          Archive selected
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setOwnedSelectMode((prev) => !prev);
-                        setSelectedOwnedIds(new Set());
-                      }}
-                      data-testid="button-toggle-owned-select-mode"
-                    >
-                      {ownedSelectMode ? (
+                  {hasMapArchiving && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {ownedSelectMode && selectedOwnedIds.size > 0 && (
                         <>
-                          <X className="h-3.5 w-3.5 mr-1.5" />
-                          Cancel
-                        </>
-                      ) : (
-                        <>
-                          <ListChecks className="h-3.5 w-3.5 mr-1.5" />
-                          Select
+                          <span className="text-sm font-medium text-foreground whitespace-nowrap">
+                            {selectedOwnedIds.size} selected
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleArchiveSelected}
+                            disabled={isArchiving}
+                            data-testid="button-archive-selected"
+                          >
+                            {isArchiving ? (
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                              <Archive className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            Archive selected
+                          </Button>
                         </>
                       )}
-                    </Button>
-                  </div>
-                )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setOwnedSelectMode((prev) => !prev);
+                          setSelectedOwnedIds(new Set());
+                        }}
+                        data-testid="button-toggle-owned-select-mode"
+                      >
+                        {ownedSelectMode ? (
+                          <>
+                            <X className="h-3.5 w-3.5 mr-1.5" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                            Select
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {visibleOwnedMaps.length === 0 ? (
