@@ -9,6 +9,25 @@ export type Permission = (typeof PERMISSION)[number];
 export const MAP_VIEWER_ROLE = ["viewer", "contributor"] as const;
 export type MapViewerRole = (typeof MAP_VIEWER_ROLE)[number];
 
+/**
+ * What kind of thing a collection holds, and therefore what its items look
+ * like. Set once, at creation, on map_collections.item_type and inherited by
+ * every pin added to it (pins.item_type is set from the map's value at add
+ * time — see server storage). "location" is the original, map-based
+ * behavior (lat/lng required, rendered on a Google Map); "link" and
+ * "recommendation" are collections of non-geographic things (an article, a
+ * product, "anything worth recommending") rendered as a plain card list.
+ */
+export const ITEM_TYPE = ["location", "link", "recommendation"] as const;
+export type ItemType = (typeof ITEM_TYPE)[number];
+
+/** Human-readable label per ITEM_TYPE value, used by both the creation picker and the Directus admin dropdown. */
+export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
+  location: "Locations",
+  link: "Links",
+  recommendation: "Recommendations",
+};
+
 export const INVITATION_STATUS = ["pending", "accepted", "declined"] as const;
 export type InvitationStatus = (typeof INVITATION_STATUS)[number];
 

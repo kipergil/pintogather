@@ -4,6 +4,7 @@ import {
   CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
   INVITATION_STATUS,
+  ITEM_TYPE,
   MAP_VIEWER_ROLE,
   PERMISSION,
   PIN_COLOR,
@@ -158,6 +159,15 @@ export interface MapCollection {
   /** Whether a pin added by anyone other than the owner needs the owner's approval before it's visible to others. Defaults to true (the historical, previously-hardcoded behavior) — an owner can turn this off to auto-approve new pins instead. */
   requirePinApproval: boolean;
   /**
+   * What kind of thing this collection holds — set once at creation and
+   * never editable afterward (absent from updateMapDetailsSchema on
+   * purpose), since every rendering/add-item decision downstream assumes a
+   * collection doesn't change shape mid-life. "location" (the original
+   * map-of-pins behavior) is the default for every collection created
+   * before this field existed.
+   */
+  itemType: (typeof ITEM_TYPE)[number];
+  /**
    * Curated-map fields (/discover page) — admin-managed directly in Directus,
    * never through the app's own map-create/edit forms, so these are absent
    * from insertMapCollectionSchema/updateMapDetailsSchema below on purpose.
@@ -195,6 +205,8 @@ export const insertMapCollectionSchema = z.object({
   defaultPinColor: z.enum(PIN_COLOR).nullable().optional(),
   defaultPinIcon: z.enum(PIN_ICON).nullable().optional(),
   requirePinApproval: z.boolean().optional(),
+  /** Defaults to "location" (the original behavior) when omitted. Not accepted by updateMapDetailsSchema — see MapCollection.itemType. */
+  itemType: z.enum(ITEM_TYPE).optional(),
 });
 export type InsertMapCollection = z.infer<typeof insertMapCollectionSchema>;
 
@@ -249,8 +261,10 @@ export interface Pin {
   title: string;
   /** The anonymous contributor's own name, captured since an anonymous submission has no account to attribute it to. Always null for a signed-in contributor — their identity is userId. */
   contributorName: string | null;
-  latitude: string;
-  longitude: string;
+  /** Inherited from the owning map's itemType at add time (see storage.createPin). "location" pins always have latitude/longitude; "link"/"recommendation" pins never do. */
+  itemType: (typeof ITEM_TYPE)[number];
+  latitude: string | null;
+  longitude: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -263,6 +277,8 @@ export interface Pin {
   linkedinHandle: string | null;
   note: string | null;
   googleMapsUrl: string | null;
+  /** The item's own link — a "link"-type item's URL, or a "recommendation"-type item's optional supporting link. Distinct from googleMapsUrl, which is always a Google Maps place link. Null for "location" items. */
+  url: string | null;
   photoUrl: string | null;
   /** Google Places primary type for the venue (e.g. "restaurant", "cafe", "museum") — set automatically when the pin is added via venue search, null for map-click pins. */
   venueType: (typeof VENUE_TYPE)[number] | null;
@@ -282,13 +298,29 @@ export interface Pin {
   createdAt: Date;
 }
 
-export const insertPinSchema = z.object({
+/**
+ * Base object (no refinement) so bulkInsertPinsSchema below can still
+ * `.omit()` fields off it — `.refine()` returns a ZodEffects, which doesn't
+ * support `.omit`. requireGeoForLocationItems is applied separately to both
+ * this and the omitted bulk-item shape.
+ */
+const pinFieldsSchema = z.object({
   mapId: z.string().min(1),
   userId: z.string().nullable().optional(),
+  /** Defaults to "location" (the original behavior) when omitted — matches the owning map's itemType in practice; the server sets this from the map rather than trusting the client. */
+  itemType: z.enum(ITEM_TYPE).optional(),
   title: z.string().trim().min(1).max(255),
   contributorName: z.string().trim().max(100).nullable().optional(),
-  latitude: z.union([z.string(), z.number()]).transform((v) => String(v)),
-  longitude: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  latitude: z
+    .union([z.string(), z.number()])
+    .transform((v) => String(v))
+    .nullable()
+    .optional(),
+  longitude: z
+    .union([z.string(), z.number()])
+    .transform((v) => String(v))
+    .nullable()
+    .optional(),
   address: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
   state: z.string().nullable().optional(),
@@ -301,6 +333,7 @@ export const insertPinSchema = z.object({
   linkedinHandle: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   googleMapsUrl: z.string().trim().max(500).nullable().optional(),
+  url: z.string().trim().max(2048).nullable().optional(),
   photoUrl: z.string().trim().max(500).nullable().optional(),
   venueType: z.enum(VENUE_TYPE).nullable().optional(),
   priceLevel: z.number().int().min(0).max(4).nullable().optional(),
@@ -310,12 +343,35 @@ export const insertPinSchema = z.object({
   pinColor: z.enum(PIN_COLOR).nullable().optional(),
   pinIcon: z.enum(PIN_ICON).nullable().optional(),
 });
+
+/** A "location" item (the default, and the only kind that existed before itemType) always needs coordinates; "link"/"recommendation" items never have them. */
+function requireGeoForLocationItems(data: { itemType?: (typeof ITEM_TYPE)[number]; latitude?: string | null; longitude?: string | null }) {
+  return (data.itemType ?? "location") !== "location" || (data.latitude != null && data.longitude != null);
+}
+const GEO_REQUIRED_ISSUE: { message: string; path: (string | number)[] } = {
+  message: "Latitude and longitude are required for a location item.",
+  path: ["latitude"],
+};
+
+export const insertPinSchema = pinFieldsSchema.refine(requireGeoForLocationItems, GEO_REQUIRED_ISSUE);
 export type InsertPin = z.infer<typeof insertPinSchema>;
 
 export const bulkInsertPinsSchema = z.object({
-  pins: z.array(insertPinSchema.omit({ mapId: true, userId: true })).min(1).max(200),
+  pins: z
+    .array(pinFieldsSchema.omit({ mapId: true, userId: true }).refine(requireGeoForLocationItems, GEO_REQUIRED_ISSUE))
+    .min(1)
+    .max(200),
 });
 export type BulkInsertPins = z.infer<typeof bulkInsertPinsSchema>;
+
+/**
+ * A pin edit (PUT /api/pins/:id) can touch any subset of fields, so it
+ * doesn't carry insertPinSchema's "location items need lat/lng" refinement
+ * — e.g. editing just a note shouldn't fail for lacking coordinates it
+ * never touched. "approved" is never accepted here — see the route.
+ */
+export const updatePinSchema = pinFieldsSchema.partial().omit({ approved: true });
+export type UpdatePin = z.infer<typeof updatePinSchema>;
 
 export interface MapViewer {
   id: string;

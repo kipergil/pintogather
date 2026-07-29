@@ -64,6 +64,7 @@ const MAP_FIELDS = [
   "default_pin_color",
   "default_pin_icon",
   "require_pin_approval",
+  "item_type",
   "curated",
   "curated_category",
   "curated_country",
@@ -81,6 +82,7 @@ const PIN_FIELDS = [
   "user",
   "user_name",
   "contributor_name",
+  "item_type",
   "latitude",
   "longitude",
   "address",
@@ -95,6 +97,7 @@ const PIN_FIELDS = [
   "linkedin_handle",
   "note",
   "google_maps_url",
+  "url",
   "photo_url",
   "venue_type",
   "price_level",
@@ -194,6 +197,7 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     defaultPinColor: row.default_pin_color,
     defaultPinIcon: row.default_pin_icon,
     requirePinApproval: row.require_pin_approval,
+    itemType: row.item_type,
     curated: row.curated,
     curatedCategory: row.curated_category,
     curatedCountry: row.curated_country,
@@ -225,6 +229,7 @@ function toPin(row: DirectusPin): Pin {
     userId: row.user,
     title: row.user_name,
     contributorName: row.contributor_name,
+    itemType: row.item_type,
     latitude: row.latitude,
     longitude: row.longitude,
     address: row.address,
@@ -239,6 +244,7 @@ function toPin(row: DirectusPin): Pin {
     linkedinHandle: row.linkedin_handle,
     note: row.note,
     googleMapsUrl: row.google_maps_url,
+    url: row.url,
     photoUrl: row.photo_url,
     venueType: row.venue_type,
     priceLevel: row.price_level,
@@ -258,8 +264,9 @@ function toDirectusPinInput(data: InsertPin) {
     user: data.userId ?? null,
     user_name: data.title,
     contributor_name: data.contributorName ?? null,
-    latitude: data.latitude,
-    longitude: data.longitude,
+    item_type: data.itemType ?? "location",
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
     address: data.address ?? null,
     city: data.city ?? null,
     state: data.state ?? null,
@@ -272,6 +279,7 @@ function toDirectusPinInput(data: InsertPin) {
     linkedin_handle: data.linkedinHandle ?? null,
     note: data.note ?? null,
     google_maps_url: data.googleMapsUrl ?? null,
+    url: data.url ?? null,
     photo_url: data.photoUrl ?? null,
     venue_type: data.venueType ?? null,
     price_level: data.priceLevel ?? null,
@@ -522,6 +530,7 @@ class DirectusStorage implements IStorage {
           default_pin_color: data.defaultPinColor ?? null,
           default_pin_icon: data.defaultPinIcon ?? null,
           require_pin_approval: data.requirePinApproval ?? true,
+          item_type: data.itemType ?? "location",
         },
         { fields: MAP_FIELDS },
       ),
@@ -563,6 +572,7 @@ class DirectusStorage implements IStorage {
           default_pin_color: source.defaultPinColor,
           default_pin_icon: source.defaultPinIcon,
           require_pin_approval: source.requirePinApproval,
+          item_type: source.itemType,
           forked_from_map: source.id,
         },
         { fields: MAP_FIELDS },
@@ -577,6 +587,7 @@ class DirectusStorage implements IStorage {
       user: null,
       user_name: pin.title,
       contributor_name: null,
+      item_type: pin.itemType,
       latitude: pin.latitude,
       longitude: pin.longitude,
       address: pin.address,
@@ -591,6 +602,7 @@ class DirectusStorage implements IStorage {
       linkedin_handle: pin.linkedinHandle,
       note: pin.note,
       google_maps_url: pin.googleMapsUrl,
+      url: pin.url,
       photo_url: pin.photoUrl,
       approved: true,
       pin_color: opts.includePinStyle ? pin.pinColor : null,
@@ -1026,6 +1038,7 @@ class DirectusStorage implements IStorage {
       const payload: Record<string, unknown> = {};
       if (data.title !== undefined) payload.user_name = data.title;
       if (data.contributorName !== undefined) payload.contributor_name = data.contributorName;
+      if (data.itemType !== undefined) payload.item_type = data.itemType;
       if (data.latitude !== undefined) payload.latitude = data.latitude;
       if (data.longitude !== undefined) payload.longitude = data.longitude;
       if (data.address !== undefined) payload.address = data.address;
@@ -1040,6 +1053,7 @@ class DirectusStorage implements IStorage {
       if (data.linkedinHandle !== undefined) payload.linkedin_handle = data.linkedinHandle;
       if (data.note !== undefined) payload.note = data.note;
       if (data.googleMapsUrl !== undefined) payload.google_maps_url = data.googleMapsUrl;
+      if (data.url !== undefined) payload.url = data.url;
       if (data.photoUrl !== undefined) payload.photo_url = data.photoUrl;
       if (data.venueType !== undefined) payload.venue_type = data.venueType;
       if (data.priceLevel !== undefined) payload.price_level = data.priceLevel;

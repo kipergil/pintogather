@@ -8,6 +8,7 @@ import {
   insertPinSchema,
   updateFolderSchema,
   updateMapDetailsSchema,
+  updatePinSchema,
   updateProfileSchema,
   USERNAME_PATTERN,
 } from "../shared/schema.js";
@@ -1528,6 +1529,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         mapId: mapCollection.id,
         userId: user?.id ?? null, // never trust a client-supplied userId
         approved: isOwner || !mapCollection.requirePinApproval,
+        itemType: mapCollection.itemType, // a pin's item type always matches its map's — never a client choice
       });
 
       if (!user && !data.contributorName) {
@@ -1583,6 +1585,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         mapId: mapCollection.id,
         userId: user.id,
         approved: isOwner || !mapCollection.requirePinApproval,
+        itemType: mapCollection.itemType,
       }));
 
       const result = await storage.upsertPins(mapCollection.id, data, { maxNewPins: maxPins - currentPinCount });
@@ -1822,7 +1825,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       // "approved" is only ever set via the dedicated approve endpoint below,
       // gated to the map owner — never accepted through this general-purpose
       // edit route, which a pin's own creator can also use.
-      const validatedData = insertPinSchema.partial().omit({ approved: true }).parse(req.body);
+      const validatedData = updatePinSchema.parse(req.body);
 
       if (validatedData.pinColor || validatedData.pinIcon) {
         const map = await storage.getMapCollectionById(pin.mapId);

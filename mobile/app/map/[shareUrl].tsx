@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import ClusteredMapView from "react-native-map-clustering";
 import { Callout, Marker, Polyline, type LatLng } from "react-native-maps";
 import type MapView from "react-native-maps";
@@ -10,12 +20,30 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
 import { ShareSheet } from "@/components/ShareSheet";
-import { useAddPin, useCloneMap, useDeletePin, useMap, useReorderPins } from "@/hooks/useMaps";
+import {
+  useAddPin,
+  useCloneMap,
+  useDeletePin,
+  useMap,
+  useReorderPins,
+} from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { PIN_COLOR_HEX, PIN_ICON_IONICON, resolvePinStyle } from "@/lib/pin-styles";
+import {
+  PIN_COLOR_HEX,
+  PIN_ICON_IONICON,
+  resolvePinStyle,
+} from "@/lib/pin-styles";
 import { signInHref } from "@/lib/authNav";
-import { VenueSearchSheet, type VenueResult } from "@/components/VenueSearchSheet";
-import { haversineDistanceKm, sortPinsForRoute, totalRouteDistanceKm } from "../../../shared/geo";
+import {
+  VenueSearchSheet,
+  type VenueResult,
+} from "@/components/VenueSearchSheet";
+import {
+  hasCoordinates,
+  haversineDistanceKm,
+  sortPinsForRoute,
+  totalRouteDistanceKm,
+} from "../../../shared/geo";
 import type { Pin } from "../../../shared/schema";
 
 // Central London — same fallback the web app's map component uses when a
@@ -45,7 +73,10 @@ const EMPTY_PIN_FORM: PinFormValue = {
 
 export default function MapDetailScreen() {
   const { isSignedIn } = useAuth();
-  const { shareUrl, pin: focusPinId } = useLocalSearchParams<{ shareUrl: string; pin?: string }>();
+  const { shareUrl, pin: focusPinId } = useLocalSearchParams<{
+    shareUrl: string;
+    pin?: string;
+  }>();
   const router = useRouter();
   const { data: currentUser } = useCurrentUser();
   const { data: map, isLoading, error } = useMap(shareUrl);
@@ -59,8 +90,11 @@ export default function MapDetailScreen() {
   // there — shows a temporary marker + a "Drop a pin here?" confirm/cancel
   // bar instead of opening the full Add Pin sheet right away, so a mis-tap
   // doesn't fall straight into the form. Tapping elsewhere just moves it.
-  const [pendingConfirmCoordinate, setPendingConfirmCoordinate] = useState<LatLng | null>(null);
-  const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(null);
+  const [pendingConfirmCoordinate, setPendingConfirmCoordinate] =
+    useState<LatLng | null>(null);
+  const [pendingCoordinate, setPendingCoordinate] = useState<LatLng | null>(
+    null,
+  );
   const [pendingAddress, setPendingAddress] = useState<string | null>(null);
   const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -71,12 +105,29 @@ export default function MapDetailScreen() {
   const [routeMode, setRouteMode] = useState(false);
   const mapRef = useRef<MapView>(null);
 
-  const orderedPins = useMemo(() => (map ? sortPinsForRoute(map.pins) : []), [map]);
-  const routeCoordinates = useMemo(
-    () => orderedPins.map((pin) => ({ latitude: Number(pin.latitude), longitude: Number(pin.longitude) })),
+  const orderedPins = useMemo(
+    () => (map ? sortPinsForRoute(map.pins) : []),
+    [map],
+  );
+  // Route/distance only make sense for "location" pins — a "link" or
+  // "recommendation" item (see shared/enums.ts's ITEM_TYPE) never has
+  // coordinates, so it's excluded here rather than reaching GeoPoint math.
+  const routablePins = useMemo(
+    () => orderedPins.filter(hasCoordinates),
     [orderedPins],
   );
-  const totalRouteKm = useMemo(() => totalRouteDistanceKm(orderedPins), [orderedPins]);
+  const routeCoordinates = useMemo(
+    () =>
+      routablePins.map((pin) => ({
+        latitude: Number(pin.latitude),
+        longitude: Number(pin.longitude),
+      })),
+    [routablePins],
+  );
+  const totalRouteKm = useMemo(
+    () => totalRouteDistanceKm(routablePins),
+    [routablePins],
+  );
 
   const moveStop = (index: number, direction: -1 | 1) => {
     const newIndex = index + direction;
@@ -90,7 +141,10 @@ export default function MapDetailScreen() {
   const initialRegion = useMemo(() => {
     const firstPin = map?.pins[0];
     const center = firstPin
-      ? { latitude: Number(firstPin.latitude), longitude: Number(firstPin.longitude) }
+      ? {
+          latitude: Number(firstPin.latitude),
+          longitude: Number(firstPin.longitude),
+        }
       : DEFAULT_REGION;
     return { ...center, latitudeDelta: 0.05, longitudeDelta: 0.05 };
   }, [map?.pins]);
@@ -106,7 +160,12 @@ export default function MapDetailScreen() {
     consumedFocusPinRef.current = true;
     setSelectedPin(target);
     mapRef.current?.animateToRegion(
-      { latitude: Number(target.latitude), longitude: Number(target.longitude), latitudeDelta: 0.02, longitudeDelta: 0.02 },
+      {
+        latitude: Number(target.latitude),
+        longitude: Number(target.longitude),
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      },
       500,
     );
   }, [focusPinId, map]);
@@ -120,7 +179,10 @@ export default function MapDetailScreen() {
 
   const onVenueSelected = (place: VenueResult) => {
     setVenueSearchVisible(false);
-    setPendingCoordinate({ latitude: Number(place.latitude), longitude: Number(place.longitude) });
+    setPendingCoordinate({
+      latitude: Number(place.latitude),
+      longitude: Number(place.longitude),
+    });
     setPendingAddress(place.address);
     // Title the pin after the venue so search-built maps read as a list of
     // places, mirroring client/src/components/add-pin-modal.tsx's handlePlaceSelect.
@@ -148,7 +210,9 @@ export default function MapDetailScreen() {
     try {
       const pin = await addPin.mutateAsync({
         title: pinForm.title.trim(),
-        contributorName: isSignedIn ? null : pinForm.contributorName.trim() || null,
+        contributorName: isSignedIn
+          ? null
+          : pinForm.contributorName.trim() || null,
         latitude: String(pendingCoordinate.latitude),
         longitude: String(pendingCoordinate.longitude),
         address: pendingAddress || undefined,
@@ -162,30 +226,41 @@ export default function MapDetailScreen() {
       });
       closeAddPinModal();
       if (!pin.approved) {
-        Alert.alert("Pin added", "Your pin is pending the map owner's approval before it's visible to others.");
+        Alert.alert(
+          "Pin added",
+          "Your pin is pending the map owner's approval before it's visible to others.",
+        );
       }
     } catch (err: any) {
       setSubmitError(err?.message ?? "Couldn't add that pin.");
     }
   };
 
-  const canModifyPin = (pin: Pin) => isOwner || (!!currentUser && currentUser.id === pin.userId);
+  const canModifyPin = (pin: Pin) =>
+    isOwner || (!!currentUser && currentUser.id === pin.userId);
 
   const onClone = () => {
-    Alert.alert("Clone this map?", "Creates your own editable copy, permanently credited back to this original.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Clone",
-        onPress: async () => {
-          try {
-            const cloned = await cloneMap.mutateAsync();
-            router.replace(`/map/${cloned.shareUrl}`);
-          } catch (err: any) {
-            Alert.alert("Couldn't clone map", err?.message ?? "Please try again.");
-          }
+    Alert.alert(
+      "Clone this map?",
+      "Creates your own editable copy, permanently credited back to this original.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clone",
+          onPress: async () => {
+            try {
+              const cloned = await cloneMap.mutateAsync();
+              router.replace(`/map/${cloned.shareUrl}`);
+            } catch (err: any) {
+              Alert.alert(
+                "Couldn't clone map",
+                err?.message ?? "Please try again.",
+              );
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const onDeletePin = (pin: Pin) => {
@@ -199,7 +274,10 @@ export default function MapDetailScreen() {
             await deletePin.mutateAsync(pin.id);
             setSelectedPin(null);
           } catch (err: any) {
-            Alert.alert("Couldn't delete pin", err?.message ?? "Please try again.");
+            Alert.alert(
+              "Couldn't delete pin",
+              err?.message ?? "Please try again.",
+            );
           }
         },
       },
@@ -212,31 +290,61 @@ export default function MapDetailScreen() {
         options={{
           title: map?.name ?? "Map",
           headerTitle: () => (
-            <View className="flex-row items-center gap-1.5" style={{ maxWidth: 200 }}>
-              <Text className="text-base font-semibold text-slate-900" numberOfLines={1}>
+            <View
+              className="flex-row items-center gap-1.5"
+              style={{ maxWidth: 200 }}
+            >
+              <Text
+                className="text-base font-semibold text-slate-900"
+                numberOfLines={1}
+              >
                 {map?.name ?? "Map"}
               </Text>
               {!!map?.forkedFromMapId && (
-                <Pressable onPress={() => setForkedFromSheetVisible(true)} hitSlop={8} testID="button-forked-from">
-                  <Ionicons name="git-branch-outline" size={16} color="#64748b" />
+                <Pressable
+                  onPress={() => setForkedFromSheetVisible(true)}
+                  hitSlop={8}
+                  testID="button-forked-from"
+                >
+                  <Ionicons
+                    name="git-branch-outline"
+                    size={16}
+                    color="#64748b"
+                  />
                 </Pressable>
               )}
             </View>
           ),
           headerRight: () => (
             <View className="flex-row items-center gap-4">
-              <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
+              <Pressable
+                hitSlop={8}
+                onPress={() => setShareSheetVisible(true)}
+                testID="button-share-map"
+              >
                 <Ionicons name="share-outline" size={22} color="#2563EB" />
               </Pressable>
               {isSignedIn && (
-                <Pressable hitSlop={8} onPress={onClone} testID="button-clone-map">
-                  <Ionicons name="git-branch-outline" size={22} color="#2563EB" />
+                <Pressable
+                  hitSlop={8}
+                  onPress={onClone}
+                  testID="button-clone-map"
+                >
+                  <Ionicons
+                    name="git-branch-outline"
+                    size={22}
+                    color="#2563EB"
+                  />
                 </Pressable>
               )}
               {isOwner && (
                 <Link href={`/map/edit/${shareUrl}`} asChild>
                   <Pressable hitSlop={8} testID="button-edit-map">
-                    <Ionicons name="settings-outline" size={22} color="#2563EB" />
+                    <Ionicons
+                      name="settings-outline"
+                      size={22}
+                      color="#2563EB"
+                    />
                   </Pressable>
                 </Link>
               )}
@@ -250,21 +358,29 @@ export default function MapDetailScreen() {
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : error || !map ? (
-        <EmptyState icon="alert-circle-outline" title="Couldn't load this map" description="Check your connection and try again." />
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Couldn't load this map"
+          description="Check your connection and try again."
+        />
       ) : (
         <>
           <ClusteredMapView
             ref={mapRef}
             className="flex-1"
             initialRegion={initialRegion}
-            onPress={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
+            onPress={(e) =>
+              setPendingConfirmCoordinate(e.nativeEvent.coordinate)
+            }
             // Android fires POI taps (a restaurant, landmark, etc.) as onPoiClick
             // instead of onPress, so without this a tap on one of those icons
             // silently did nothing instead of dropping a pin — mirrors the
             // clickableIcons:false fix on the web map (client/src/components/
             // simple-google-map.tsx). No iOS equivalent hook exists in
             // react-native-maps; iOS POI taps are a platform limitation.
-            onPoiClick={(e) => setPendingConfirmCoordinate(e.nativeEvent.coordinate)}
+            onPoiClick={(e) =>
+              setPendingConfirmCoordinate(e.nativeEvent.coordinate)
+            }
             clusterColor="#2563EB"
             clusteringEnabled={map.pins.length >= CLUSTER_MIN_PIN_COUNT}
             radius={CLUSTER_RADIUS}
@@ -276,47 +392,95 @@ export default function MapDetailScreen() {
               return (
                 <Marker
                   key={pin.id}
-                  coordinate={{ latitude: Number(pin.latitude), longitude: Number(pin.longitude) }}
+                  coordinate={{
+                    latitude: Number(pin.latitude),
+                    longitude: Number(pin.longitude),
+                  }}
                   title={pin.title}
                   anchor={{ x: 0.5, y: 0.5 }}
                   onCalloutPress={() => setSelectedPin(pin)}
                 >
                   <View
                     className="items-center justify-center rounded-full border-2 border-white"
-                    style={{ width: 28, height: 28, backgroundColor: hex, opacity: pin.approved ? 1 : 0.55 }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      backgroundColor: hex,
+                      opacity: pin.approved ? 1 : 0.55,
+                    }}
                   >
-                    <Ionicons name={style.icon ? PIN_ICON_IONICON[style.icon] : "location"} size={14} color="#ffffff" />
+                    <Ionicons
+                      name={
+                        style.icon ? PIN_ICON_IONICON[style.icon] : "location"
+                      }
+                      size={14}
+                      color="#ffffff"
+                    />
                   </View>
                   <Callout>
                     <View className="max-w-[220px] gap-1 p-1">
                       {pin.photoUrl && (
-                        <Image source={{ uri: pin.photoUrl }} className="mb-1 h-24 w-full rounded-md" resizeMode="cover" />
+                        <Image
+                          source={{ uri: pin.photoUrl }}
+                          className="mb-1 h-24 w-full rounded-md"
+                          resizeMode="cover"
+                        />
                       )}
-                      <Text className="font-semibold text-slate-900">{pin.title}</Text>
-                      {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
-                      {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
-                      {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}
-                      <Text className="text-xs text-primary">Tap for details</Text>
+                      <Text className="font-semibold text-slate-900">
+                        {pin.title}
+                      </Text>
+                      {pin.note && (
+                        <Text className="text-sm text-slate-600">
+                          {pin.note}
+                        </Text>
+                      )}
+                      {pin.address && (
+                        <Text className="text-xs text-slate-400">
+                          {pin.address}
+                        </Text>
+                      )}
+                      {!pin.approved && (
+                        <Text className="text-xs font-medium text-amber-600">
+                          Pending approval
+                        </Text>
+                      )}
+                      <Text className="text-xs text-primary">
+                        Tap for details
+                      </Text>
                     </View>
                   </Callout>
                 </Marker>
               );
             })}
             {routeMode && routeCoordinates.length > 1 && (
-              <Polyline coordinates={routeCoordinates} strokeColor="#2563EB" strokeWidth={3} />
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor="#2563EB"
+                strokeWidth={3}
+              />
             )}
             {pendingConfirmCoordinate && (
-              <Marker coordinate={pendingConfirmCoordinate} anchor={{ x: 0.5, y: 0.5 }} tappable={false}>
+              <Marker
+                coordinate={pendingConfirmCoordinate}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tappable={false}
+              >
                 <View className="h-[22px] w-[22px] rounded-full border-2 border-white bg-primary" />
               </Marker>
             )}
           </ClusteredMapView>
 
           {!isSignedIn && (
-            <View className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5" testID="guest-notice">
+            <View
+              className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5"
+              testID="guest-notice"
+            >
               <Text className="text-xs text-amber-800">
                 Viewing as a guest — pins save anonymously.{" "}
-                <Link href={signInHref(`/map/${shareUrl}`)} className="font-semibold underline">
+                <Link
+                  href={signInHref(`/map/${shareUrl}`)}
+                  className="font-semibold underline"
+                >
                   Sign in
                 </Link>{" "}
                 to manage your own maps.
@@ -328,8 +492,14 @@ export default function MapDetailScreen() {
             <Pressable
               onPress={() =>
                 mapRef.current?.fitToCoordinates(
-                  map.pins.map((pin) => ({ latitude: Number(pin.latitude), longitude: Number(pin.longitude) })),
-                  { edgePadding: { top: 80, right: 40, bottom: 120, left: 40 }, animated: true },
+                  map.pins.map((pin) => ({
+                    latitude: Number(pin.latitude),
+                    longitude: Number(pin.longitude),
+                  })),
+                  {
+                    edgePadding: { top: 80, right: 40, bottom: 120, left: 40 },
+                    animated: true,
+                  },
                 )
               }
               className="absolute bottom-24 right-4 h-11 w-11 items-center justify-center rounded-full bg-white shadow"
@@ -353,14 +523,18 @@ export default function MapDetailScreen() {
           <View className="absolute bottom-6 left-4 right-4 flex-row items-center justify-between rounded-2xl bg-white/95 px-4 py-3 shadow">
             {pendingConfirmCoordinate ? (
               <>
-                <Text className="text-sm font-medium text-slate-700">Drop a pin here?</Text>
+                <Text className="text-sm font-medium text-slate-700">
+                  Drop a pin here?
+                </Text>
                 <View className="flex-row gap-2">
                   <Pressable
                     onPress={() => setPendingConfirmCoordinate(null)}
                     className="rounded-full bg-slate-100 px-3.5 py-1.5"
                     testID="button-cancel-pending-pin"
                   >
-                    <Text className="text-xs font-semibold text-slate-600">Cancel</Text>
+                    <Text className="text-xs font-semibold text-slate-600">
+                      Cancel
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {
@@ -370,7 +544,9 @@ export default function MapDetailScreen() {
                     className="rounded-full bg-primary px-3.5 py-1.5"
                     testID="button-confirm-pending-pin"
                   >
-                    <Text className="text-xs font-semibold text-white">Confirm</Text>
+                    <Text className="text-xs font-semibold text-white">
+                      Confirm
+                    </Text>
                   </Pressable>
                 </View>
               </>
@@ -382,70 +558,124 @@ export default function MapDetailScreen() {
                     {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
                   </Text>
                 </View>
-                <Text className="text-xs text-slate-400">Tap the map or search to add a pin</Text>
+                <Text className="text-xs text-slate-400">
+                  Tap the map or search to add a pin
+                </Text>
               </>
             )}
           </View>
         </>
       )}
 
-      <Modal visible={routeMode} animationType="slide" transparent onRequestClose={() => setRouteMode(false)}>
+      <Modal
+        visible={routeMode}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRouteMode(false)}
+      >
         <View className="flex-1 justify-end bg-black/40">
           <View className="max-h-[75%] rounded-t-3xl bg-white p-6">
             <View className="mb-4 flex-row items-center justify-between">
               <View>
                 <Text className="text-lg font-bold text-slate-900">Route</Text>
-                <Text className="text-xs text-slate-500">{totalRouteKm.toFixed(1)} km total, as the crow flies</Text>
+                <Text className="text-xs text-slate-500">
+                  {totalRouteKm.toFixed(1)} km total, as the crow flies
+                </Text>
               </View>
-              <Pressable onPress={() => setRouteMode(false)} hitSlop={8} testID="button-close-route">
+              <Pressable
+                onPress={() => setRouteMode(false)}
+                hitSlop={8}
+                testID="button-close-route"
+              >
                 <Ionicons name="close" size={22} color="#64748b" />
               </Pressable>
             </View>
             <ScrollView>
-              {orderedPins.map((pin, index) => (
-                <View key={pin.id} className="mb-2 flex-row items-center gap-3 rounded-xl border border-slate-200 p-3" testID={`row-route-pin-${pin.id}`}>
-                  <View className="h-6 w-6 items-center justify-center rounded-full bg-primary/10">
-                    <Text className="text-xs font-semibold text-primary">{index + 1}</Text>
-                  </View>
-                  <View className="min-w-0 flex-1">
-                    <Text className="font-medium text-slate-900" numberOfLines={1}>{pin.title}</Text>
-                    {index > 0 && (
-                      <Text className="text-xs text-slate-400">{haversineDistanceKm(orderedPins[index - 1], pin).toFixed(1)} km from previous</Text>
+              {orderedPins.map((pin, index) => {
+                const prevPin = index > 0 ? orderedPins[index - 1] : undefined;
+                const distanceKm =
+                  prevPin && hasCoordinates(prevPin) && hasCoordinates(pin)
+                    ? haversineDistanceKm(prevPin, pin)
+                    : undefined;
+                return (
+                  <View
+                    key={pin.id}
+                    className="mb-2 flex-row items-center gap-3 rounded-xl border border-slate-200 p-3"
+                    testID={`row-route-pin-${pin.id}`}
+                  >
+                    <View className="h-6 w-6 items-center justify-center rounded-full bg-primary/10">
+                      <Text className="text-xs font-semibold text-primary">
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <View className="min-w-0 flex-1">
+                      <Text
+                        className="font-medium text-slate-900"
+                        numberOfLines={1}
+                      >
+                        {pin.title}
+                      </Text>
+                      {distanceKm !== undefined && (
+                        <Text className="text-xs text-slate-400">
+                          {distanceKm.toFixed(1)} km from previous
+                        </Text>
+                      )}
+                    </View>
+                    {isOwner && (
+                      <View className="flex-row gap-1">
+                        <Pressable
+                          onPress={() => moveStop(index, -1)}
+                          disabled={index === 0}
+                          className={`h-8 w-8 items-center justify-center rounded-full ${index === 0 ? "opacity-30" : "bg-slate-100"}`}
+                          testID={`button-move-up-${pin.id}`}
+                        >
+                          <Ionicons
+                            name="chevron-up"
+                            size={16}
+                            color="#334155"
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => moveStop(index, 1)}
+                          disabled={index === orderedPins.length - 1}
+                          className={`h-8 w-8 items-center justify-center rounded-full ${index === orderedPins.length - 1 ? "opacity-30" : "bg-slate-100"}`}
+                          testID={`button-move-down-${pin.id}`}
+                        >
+                          <Ionicons
+                            name="chevron-down"
+                            size={16}
+                            color="#334155"
+                          />
+                        </Pressable>
+                      </View>
                     )}
                   </View>
-                  {isOwner && (
-                    <View className="flex-row gap-1">
-                      <Pressable
-                        onPress={() => moveStop(index, -1)}
-                        disabled={index === 0}
-                        className={`h-8 w-8 items-center justify-center rounded-full ${index === 0 ? "opacity-30" : "bg-slate-100"}`}
-                        testID={`button-move-up-${pin.id}`}
-                      >
-                        <Ionicons name="chevron-up" size={16} color="#334155" />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => moveStop(index, 1)}
-                        disabled={index === orderedPins.length - 1}
-                        className={`h-8 w-8 items-center justify-center rounded-full ${index === orderedPins.length - 1 ? "opacity-30" : "bg-slate-100"}`}
-                        testID={`button-move-down-${pin.id}`}
-                      >
-                        <Ionicons name="chevron-down" size={16} color="#334155" />
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-              ))}
-              {orderedPins.length === 0 && <Text className="text-sm italic text-slate-400">No pins to route yet.</Text>}
+                );
+              })}
+              {orderedPins.length === 0 && (
+                <Text className="text-sm italic text-slate-400">
+                  No pins to route yet.
+                </Text>
+              )}
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={!!pendingCoordinate} animationType="slide" transparent onRequestClose={closeAddPinModal}>
+      <Modal
+        visible={!!pendingCoordinate}
+        animationType="slide"
+        transparent
+        onRequestClose={closeAddPinModal}
+      >
         <View className="flex-1 justify-end bg-black/40">
           <View className="max-h-[85%] rounded-t-3xl bg-white p-6">
             <Text className="text-lg font-bold text-slate-900">Add a pin</Text>
-            {pendingAddress && <Text className="mb-4 mt-0.5 text-xs text-slate-500">{pendingAddress}</Text>}
+            {pendingAddress && (
+              <Text className="mb-4 mt-0.5 text-xs text-slate-500">
+                {pendingAddress}
+              </Text>
+            )}
             <ScrollView className={pendingAddress ? "" : "mt-4"}>
               <PinForm
                 value={pinForm}
@@ -465,12 +695,23 @@ export default function MapDetailScreen() {
                 }
               />
             </ScrollView>
-            {submitError && <Text className="mt-3 text-sm text-red-600">{submitError}</Text>}
+            {submitError && (
+              <Text className="mt-3 text-sm text-red-600">{submitError}</Text>
+            )}
             <View className="mt-4 flex-row gap-3">
-              <Button variant="outline" className="flex-1" onPress={closeAddPinModal}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onPress={closeAddPinModal}
+              >
                 Cancel
               </Button>
-              <Button className="flex-1" loading={addPin.isPending} onPress={onSubmitPin} testID="button-submit-pin">
+              <Button
+                className="flex-1"
+                loading={addPin.isPending}
+                onPress={onSubmitPin}
+                testID="button-submit-pin"
+              >
                 Drop pin
               </Button>
             </View>
@@ -478,23 +719,53 @@ export default function MapDetailScreen() {
         </View>
       </Modal>
 
-      <Modal visible={!!selectedPin} animationType="slide" transparent onRequestClose={() => setSelectedPin(null)}>
+      <Modal
+        visible={!!selectedPin}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectedPin(null)}
+      >
         {selectedPin && (
           <View className="flex-1 justify-end bg-black/40">
             <View className="gap-3 rounded-t-3xl bg-white p-6">
               {selectedPin.photoUrl && (
-                <Image source={{ uri: selectedPin.photoUrl }} className="h-40 w-full rounded-xl" resizeMode="cover" />
+                <Image
+                  source={{ uri: selectedPin.photoUrl }}
+                  className="h-40 w-full rounded-xl"
+                  resizeMode="cover"
+                />
               )}
-              <Text className="text-lg font-bold text-slate-900">{selectedPin.title}</Text>
+              <Text className="text-lg font-bold text-slate-900">
+                {selectedPin.title}
+              </Text>
               {selectedPin.contributorName && (
-                <Text className="text-xs text-slate-400">Added by {selectedPin.contributorName}</Text>
+                <Text className="text-xs text-slate-400">
+                  Added by {selectedPin.contributorName}
+                </Text>
               )}
-              {!selectedPin.approved && <Text className="text-sm font-medium text-amber-600">Pending the owner's approval</Text>}
-              {selectedPin.note && <Text className="text-sm text-slate-600">{selectedPin.note}</Text>}
-              {selectedPin.address && <Text className="text-xs text-slate-400">{selectedPin.address}</Text>}
+              {!selectedPin.approved && (
+                <Text className="text-sm font-medium text-amber-600">
+                  Pending the owner's approval
+                </Text>
+              )}
+              {selectedPin.note && (
+                <Text className="text-sm text-slate-600">
+                  {selectedPin.note}
+                </Text>
+              )}
+              {selectedPin.address && (
+                <Text className="text-xs text-slate-400">
+                  {selectedPin.address}
+                </Text>
+              )}
               {selectedPin.googleMapsUrl && (
-                <Pressable onPress={() => Linking.openURL(selectedPin.googleMapsUrl!)} testID="link-google-maps">
-                  <Text className="text-sm font-medium text-primary">Open in Google Maps</Text>
+                <Pressable
+                  onPress={() => Linking.openURL(selectedPin.googleMapsUrl!)}
+                  testID="link-google-maps"
+                >
+                  <Text className="text-sm font-medium text-primary">
+                    Open in Google Maps
+                  </Text>
                 </Pressable>
               )}
               {canModifyPin(selectedPin) && (
@@ -511,7 +782,12 @@ export default function MapDetailScreen() {
                   >
                     Edit
                   </Button>
-                  <Button variant="destructive" className="flex-1" onPress={() => onDeletePin(selectedPin)} testID="button-delete-pin">
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onPress={() => onDeletePin(selectedPin)}
+                    testID="button-delete-pin"
+                  >
                     Delete
                   </Button>
                 </View>
@@ -525,10 +801,19 @@ export default function MapDetailScreen() {
       </Modal>
 
       {map && (
-        <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
+        <ShareSheet
+          visible={shareSheetVisible}
+          onClose={() => setShareSheetVisible(false)}
+          mapName={map.name}
+          shareUrl={shareUrl}
+        />
       )}
 
-      <VenueSearchSheet visible={venueSearchVisible} onClose={() => setVenueSearchVisible(false)} onSelect={onVenueSelected} />
+      <VenueSearchSheet
+        visible={venueSearchVisible}
+        onClose={() => setVenueSearchVisible(false)}
+        onSelect={onVenueSelected}
+      />
 
       <Modal
         visible={forkedFromSheetVisible}
@@ -536,8 +821,14 @@ export default function MapDetailScreen() {
         transparent
         onRequestClose={() => setForkedFromSheetVisible(false)}
       >
-        <Pressable className="flex-1 items-center justify-center bg-black/40 px-8" onPress={() => setForkedFromSheetVisible(false)}>
-          <Pressable className="w-full max-w-xs gap-2 rounded-2xl bg-white p-5" onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/40 px-8"
+          onPress={() => setForkedFromSheetVisible(false)}
+        >
+          <Pressable
+            className="w-full max-w-xs gap-2 rounded-2xl bg-white p-5"
+            onPress={(e) => e.stopPropagation()}
+          >
             {map?.forkedFrom ? (
               <>
                 <Text className="text-xs text-slate-500">Forked from</Text>
@@ -548,12 +839,20 @@ export default function MapDetailScreen() {
                   }}
                   testID="link-forked-from"
                 >
-                  <Text className="text-base font-semibold text-primary">{map.forkedFrom.name}</Text>
+                  <Text className="text-base font-semibold text-primary">
+                    {map.forkedFrom.name}
+                  </Text>
                 </Pressable>
-                {map.forkedFrom.ownerName && <Text className="text-xs text-slate-500">by {map.forkedFrom.ownerName}</Text>}
+                {map.forkedFrom.ownerName && (
+                  <Text className="text-xs text-slate-500">
+                    by {map.forkedFrom.ownerName}
+                  </Text>
+                )}
               </>
             ) : (
-              <Text className="text-sm text-slate-500">Forked from a map that's no longer available.</Text>
+              <Text className="text-sm text-slate-500">
+                Forked from a map that's no longer available.
+              </Text>
             )}
           </Pressable>
         </Pressable>
