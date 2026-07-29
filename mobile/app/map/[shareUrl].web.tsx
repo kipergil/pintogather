@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
@@ -7,7 +16,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { ShareSheet } from "@/components/ShareSheet";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
-import { VenueSearchSheet, type VenueResult } from "@/components/VenueSearchSheet";
+import { AddItemForm, type ItemFormValue } from "@/components/AddItemForm";
+import {
+  VenueSearchSheet,
+  type VenueResult,
+} from "@/components/VenueSearchSheet";
 import { useAddPin, useMap } from "@/hooks/useMaps";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { PIN_COLOR_HEX, resolvePinStyle } from "@/lib/pin-styles";
@@ -23,6 +36,14 @@ const EMPTY_PIN_FORM: PinFormValue = {
   photoUrl: null,
   pinColor: null,
   pinIcon: null,
+};
+
+const EMPTY_ITEM_FORM: ItemFormValue = {
+  title: "",
+  contributorName: "",
+  url: "",
+  note: "",
+  photoUrl: null,
 };
 
 /**
@@ -47,6 +68,9 @@ export default function MapDetailWebFallback() {
   const [pendingPlace, setPendingPlace] = useState<VenueResult | null>(null);
   const [pinForm, setPinForm] = useState<PinFormValue>(EMPTY_PIN_FORM);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [itemSheetVisible, setItemSheetVisible] = useState(false);
+  const [itemForm, setItemForm] = useState<ItemFormValue>(EMPTY_ITEM_FORM);
+  const [itemSubmitError, setItemSubmitError] = useState<string | null>(null);
 
   const onVenueSelected = (place: VenueResult) => {
     setVenueSearchVisible(false);
@@ -74,7 +98,9 @@ export default function MapDetailWebFallback() {
     try {
       const pin = await addPin.mutateAsync({
         title: pinForm.title.trim(),
-        contributorName: isSignedIn ? null : pinForm.contributorName.trim() || null,
+        contributorName: isSignedIn
+          ? null
+          : pinForm.contributorName.trim() || null,
         latitude: pendingPlace.latitude,
         longitude: pendingPlace.longitude,
         address: pendingPlace.address,
@@ -88,10 +114,60 @@ export default function MapDetailWebFallback() {
       });
       closeAddPinModal();
       if (!pin.approved) {
-        Alert.alert("Pin added", "Your pin is pending the map owner's approval before it's visible to others.");
+        Alert.alert(
+          "Pin added",
+          "Your pin is pending the map owner's approval before it's visible to others.",
+        );
       }
     } catch (err: any) {
       setSubmitError(err?.message ?? "Couldn't add that pin.");
+    }
+  };
+
+  const openAddItemSheet = () => {
+    setItemForm(EMPTY_ITEM_FORM);
+    setItemSubmitError(null);
+    setItemSheetVisible(true);
+  };
+
+  const closeAddItemSheet = () => {
+    setItemSheetVisible(false);
+    setItemSubmitError(null);
+  };
+
+  const onSubmitItem = async () => {
+    if (!itemForm.title.trim()) {
+      setItemSubmitError("Please enter a title for this item.");
+      return;
+    }
+    if (!isSignedIn && !itemForm.contributorName.trim()) {
+      setItemSubmitError("Please enter your name so we know who added this.");
+      return;
+    }
+    if (map?.itemType === "link" && !itemForm.url.trim()) {
+      setItemSubmitError("Please paste a link for this item.");
+      return;
+    }
+    setItemSubmitError(null);
+    try {
+      const pin = await addPin.mutateAsync({
+        title: itemForm.title.trim(),
+        contributorName: isSignedIn
+          ? null
+          : itemForm.contributorName.trim() || null,
+        url: itemForm.url.trim() || null,
+        note: itemForm.note.trim() || undefined,
+        photoUrl: itemForm.photoUrl,
+      });
+      closeAddItemSheet();
+      if (!pin.approved) {
+        Alert.alert(
+          "Item added",
+          "Your item is pending the map owner's approval before it's visible to others.",
+        );
+      }
+    } catch (err: any) {
+      setItemSubmitError(err?.message ?? "Couldn't add that item.");
     }
   };
 
@@ -102,13 +178,21 @@ export default function MapDetailWebFallback() {
           title: map?.name ?? "Map",
           headerRight: () => (
             <View className="flex-row items-center gap-4">
-              <Pressable hitSlop={8} onPress={() => setShareSheetVisible(true)} testID="button-share-map">
+              <Pressable
+                hitSlop={8}
+                onPress={() => setShareSheetVisible(true)}
+                testID="button-share-map"
+              >
                 <Ionicons name="share-outline" size={22} color="#2563EB" />
               </Pressable>
               {isOwner && (
                 <Link href={`/map/edit/${shareUrl}`} asChild>
                   <Pressable hitSlop={8} testID="button-edit-map">
-                    <Ionicons name="settings-outline" size={22} color="#2563EB" />
+                    <Ionicons
+                      name="settings-outline"
+                      size={22}
+                      color="#2563EB"
+                    />
                   </Pressable>
                 </Link>
               )}
@@ -121,47 +205,96 @@ export default function MapDetailWebFallback() {
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : error || !map ? (
-        <EmptyState icon="alert-circle-outline" title="Couldn't load this map" />
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Couldn't load this map"
+        />
       ) : (
         <>
           <View className="gap-1 py-4">
             <Text className="text-xl font-bold text-slate-900">{map.name}</Text>
             <Text className="text-sm text-amber-600">
-              The map view is only available in the iOS/Android app — open this project on a device or simulator to see pins on a
-              real map. Showing the pin list here instead.
+              The map view is only available in the iOS/Android app — open this
+              project on a device or simulator to see pins on a real map.
+              Showing the pin list here instead.
             </Text>
             {!isSignedIn && (
               <Text className="text-xs text-amber-700" testID="guest-notice">
                 Viewing as a guest.{" "}
-                <Link href={signInHref(`/map/${shareUrl}`)} className="font-semibold underline">
+                <Link
+                  href={signInHref(`/map/${shareUrl}`)}
+                  className="font-semibold underline"
+                >
                   Sign in
                 </Link>{" "}
                 to manage your own maps.
               </Text>
             )}
-            <Button variant="outline" size="sm" onPress={() => setVenueSearchVisible(true)} testID="button-search-venue">
-              Search for a venue to add
-            </Button>
+            {map.itemType === "location" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => setVenueSearchVisible(true)}
+                testID="button-search-venue"
+              >
+                Search for a venue to add
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={openAddItemSheet}
+                testID="button-add-item"
+              >
+                {`Add ${map.itemType === "link" ? "link" : "recommendation"}`}
+              </Button>
+            )}
           </View>
           <FlatList
             data={map.pins}
             keyExtractor={(pin) => pin.id}
             renderItem={({ item: pin }) => {
-              const style = map ? resolvePinStyle(pin, map) : { color: null, icon: null };
+              const style = map
+                ? resolvePinStyle(pin, map)
+                : { color: null, icon: null };
               const hex = style.color ? PIN_COLOR_HEX[style.color] : "#3B82F6";
-              const canModify = isOwner || (!!currentUser && currentUser.id === pin.userId);
+              const canModify =
+                isOwner || (!!currentUser && currentUser.id === pin.userId);
               return (
                 <View className="mb-2 flex-row items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
-                  <View className="mt-1 h-3 w-3 rounded-full" style={{ backgroundColor: hex }} />
+                  {map.itemType === "location" && (
+                    <View
+                      className="mt-1 h-3 w-3 rounded-full"
+                      style={{ backgroundColor: hex }}
+                    />
+                  )}
                   <View className="flex-1">
-                    <Text className="font-semibold text-slate-900">{pin.title}</Text>
-                    {pin.note && <Text className="text-sm text-slate-600">{pin.note}</Text>}
-                    {pin.address && <Text className="text-xs text-slate-400">{pin.address}</Text>}
-                    {!pin.approved && <Text className="text-xs font-medium text-amber-600">Pending approval</Text>}
+                    <Text className="font-semibold text-slate-900">
+                      {pin.title}
+                    </Text>
+                    {pin.note && (
+                      <Text className="text-sm text-slate-600">{pin.note}</Text>
+                    )}
+                    {pin.address && (
+                      <Text className="text-xs text-slate-400">
+                        {pin.address}
+                      </Text>
+                    )}
+                    {pin.url && (
+                      <Text className="text-xs text-primary">{pin.url}</Text>
+                    )}
+                    {!pin.approved && (
+                      <Text className="text-xs font-medium text-amber-600">
+                        Pending approval
+                      </Text>
+                    )}
                   </View>
                   {canModify && (
                     <Link href={`/map/edit-pin/${shareUrl}/${pin.id}`} asChild>
-                      <Pressable hitSlop={8} testID={`button-edit-pin-${pin.id}`}>
+                      <Pressable
+                        hitSlop={8}
+                        testID={`button-edit-pin-${pin.id}`}
+                      >
                         <Ionicons name="pencil" size={16} color="#64748b" />
                       </Pressable>
                     </Link>
@@ -169,22 +302,42 @@ export default function MapDetailWebFallback() {
                 </View>
               );
             }}
-            ListEmptyComponent={<EmptyState icon="location-outline" title="No pins yet" />}
+            ListEmptyComponent={
+              <EmptyState icon="location-outline" title="No pins yet" />
+            }
           />
         </>
       )}
 
       {map && (
-        <ShareSheet visible={shareSheetVisible} onClose={() => setShareSheetVisible(false)} mapName={map.name} shareUrl={shareUrl} />
+        <ShareSheet
+          visible={shareSheetVisible}
+          onClose={() => setShareSheetVisible(false)}
+          mapName={map.name}
+          shareUrl={shareUrl}
+        />
       )}
 
-      <VenueSearchSheet visible={venueSearchVisible} onClose={() => setVenueSearchVisible(false)} onSelect={onVenueSelected} />
+      <VenueSearchSheet
+        visible={venueSearchVisible}
+        onClose={() => setVenueSearchVisible(false)}
+        onSelect={onVenueSelected}
+      />
 
-      <Modal visible={!!pendingPlace} animationType="slide" transparent onRequestClose={closeAddPinModal}>
+      <Modal
+        visible={!!pendingPlace}
+        animationType="slide"
+        transparent
+        onRequestClose={closeAddPinModal}
+      >
         <View className="flex-1 justify-end bg-black/40">
           <View className="max-h-[85%] rounded-t-3xl bg-white p-6">
             <Text className="text-lg font-bold text-slate-900">Add a pin</Text>
-            {pendingPlace && <Text className="mb-4 mt-0.5 text-xs text-slate-500">{pendingPlace.address}</Text>}
+            {pendingPlace && (
+              <Text className="mb-4 mt-0.5 text-xs text-slate-500">
+                {pendingPlace.address}
+              </Text>
+            )}
             <ScrollView>
               <PinForm
                 value={pinForm}
@@ -204,12 +357,23 @@ export default function MapDetailWebFallback() {
                 }
               />
             </ScrollView>
-            {submitError && <Text className="mt-3 text-sm text-red-600">{submitError}</Text>}
+            {submitError && (
+              <Text className="mt-3 text-sm text-red-600">{submitError}</Text>
+            )}
             <View className="mt-4 flex-row gap-3">
-              <Button variant="outline" className="flex-1" onPress={closeAddPinModal}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onPress={closeAddPinModal}
+              >
                 Cancel
               </Button>
-              <Button className="flex-1" loading={addPin.isPending} onPress={onSubmitPin} testID="button-submit-pin">
+              <Button
+                className="flex-1"
+                loading={addPin.isPending}
+                onPress={onSubmitPin}
+                testID="button-submit-pin"
+              >
                 Drop pin
               </Button>
             </View>

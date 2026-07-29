@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, getQueryFn } from "@/lib/api";
-import type { InsertMapCollection, InsertPin, MapCollection, Pin, UpdateMapDetails } from "../../../shared/schema";
+import type {
+  InsertMapCollection,
+  InsertPin,
+  MapCollection,
+  Pin,
+  UpdateMapDetails,
+} from "../../../shared/schema";
 
 export type MapListItem = MapCollection & { pinCount: number };
 
@@ -16,11 +22,16 @@ export function useArchiveMaps() {
   return useMutation({
     mutationFn: async (mapIds: string[]) => {
       const res = await apiRequest("POST", "/api/maps/archive", { mapIds });
-      return (await res.json()) as { archivedCount: number; archivedIds: string[] };
+      return (await res.json()) as {
+        archivedCount: number;
+        archivedIds: string[];
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/maps?archivedOnly=true"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/maps?archivedOnly=true"],
+      });
     },
   });
 }
@@ -30,18 +41,31 @@ export function useUnarchiveMaps() {
   return useMutation({
     mutationFn: async (mapIds: string[]) => {
       const res = await apiRequest("POST", "/api/maps/unarchive", { mapIds });
-      return (await res.json()) as { restoredCount: number; restoredIds: string[]; skippedDueToLimit: number };
+      return (await res.json()) as {
+        restoredCount: number;
+        restoredIds: string[];
+        skippedDueToLimit: number;
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/maps?archivedOnly=true"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/maps?archivedOnly=true"],
+      });
     },
   });
 }
 
 type CreateMapInput = Pick<
   InsertMapCollection,
-  "name" | "description" | "noteLabel" | "notePrompt" | "requirePinApproval" | "defaultPinColor" | "defaultPinIcon"
+  | "name"
+  | "description"
+  | "noteLabel"
+  | "notePrompt"
+  | "requirePinApproval"
+  | "defaultPinColor"
+  | "defaultPinIcon"
+  | "itemType"
 >;
 
 export function useCreateMap() {
@@ -66,7 +90,9 @@ export function useUpdateMap(mapId: string | undefined) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/maps/${data.shareUrl}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/maps/${data.shareUrl}`],
+      });
     },
   });
 }
@@ -74,13 +100,22 @@ export function useUpdateMap(mapId: string | undefined) {
 export function useUpdateMapPermissions(mapId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { isPublic: boolean; defaultPermission: "readonly" | "editable" }) => {
-      const res = await apiRequest("PUT", `/api/maps/${mapId}/permissions`, data);
+    mutationFn: async (data: {
+      isPublic: boolean;
+      defaultPermission: "readonly" | "editable";
+    }) => {
+      const res = await apiRequest(
+        "PUT",
+        `/api/maps/${mapId}/permissions`,
+        data,
+      );
       return (await res.json()) as MapCollection;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/maps/${data.shareUrl}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/maps/${data.shareUrl}`],
+      });
     },
   });
 }
@@ -107,7 +142,11 @@ export interface MapDetail extends MapCollection {
   likedByViewer: boolean;
   hasPinCustomization: boolean;
   /** Set when this map is a clone of another — permanent credit to the original, never editable. Null if the original was deleted. */
-  forkedFrom: { name: string; shareUrl: string; ownerName: string | null } | null;
+  forkedFrom: {
+    name: string;
+    shareUrl: string;
+    ownerName: string | null;
+  } | null;
 }
 
 export function useMap(shareUrl: string | undefined) {
@@ -155,10 +194,21 @@ export function usePin(pinId: string | undefined) {
 
 type PinEditableFields = Pick<
   InsertPin,
-  "title" | "twitterHandle" | "instagramHandle" | "linkedinHandle" | "note" | "photoUrl" | "pinColor" | "pinIcon"
+  | "title"
+  | "url"
+  | "twitterHandle"
+  | "instagramHandle"
+  | "linkedinHandle"
+  | "note"
+  | "photoUrl"
+  | "pinColor"
+  | "pinIcon"
 >;
 
-export function useUpdatePin(pinId: string | undefined, shareUrl: string | undefined) {
+export function useUpdatePin(
+  pinId: string | undefined,
+  shareUrl: string | undefined,
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: Partial<PinEditableFields>) => {
@@ -190,7 +240,10 @@ export function useBulkDeletePins(shareUrl: string | undefined) {
   return useMutation({
     mutationFn: async (pinIds: string[]) => {
       const res = await apiRequest("POST", "/api/pins/bulk-delete", { pinIds });
-      return (await res.json()) as { deletedCount: number; skippedCount: number };
+      return (await res.json()) as {
+        deletedCount: number;
+        skippedCount: number;
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
@@ -215,8 +268,14 @@ export function useBulkImportPins(shareUrl: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (pins: Array<Omit<InsertPin, "mapId" | "userId">>) => {
-      const res = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, { pins });
-      return (await res.json()) as { created: Pin[]; updated: Pin[]; skippedDueToLimit: number };
+      const res = await apiRequest("POST", `/api/maps/${shareUrl}/pins/bulk`, {
+        pins,
+      });
+      return (await res.json()) as {
+        created: Pin[];
+        updated: Pin[];
+        skippedDueToLimit: number;
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });

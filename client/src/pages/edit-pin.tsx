@@ -26,6 +26,7 @@ interface EditPinProps {
 
 interface PinFormData {
   title: string;
+  url: string;
   twitterHandle: string;
   instagramHandle: string;
   linkedinHandle: string;
@@ -39,7 +40,9 @@ interface PinRecord {
   id: string;
   userId: string | null;
   title: string;
+  itemType?: "location" | "link" | "recommendation";
   address?: string;
+  url?: string | null;
   twitterHandle?: string;
   instagramHandle?: string;
   linkedinHandle?: string;
@@ -69,6 +72,7 @@ export default function EditPin({ params }: EditPinProps) {
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<PinFormData>({
     title: "",
+    url: "",
     twitterHandle: "",
     instagramHandle: "",
     linkedinHandle: "",
@@ -108,6 +112,7 @@ export default function EditPin({ params }: EditPinProps) {
 
       setFormData({
         title: pin.title || "",
+        url: pin.url || "",
         twitterHandle: pin.twitterHandle || user?.twitterHandle || "",
         instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
         linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
@@ -182,6 +187,7 @@ export default function EditPin({ params }: EditPinProps) {
     try {
       updatePinMutation.mutate({
         title: formData.title,
+        url: formData.url || "",
         twitterHandle: formData.twitterHandle || "",
         instagramHandle: formData.instagramHandle || "",
         linkedinHandle: formData.linkedinHandle || "",
@@ -279,6 +285,21 @@ export default function EditPin({ params }: EditPinProps) {
                   data-testid="input-title"
                 />
               </div>
+
+              {pin.itemType && pin.itemType !== "location" && (
+                <div className="space-y-2">
+                  <Label htmlFor="itemUrl">{pin.itemType === "link" ? "URL" : "Link (optional)"}</Label>
+                  <Input
+                    id="itemUrl"
+                    type="url"
+                    placeholder="https://..."
+                    value={formData.url}
+                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                    required={pin.itemType === "link"}
+                    data-testid="input-item-url"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2.5">
                 <Label className="text-sm text-muted-foreground">Social links (optional)</Label>

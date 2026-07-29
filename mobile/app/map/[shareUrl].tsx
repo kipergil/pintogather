@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -19,6 +20,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PinForm, type PinFormValue } from "@/components/PinForm";
+import { AddItemForm, type ItemFormValue } from "@/components/AddItemForm";
 import { ShareSheet } from "@/components/ShareSheet";
 import {
   useAddPin,
@@ -71,6 +73,14 @@ const EMPTY_PIN_FORM: PinFormValue = {
   pinIcon: null,
 };
 
+const EMPTY_ITEM_FORM: ItemFormValue = {
+  title: "",
+  contributorName: "",
+  url: "",
+  note: "",
+  photoUrl: null,
+};
+
 export default function MapDetailScreen() {
   const { isSignedIn } = useAuth();
   const { shareUrl, pin: focusPinId } = useLocalSearchParams<{
@@ -103,6 +113,11 @@ export default function MapDetailScreen() {
   const [venueSearchVisible, setVenueSearchVisible] = useState(false);
   const [forkedFromSheetVisible, setForkedFromSheetVisible] = useState(false);
   const [routeMode, setRouteMode] = useState(false);
+  // "link"/"recommendation" collections have no map to click on — this
+  // sheet is their entire add-item flow, opened from a FAB instead.
+  const [itemSheetVisible, setItemSheetVisible] = useState(false);
+  const [itemForm, setItemForm] = useState<ItemFormValue>(EMPTY_ITEM_FORM);
+  const [itemSubmitError, setItemSubmitError] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const orderedPins = useMemo(
@@ -236,6 +251,53 @@ export default function MapDetailScreen() {
     }
   };
 
+  const openAddItemSheet = () => {
+    setItemForm(EMPTY_ITEM_FORM);
+    setItemSubmitError(null);
+    setItemSheetVisible(true);
+  };
+
+  const closeAddItemSheet = () => {
+    setItemSheetVisible(false);
+    setItemSubmitError(null);
+  };
+
+  const onSubmitItem = async () => {
+    if (!itemForm.title.trim()) {
+      setItemSubmitError("Please enter a title for this item.");
+      return;
+    }
+    if (!isSignedIn && !itemForm.contributorName.trim()) {
+      setItemSubmitError("Please enter your name so we know who added this.");
+      return;
+    }
+    if (map?.itemType === "link" && !itemForm.url.trim()) {
+      setItemSubmitError("Please paste a link for this item.");
+      return;
+    }
+    setItemSubmitError(null);
+    try {
+      const pin = await addPin.mutateAsync({
+        title: itemForm.title.trim(),
+        contributorName: isSignedIn
+          ? null
+          : itemForm.contributorName.trim() || null,
+        url: itemForm.url.trim() || null,
+        note: itemForm.note.trim() || undefined,
+        photoUrl: itemForm.photoUrl,
+      });
+      closeAddItemSheet();
+      if (!pin.approved) {
+        Alert.alert(
+          "Item added",
+          "Your item is pending the map owner's approval before it's visible to others.",
+        );
+      }
+    } catch (err: any) {
+      setItemSubmitError(err?.message ?? "Couldn't add that item.");
+    }
+  };
+
   const canModifyPin = (pin: Pin) =>
     isOwner || (!!currentUser && currentUser.id === pin.userId);
 
@@ -363,6 +425,97 @@ export default function MapDetailScreen() {
           title="Couldn't load this map"
           description="Check your connection and try again."
         />
+      ) : map.itemType !== "location" ? (
+        <>
+          <FlatList
+            className="flex-1"
+            contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 96 }}
+            data={map.pins}
+            keyExtractor={(pin) => pin.id}
+            renderItem={({ item: pin }) => (
+              <View
+                className="gap-2 rounded-xl border border-slate-200 bg-white p-3.5"
+                testID={`row-item-${pin.id}`}
+              >
+                {pin.photoUrl && (
+                  <Image
+                    source={{ uri: pin.photoUrl }}
+                    className="h-32 w-full rounded-lg"
+                    resizeMode="cover"
+                  />
+                )}
+                <View className="flex-row items-start justify-between gap-2">
+                  <Text
+                    className="flex-1 font-semibold text-slate-900"
+                    numberOfLines={2}
+                  >
+                    {pin.title}
+                  </Text>
+                  {pin.approved === false && (
+                    <View className="rounded-full bg-amber-50 px-2 py-0.5">
+                      <Text className="text-xs font-medium text-amber-700">
+                        Pending
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {pin.note && (
+                  <Text className="text-sm text-slate-600">{pin.note}</Text>
+                )}
+                {pin.contributorName && (
+                  <Text className="text-xs text-slate-400">
+                    Added by {pin.contributorName}
+                  </Text>
+                )}
+                {pin.url && (
+                  <Pressable
+                    onPress={() => Linking.openURL(pin.url!)}
+                    className="mt-1 flex-row items-center gap-1.5 self-start rounded-full border border-slate-200 px-3 py-1.5"
+                    testID={`link-item-url-${pin.id}`}
+                  >
+                    <Ionicons name="open-outline" size={14} color="#2563EB" />
+                    <Text className="text-xs font-medium text-primary">
+                      Visit link
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+            ListEmptyComponent={
+              <EmptyState
+                icon={
+                  map.itemType === "link" ? "link-outline" : "sparkles-outline"
+                }
+                title="No items yet"
+                description={`Tap "Add ${map.itemType === "link" ? "link" : "recommendation"}" below to add the first item.`}
+              />
+            }
+          />
+
+          {!isSignedIn && (
+            <View
+              className="absolute left-4 right-4 top-4 rounded-xl bg-amber-50 px-3.5 py-2.5"
+              testID="guest-notice"
+            >
+              <Text className="text-xs text-amber-800">
+                Viewing as a guest — items save anonymously.{" "}
+                <Link
+                  href={signInHref(`/map/${shareUrl}`)}
+                  className="font-semibold underline"
+                >
+                  Sign in
+                </Link>{" "}
+                to manage your own maps.
+              </Text>
+            </View>
+          )}
+
+          <View className="absolute bottom-6 left-4 right-4">
+            <Button onPress={openAddItemSheet} testID="button-add-item">
+              {`Add ${map.itemType === "link" ? "link" : "recommendation"}`}
+            </Button>
+          </View>
+        </>
       ) : (
         <>
           <ClusteredMapView
@@ -713,6 +866,53 @@ export default function MapDetailScreen() {
                 testID="button-submit-pin"
               >
                 Drop pin
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={itemSheetVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={closeAddItemSheet}
+      >
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="max-h-[85%] rounded-t-3xl bg-white p-6">
+            <Text className="mb-4 text-lg font-bold text-slate-900">
+              {`Add ${map?.itemType === "link" ? "a link" : "a recommendation"}`}
+            </Text>
+            <ScrollView>
+              <AddItemForm
+                value={itemForm}
+                onChange={setItemForm}
+                noteLabel={map?.noteLabel || "Note"}
+                notePrompt={map?.notePrompt ?? null}
+                itemType={map?.itemType === "link" ? "link" : "recommendation"}
+                showContributorName={!isSignedIn}
+              />
+            </ScrollView>
+            {itemSubmitError && (
+              <Text className="mt-3 text-sm text-red-600">
+                {itemSubmitError}
+              </Text>
+            )}
+            <View className="mt-4 flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onPress={closeAddItemSheet}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                loading={addPin.isPending}
+                onPress={onSubmitItem}
+                testID="button-submit-add-item"
+              >
+                {`Add ${map?.itemType === "link" ? "link" : "recommendation"}`}
               </Button>
             </View>
           </View>
