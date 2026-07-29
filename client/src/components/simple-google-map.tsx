@@ -262,6 +262,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
           zoomControl: true, // Show zoom buttons
           streetViewControl: false, // Hide street view icon
           mapTypeControl: false, // Hide map/satellite view options
+          fullscreenControl: false, // Our own full-screen button (button-toggle-fullscreen) replaces Google's default one
           // Without this, clicking a POI icon (a restaurant, landmark, etc.)
           // opens Google's own default info window on top of ours, which
           // visually blocks the "Drop a pin here?" confirm bubble and makes
@@ -802,12 +803,20 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                   : { height: '400px', minHeight: '400px', width: '100%', position: 'relative' }
               }
             />
+            {isFullscreen && (
+              <div
+                className="absolute inset-x-0 top-0 flex items-center justify-center border-b border-border bg-background/95 px-4 py-2 shadow-sm backdrop-blur-sm"
+                data-testid="map-fullscreen-title-bar"
+              >
+                <h2 className="truncate text-sm font-semibold text-foreground">{mapCollection.name}</h2>
+              </div>
+            )}
             {!isLoading && !error && mapCollection.pins.length > 0 && (
               <Button
                 type="button"
                 variant="secondary"
                 size="icon"
-                className="absolute top-2 left-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                className={`absolute left-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-11' : 'top-2'}`}
                 onClick={fitToAllPins}
                 title="Show all pins"
                 data-testid="button-reset-map-view"
@@ -820,7 +829,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                 type="button"
                 variant={myLocationStatus === 'on' ? 'default' : 'secondary'}
                 size="icon"
-                className="absolute top-2 right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                className={`absolute right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-11' : 'top-2'}`}
                 onClick={handleToggleMyLocation}
                 disabled={myLocationStatus === 'locating'}
                 title={myLocationStatus === 'on' ? 'Hide your location' : 'Show your location'}
@@ -840,7 +849,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                 type="button"
                 variant="secondary"
                 size="icon"
-                className="absolute top-11 right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100"
+                className={`absolute right-2 h-7 w-7 min-h-7 rounded-full opacity-80 shadow-sm hover:opacity-100 ${isFullscreen ? 'top-20' : 'top-11'}`}
                 onClick={toggleFullscreen}
                 title={isFullscreen ? 'Exit full screen' : 'View full screen'}
                 data-testid="button-toggle-fullscreen"
@@ -850,7 +859,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
             )}
             {isFullscreen && mapCollection.pins.length > 0 && (
               <div
-                className="absolute top-2 right-11 max-h-[calc(100%-1rem)] w-56 overflow-y-auto rounded-lg border border-border bg-background/95 shadow-md backdrop-blur-sm"
+                className="absolute top-11 right-11 max-h-[calc(100%-3.25rem)] w-56 overflow-y-auto rounded-lg border border-border bg-background/95 shadow-md backdrop-blur-sm"
                 data-testid="map-fullscreen-legend"
               >
                 <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border">
