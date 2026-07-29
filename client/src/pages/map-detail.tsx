@@ -226,17 +226,40 @@ export default function MapDetail({ params }: MapDetailProps) {
   return (
     <>
       {/* Sub-header: navigation lives here, apart from the page's own actions below */}
-      <div className="sticky top-16 z-30 border-b border-border bg-muted/60 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center gap-3">
+      <div className="sticky top-16 z-30 border-b border-border bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-3">
           <button
             onClick={() => setLocation("/")}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background hover:bg-accent transition-colors"
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 hover:bg-accent transition-colors"
             aria-label="Back to home"
             data-testid="button-back-to-home"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="text-sm font-medium">Back</span>
           </button>
-          <span className="text-sm font-semibold text-foreground truncate">{mapCollection.name}</span>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5",
+                isOwner && pinCapReached && "text-destructive font-medium",
+                isOwner && pinCapNear && "text-amber-600 font-medium",
+              )}
+            >
+              <MapPin className="h-4 w-4" />
+              {mapCollection.pinCount}
+              {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
+              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
+            </span>
+            {isOwner && (pinCapReached || pinCapNear) && (
+              <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
+                {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
@@ -335,30 +358,6 @@ export default function MapDetail({ params }: MapDetailProps) {
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5",
-                  isOwner && pinCapReached && "text-destructive font-medium",
-                  isOwner && pinCapNear && "text-amber-600 font-medium",
-                )}
-              >
-                <MapPin className="h-4 w-4" />
-                {mapCollection.pinCount}
-                {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
-                {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Users className="h-4 w-4" />
-                {contributorsCount} {contributorsCount === 1 ? "contributor" : "contributors"}
-              </span>
-              {isOwner && (pinCapReached || pinCapNear) && (
-                <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
-                  {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
-                </Link>
-              )}
             </div>
           </CardContent>
         </Card>
