@@ -25,11 +25,17 @@ import {
   X,
   LayoutGrid,
   FolderTree,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteMapModal } from "@/components/delete-map-modal";
@@ -308,6 +314,16 @@ function SignedInDashboard({
   const [archivedSelectMode, setArchivedSelectMode] = useState(false);
   const [selectedArchivedIds, setSelectedArchivedIds] = useState<Set<string>>(new Set());
   const [ownedViewMode, setOwnedViewMode] = useState<"flat" | "folder">("flat");
+  const [mapSearchQuery, setMapSearchQuery] = useState("");
+  const [mapSortBy, setMapSortBy] = useState<"created" | "pins" | "alpha">("created");
+
+  const visibleOwnedMaps = ownedMaps
+    .filter((map) => map.name.toLowerCase().includes(mapSearchQuery.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (mapSortBy === "alpha") return a.name.localeCompare(b.name);
+      if (mapSortBy === "pins") return b.pinCount - a.pinCount;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const renderOwnedMapGrid = (maps: MapCollectionSummary[]) => (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -375,6 +391,7 @@ function SignedInDashboard({
       </div>
 
       <PlanSummaryCard userGroup={userGroup} usage={usage} />
+      <PendingApprovalsBanner maps={ownedMaps} />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
@@ -425,31 +442,66 @@ function SignedInDashboard({
           ) : (
             <>
               <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                <ToggleGroup
-                  type="single"
-                  value={ownedViewMode}
-                  onValueChange={(value) => value && setOwnedViewMode(value as "flat" | "folder")}
-                  className="bg-muted rounded-lg p-1 justify-start"
-                >
-                  <ToggleGroupItem
-                    value="flat"
-                    size="sm"
-                    className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
-                    data-testid="button-view-mode-flat"
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <div className="relative w-full max-w-56">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={mapSearchQuery}
+                      onChange={(e) => setMapSearchQuery(e.target.value)}
+                      placeholder="Search your maps…"
+                      className="pl-9 pr-8 h-9"
+                      data-testid="input-search-maps"
+                    />
+                    {mapSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setMapSearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Clear search"
+                        data-testid="button-clear-map-search"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <Select value={mapSortBy} onValueChange={(v) => setMapSortBy(v as typeof mapSortBy)}>
+                    <SelectTrigger className="h-9 w-40 shrink-0" data-testid="select-map-sort">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created">Recently created</SelectItem>
+                      <SelectItem value="alpha">Alphabetical</SelectItem>
+                      <SelectItem value="pins">Most pins</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <ToggleGroup
+                    type="single"
+                    value={ownedViewMode}
+                    onValueChange={(value) => value && setOwnedViewMode(value as "flat" | "folder")}
+                    className="bg-muted rounded-lg p-1 justify-start shrink-0"
                   >
-                    <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
-                    Flat
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="folder"
-                    size="sm"
-                    className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
-                    data-testid="button-view-mode-folder"
-                  >
-                    <FolderTree className="h-3.5 w-3.5 mr-1.5" />
-                    Folders
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                    <ToggleGroupItem
+                      value="flat"
+                      size="sm"
+                      className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
+                      data-testid="button-view-mode-flat"
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+                      Flat
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="folder"
+                      size="sm"
+                      className="data-[state=on]:bg-card data-[state=on]:shadow-sm rounded-md px-3"
+                      data-testid="button-view-mode-folder"
+                    >
+                      <FolderTree className="h-3.5 w-3.5 mr-1.5" />
+                      Folders
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
 
                 {hasMapArchiving && (
                   <div className="flex items-center gap-2">
@@ -497,12 +549,23 @@ function SignedInDashboard({
                 )}
               </div>
 
-              {ownedViewMode === "flat" ? (
-                renderOwnedMapGrid(ownedMaps)
+              {visibleOwnedMaps.length === 0 ? (
+                <EmptyState
+                  icon={<Search className="h-8 w-8" />}
+                  title="No maps match your search"
+                  description={`Nothing in "My maps" matches "${mapSearchQuery}".`}
+                  action={
+                    <Button variant="outline" onClick={() => setMapSearchQuery("")} data-testid="button-clear-map-search-empty">
+                      Clear search
+                    </Button>
+                  }
+                />
+              ) : ownedViewMode === "flat" ? (
+                renderOwnedMapGrid(visibleOwnedMaps)
               ) : (
                 <FolderBrowser
                   folders={folders}
-                  maps={ownedMaps}
+                  maps={visibleOwnedMaps}
                   onCreate={onCreateFolder}
                   onRename={onRenameFolder}
                   onDelete={onDeleteFolder}
@@ -644,6 +707,56 @@ function PlanSummaryCard({ userGroup, usage }: { userGroup: string; usage?: Usag
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
             <UsageMeter label="Maps" used={usage.maps.used} limit={usage.maps.limit} />
             <UsageMeter label="AI suggestions today" used={usage.aiSuggestions.used} limit={usage.aiSuggestions.limit} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Surfaces owned maps with pins awaiting approval — otherwise invisible until the owner opens each map individually. Renders nothing when there's nothing pending. */
+function PendingApprovalsBanner({ maps }: { maps: MapCollectionSummary[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const mapsWithPending = maps.filter((map) => (map.pendingPinCount ?? 0) > 0);
+  const totalPending = mapsWithPending.reduce((sum, map) => sum + (map.pendingPinCount ?? 0), 0);
+
+  if (totalPending === 0) return null;
+
+  return (
+    <Card className="mb-8 border-amber-300 bg-amber-50/60" data-testid="card-pending-approvals">
+      <CardContent className="p-4 sm:p-5">
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          data-testid="button-toggle-pending-approvals"
+        >
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-amber-900">
+            <Clock className="h-4 w-4 shrink-0" />
+            {totalPending} pin{totalPending === 1 ? "" : "s"} waiting for approval across {mapsWithPending.length}{" "}
+            {mapsWithPending.length === 1 ? "map" : "maps"}
+          </span>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-amber-700 shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-amber-700 shrink-0" />
+          )}
+        </button>
+        {expanded && (
+          <div className="mt-3 space-y-1 border-t border-amber-200 pt-3 max-h-56 overflow-y-auto">
+            {mapsWithPending.map((map) => (
+              <Link
+                key={map.id}
+                href={`/map/${map.shareUrl}?pinFilter=pending`}
+                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-amber-100 transition-colors"
+                data-testid={`link-pending-map-${map.id}`}
+              >
+                <span className="truncate text-foreground">{map.name}</span>
+                <span className="shrink-0 text-amber-700">
+                  {map.pendingPinCount} pending →
+                </span>
+              </Link>
+            ))}
           </div>
         )}
       </CardContent>

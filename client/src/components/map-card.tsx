@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { MapPin, Crown, Users, ArchiveRestore, Loader2 } from "lucide-react";
+import { MapPin, Crown, Users, ArchiveRestore, Loader2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,8 @@ export interface MapCollectionSummary {
   shareUrl: string;
   createdAt: string;
   pinCount: number;
+  /** Owner-only: pins waiting for approval on this map. Always 0 for contributor-role cards. */
+  pendingPinCount?: number;
   showOnProfile?: boolean;
   /** Private, owner-only organization folder — never shown to anyone but the owner. Null/undefined means unfiled. */
   folderId?: string | null;
@@ -92,6 +94,18 @@ export function MapCard({
             <Badge variant="outline" className="gap-1 border-muted-foreground/30 bg-muted text-muted-foreground">
               Archived
             </Badge>
+          )}
+          {!archived && isOwner && !!map.pendingPinCount && (
+            <Link href={`/map/${map.shareUrl}?pinFilter=pending`}>
+              <Badge
+                variant="outline"
+                className="gap-1 border-amber-300 bg-amber-50 text-amber-700 cursor-pointer hover:bg-amber-100 transition-colors"
+                data-testid={`badge-pending-${map.id}`}
+              >
+                <Clock className="h-3 w-3" />
+                {map.pendingPinCount} pending
+              </Badge>
+            </Link>
           )}
           <Badge
             variant="outline"
