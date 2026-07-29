@@ -380,6 +380,14 @@ export default function MapDetailScreen() {
           ),
           headerRight: () => (
             <View className="flex-row items-center gap-4">
+              {/* Bulk/AI adding — the app's main draw, so it gets a header slot rather than living only inside the edit screen. */}
+              {isSignedIn && (
+                <Link href={`/map/import/${shareUrl}`} asChild>
+                  <Pressable hitSlop={8} testID="button-add-items">
+                    <Ionicons name="sparkles-outline" size={22} color="#2563EB" />
+                  </Pressable>
+                </Link>
+              )}
               <Pressable
                 hitSlop={8}
                 onPress={() => setShareSheetVisible(true)}

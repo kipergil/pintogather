@@ -9,10 +9,10 @@ import { EmptyState } from "@/components/ui/EmptyState";
  * placeholder notice — unlike the map detail screen, there's no plain-list
  * alternative that preserves this screen's actual purpose.
  */
-export default function ImportPinsWebFallback() {
+export default function AddItemsWebFallback() {
   return (
     <View className="flex-1 bg-slate-50 px-4">
-      <Stack.Screen options={{ title: "Import pins" }} />
+      <Stack.Screen options={{ title: "Add items" }} />
       <EmptyState
         icon="phone-portrait-outline"
         title="Import is only available in the iOS/Android app"
