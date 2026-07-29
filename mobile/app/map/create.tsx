@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Switch, Text, View } from "react-native";
-import { Link, Stack, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
+import { BackHandler, Pressable, Switch, Text, View } from "react-native";
+import { Link, Stack, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
@@ -43,7 +43,41 @@ export default function CreateMapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [upgradeable, setUpgradeable] = useState(false);
 
+  // One step back in this screen's own flow (type -> template -> form),
+  // never straight to the previous route — used by both the header back
+  // button below and Android's hardware back button. Returns whether it
+  // handled the press; `false` (nothing chosen yet) lets the default
+  // back/dismiss behavior run instead.
+  const stepBack = (): boolean => {
+    if (itemType === "location" && template !== undefined) {
+      setTemplate(undefined);
+      return true;
+    }
+    if (itemType !== undefined) {
+      setItemType(undefined);
+      return true;
+    }
+    return false;
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        stepBack,
+      );
+      return () => subscription.remove();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [itemType, template]),
+  );
+
   if (!isSignedIn) return null;
+
+  const HeaderBackButton = () => (
+    <Pressable onPress={stepBack} hitSlop={8} testID="button-header-back">
+      <Ionicons name="chevron-back" size={26} color="#2563EB" />
+    </Pressable>
+  );
 
   const onSelectTemplate = (chosen: MapTemplate | null) => {
     setTemplate(chosen);
@@ -77,7 +111,13 @@ export default function CreateMapScreen() {
   if (itemType === "location" && template === undefined) {
     return (
       <Screen scroll>
-        <Stack.Screen options={{ title: "New map", presentation: "modal" }} />
+        <Stack.Screen
+          options={{
+            title: "New map",
+            presentation: "modal",
+            headerLeft: HeaderBackButton,
+          }}
+        />
         <TemplatePicker onSelect={onSelectTemplate} />
       </Screen>
     );
@@ -110,6 +150,7 @@ export default function CreateMapScreen() {
         options={{
           title: itemType === "location" ? "New map" : "New collection",
           presentation: "modal",
+          headerLeft: HeaderBackButton,
         }}
       />
       <View className="gap-4 py-6">

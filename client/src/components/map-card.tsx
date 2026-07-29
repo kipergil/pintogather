@@ -166,7 +166,7 @@ export function MapCard({
             mapId={map.id}
             isOwner={isOwner}
             onEditMap={() => setLocation(`/map/${map.shareUrl}/edit`)}
-            onImportPins={() => setLocation(`/map/${map.shareUrl}/import`)}
+            onAddItems={() => setLocation(`/map/${map.shareUrl}/add`)}
             onShare={() => setIsShareModalOpen(true)}
             onExportCsv={onExportCsv ? () => onExportCsv(map) : undefined}
             onDelete={onDelete ? () => onDelete(map) : undefined}

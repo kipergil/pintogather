@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation, Link } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +37,18 @@ import {
 
 const ALLOWED_SCREENSHOT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
-interface ImportPinsProps {
+interface AddItemsProps {
   params: {
     shareUrl: string;
   };
+}
+
+/** Tab ids for the add-method picker, also accepted as ?method= for deep links from the map page's empty state. */
+const ADD_METHODS = ["file", "paste", "ai"] as const;
+type AddMethod = (typeof ADD_METHODS)[number];
+
+function parseMethod(value: string | null): AddMethod {
+  return ADD_METHODS.includes(value as AddMethod) ? (value as AddMethod) : "file";
 }
 
 interface ImportItem {
@@ -86,11 +94,17 @@ async function runWithConcurrency<T>(items: T[], concurrency: number, fn: (item:
   await Promise.all(workers);
 }
 
-export default function ImportPins({ params }: ImportPinsProps) {
+export default function AddItems({ params }: AddItemsProps) {
   const { shareUrl } = params;
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  // ?new=1 comes from the just-created-a-collection redirect, so the page can
+  // introduce itself as the next step rather than reading like a detour.
+  const isFirstRun = searchParams.get("new") === "1";
+  const initialMethod = parseMethod(searchParams.get("method"));
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
@@ -361,9 +375,10 @@ export default function ImportPins({ params }: ImportPinsProps) {
       <main className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-border">
           <CardContent className="p-8 text-center">
-            <h2 className="text-lg font-semibold text-foreground mb-2">Sign in to import pins</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">Sign in to add items in bulk</h2>
             <p className="text-sm text-muted-foreground mb-5">
-              Bulk-importing a list of venues requires an account so the pins are attributed to you.
+              Pasting a list, uploading a file or screenshot, and AI suggestions all need an account so the items
+              are attributed to you.
             </p>
             <Link href={`/map/${shareUrl}`}>
               <Button className="w-full">
@@ -381,15 +396,19 @@ export default function ImportPins({ params }: ImportPinsProps) {
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Import pins from a list</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {isFirstRun ? "Add your first pins" : "Add items"}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Upload venue names and we'll look each one up on Google Maps.
+            {isFirstRun
+              ? "Paste a list, upload a file or screenshot, or let AI suggest places — we'll look each one up on Google Maps."
+              : "Upload venue names and we'll look each one up on Google Maps."}
           </p>
         </div>
         <Link href={`/map/${shareUrl}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to map
+            {isFirstRun ? "Skip for now" : "Back to map"}
           </Button>
         </Link>
       </div>
@@ -397,7 +416,7 @@ export default function ImportPins({ params }: ImportPinsProps) {
       {items.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
           <CardContent className="p-6 sm:p-10">
-            <Tabs defaultValue="file" className="w-full">
+            <Tabs defaultValue={initialMethod} className="w-full">
               <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-8">
                 <TabsTrigger value="file" data-testid="tab-file">
                   <FileUp className="h-4 w-4 mr-1.5 hidden sm:inline" />

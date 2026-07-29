@@ -141,7 +141,10 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
       });
       queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id] });
       onCreated?.();
-      setLocation(`/map/${data.shareUrl}`);
+      // Straight into the add hub rather than an empty map — filling the
+      // collection is the actual next step, and it's where the bulk/AI
+      // importers live.
+      setLocation(`/map/${data.shareUrl}/add?new=1`);
     },
     onError: (error: any) => {
       toast({

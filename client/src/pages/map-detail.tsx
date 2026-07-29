@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Plus, Sparkles } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import type { CuratedCategory, ItemType, PinColor, PinIcon } from "@shared/enums";
 import { CURATED_CATEGORY_LABELS } from "@/lib/curated-maps";
 import { AddItemModal } from "@/components/add-item-modal";
+import { AddMethodsEmptyState } from "@/components/add-methods-empty-state";
 import { hasCoordinates } from "@shared/geo";
 
 interface MapDetailProps {
@@ -341,6 +342,18 @@ export default function MapDetail({ params }: MapDetailProps) {
                     Restore
                   </Button>
                 )}
+                {/* Bulk/AI adding used to be buried in the hamburger below, where nobody found it. It's the reason to use the app, so it gets its own primary button. */}
+                {user && (
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
+                    data-testid="button-add-items"
+                  >
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                    Add {mapCollection.itemType === "location" ? "pins" : "items"}
+                  </Button>
+                )}
                 <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
                   <LikeButton
                     mapId={mapCollection.id}
@@ -363,7 +376,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                     mapId={mapCollection.id}
                     isOwner={isOwner}
                     onEditMap={() => setLocation(`/map/${mapCollection.shareUrl}/edit`)}
-                    onImportPins={() => setLocation(`/map/${mapCollection.shareUrl}/import`)}
+                    onAddItems={() => setLocation(`/map/${mapCollection.shareUrl}/add`)}
                     onExportCsv={exportPins}
                     onClone={user ? () => cloneMapMutation.mutate() : undefined}
                     directusUrl={directusUrl}
@@ -407,16 +420,24 @@ export default function MapDetail({ params }: MapDetailProps) {
                 <div ref={setPinHeaderSlot} className="flex items-center" />
               </div>
             </div>
-            <PinTable
-              pins={mapCollection.pins}
-              mapOwnerId={mapCollection.ownerId}
-              shareUrl={mapCollection.shareUrl}
-              noteLabel={mapCollection.noteLabel}
-              itemType={mapCollection.itemType}
-              onPinSelect={mapCollection.itemType === "location" ? (pinId) => setFocusRequest({ pinId, nonce: Date.now() }) : undefined}
-              headerActionsSlot={pinHeaderSlot}
-              initialApprovalFilter={initialApprovalFilter}
-            />
+            {mapCollection.pins.length === 0 ? (
+              <AddMethodsEmptyState
+                shareUrl={mapCollection.shareUrl}
+                itemType={mapCollection.itemType}
+                canAdd={!!user}
+              />
+            ) : (
+              <PinTable
+                pins={mapCollection.pins}
+                mapOwnerId={mapCollection.ownerId}
+                shareUrl={mapCollection.shareUrl}
+                noteLabel={mapCollection.noteLabel}
+                itemType={mapCollection.itemType}
+                onPinSelect={mapCollection.itemType === "location" ? (pinId) => setFocusRequest({ pinId, nonce: Date.now() }) : undefined}
+                headerActionsSlot={pinHeaderSlot}
+                initialApprovalFilter={initialApprovalFilter}
+              />
+            )}
           </CardContent>
         </Card>
 

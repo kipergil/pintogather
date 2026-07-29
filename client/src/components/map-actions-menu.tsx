@@ -18,7 +18,7 @@ export interface MapActionsMenuProps {
   /** Real DB id of the map, needed for the "Open in Directus" link. */
   mapId: string;
   isOwner: boolean;
-  onImportPins: () => void;
+  onAddItems: () => void;
   /** Omitted on surfaces that already show a standalone Share button (e.g. map-detail) — the item is hidden entirely rather than duplicating it. */
   onShare?: () => void;
   /** Available to any signed-in viewer, not just the owner — omit to hide the item. */
@@ -45,7 +45,7 @@ export interface MapActionsMenuProps {
 export function MapActionsMenu({
   mapId,
   isOwner,
-  onImportPins,
+  onAddItems,
   onShare,
   onClone,
   onEditMap,
@@ -75,9 +75,9 @@ export function MapActionsMenu({
             Edit map
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={onImportPins} data-testid={`menu-item-import-pins${suffix}`}>
+        <DropdownMenuItem onClick={onAddItems} data-testid={`menu-item-add-items${suffix}`}>
           <Upload className="h-4 w-4 mr-2" />
-          Import pins
+          Add items
         </DropdownMenuItem>
         {onShare && (
           <DropdownMenuItem onClick={onShare} data-testid={`menu-item-share-map${suffix}`}>

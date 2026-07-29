@@ -43,10 +43,17 @@ export default function MapForm({ params }: MapFormProps) {
   // an existing map's itemType is fixed and never re-chosen here.
   const [itemType, setItemType] = useState<ItemType | undefined>(undefined);
   // undefined = not chosen yet (show the picker), null = "start from scratch", otherwise the picked template.
-  const [template, setTemplate] = useState<MapTemplate | null | undefined>(undefined);
-  const hasPinCustomization = TIER_LIMITS[user?.userGroup ?? "freemium"].pinCustomization;
+  const [template, setTemplate] = useState<MapTemplate | null | undefined>(
+    undefined,
+  );
+  const hasPinCustomization =
+    TIER_LIMITS[user?.userGroup ?? "freemium"].pinCustomization;
 
-  const { data: mapCollection, isLoading, error } = useQuery<MapCollection>({
+  const {
+    data: mapCollection,
+    isLoading,
+    error,
+  } = useQuery<MapCollection>({
     queryKey: [`/api/maps/${shareUrl}`],
     enabled: isEditing,
   });
@@ -67,9 +74,12 @@ export default function MapForm({ params }: MapFormProps) {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Sign in to create a map</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Sign in to create a map
+            </h2>
             <p className="text-muted-foreground mb-5">
-              You'll need an account so this map — and its shareable link — belongs to you.
+              You'll need an account so this map — and its shareable link —
+              belongs to you.
             </p>
             <Link href="/">
               <Button>
@@ -88,7 +98,9 @@ export default function MapForm({ params }: MapFormProps) {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Map not found</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Map not found
+            </h2>
             <p className="text-muted-foreground mb-5">
               This map doesn't exist, or the link is no longer valid.
             </p>
@@ -111,7 +123,9 @@ export default function MapForm({ params }: MapFormProps) {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Only the owner can edit this map</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Only the owner can edit this map
+            </h2>
             <p className="text-muted-foreground mb-5">
               You don't have permission to change this map's settings.
             </p>
@@ -129,6 +143,26 @@ export default function MapForm({ params }: MapFormProps) {
 
   const backHref = isEditing ? `/map/${mapCollection!.shareUrl}` : "/";
 
+  // Mid-flow (a type — and, for "location", a template — already chosen),
+  // the back button steps back one level in the create flow instead of
+  // leaving it outright; only exits to backHref once nothing is chosen yet.
+  const handleBack = () => {
+    if (isEditing) {
+      setLocation(backHref);
+      return;
+    }
+    if (itemType === "location" && template !== undefined) {
+      setTemplate(undefined);
+      return;
+    }
+    if (itemType !== undefined) {
+      setItemType(undefined);
+      return;
+    }
+    setLocation(backHref);
+  };
+  const isMidFlow = !isEditing && itemType !== undefined;
+
   return (
     <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -145,11 +179,11 @@ export default function MapForm({ params }: MapFormProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation(backHref)}
+          onClick={handleBack}
           data-testid="button-back-from-map-form"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          {isEditing ? "Back to map" : "Back to home"}
+          {isEditing ? "Back to map" : isMidFlow ? "Back" : "Back to home"}
         </Button>
       </div>
 
@@ -168,16 +202,6 @@ export default function MapForm({ params }: MapFormProps) {
       ) : (
         <Card className="border-border">
           <CardContent className="p-6 space-y-4">
-            {!isEditing && (
-              <button
-                type="button"
-                onClick={() => (itemType === "location" ? setTemplate(undefined) : setItemType(undefined))}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="button-change-template"
-              >
-                ← {itemType === "location" ? "Choose a different template" : "Choose a different type"}
-              </button>
-            )}
             <CreateMapForm
               mapId={mapCollection?.id}
               itemType={isEditing ? mapCollection?.itemType : itemType}
@@ -190,7 +214,8 @@ export default function MapForm({ params }: MapFormProps) {
                       notePrompt: mapCollection.notePrompt ?? "",
                       brandingLogoUrl: mapCollection.brandingLogoUrl ?? "",
                       showOnProfile: mapCollection.showOnProfile ?? false,
-                      requirePinApproval: mapCollection.requirePinApproval ?? true,
+                      requirePinApproval:
+                        mapCollection.requirePinApproval ?? true,
                       defaultPinColor: mapCollection.defaultPinColor ?? null,
                       defaultPinIcon: mapCollection.defaultPinIcon ?? null,
                       shareUrl: mapCollection.shareUrl,
@@ -203,8 +228,12 @@ export default function MapForm({ params }: MapFormProps) {
                         notePrompt: template.notePrompt ?? "",
                         // A template can only suggest pin styling if this user's plan actually supports it —
                         // otherwise the picker isn't shown but the value would still be submitted and rejected.
-                        defaultPinColor: hasPinCustomization ? template.defaultPinColor : null,
-                        defaultPinIcon: hasPinCustomization ? template.defaultPinIcon : null,
+                        defaultPinColor: hasPinCustomization
+                          ? template.defaultPinColor
+                          : null,
+                        defaultPinIcon: hasPinCustomization
+                          ? template.defaultPinIcon
+                          : null,
                       }
                     : undefined
               }

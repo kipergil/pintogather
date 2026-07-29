@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -88,6 +88,19 @@ export function AddItemForm({
     }
   };
 
+  // Debounced on every change to the URL field (typing, paste, or a share
+  // extension prefill) rather than only on blur — a paste followed by
+  // dismissing the keyboard or tapping elsewhere doesn't reliably fire a
+  // blur before the next action registers, which was silently skipping the
+  // fetch.
+  useEffect(() => {
+    const url = value.url.trim();
+    if (!looksLikeUrl(url)) return;
+    const timeout = setTimeout(() => fetchPreview(url), 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.url]);
+
   return (
     <View className="gap-4">
       <View className="gap-1.5">
@@ -95,7 +108,6 @@ export function AddItemForm({
           label={isLink ? "URL" : "Link (optional)"}
           value={value.url}
           onChangeText={(url) => onChange({ ...value, url })}
-          onBlur={() => fetchPreview(value.url.trim())}
           placeholder="https://..."
           autoCapitalize="none"
           keyboardType="url"

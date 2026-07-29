@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { Expand, Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search, X } from 'lucide-react';
+import { Expand, Loader2, Locate, LocateFixed, MapPin, Maximize2, MousePointerClick, Search, Sparkles, X } from 'lucide-react';
+import { Link } from 'wouter';
 import { AddPinModal } from './add-pin-modal';
 import { loadGoogleMaps } from '../lib/google-maps';
 import { sortPinsForRoute } from '@shared/geo';
@@ -777,6 +778,13 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
               <Search className="h-4 w-4 mr-1.5" />
               Add venue
             </Button>
+            {/* Shortcut into the add hub, where a whole list can arrive at once — the map toolbar is where people already come to add things, so the bulk/AI path has to be visible from here too. */}
+            <Link href={`/map/${mapCollection.shareUrl}/add?method=ai`}>
+              <Button type="button" size="sm" variant="outline" data-testid="button-bulk-add">
+                <Sparkles className="h-4 w-4 mr-1.5" />
+                Bulk add with AI
+              </Button>
+            </Link>
           </div>
           {isArmedForClick ? (
             <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mt-2.5">
@@ -785,7 +793,8 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
             </p>
           ) : (
             <p className="text-sm text-muted-foreground mt-2.5">
-              Two ways to add a pin — click the map to drop one anywhere, or search for a specific venue.
+              Add one at a time — click the map or search a venue — or bulk-add a whole list from a paste, file,
+              screenshot, or AI prompt.
             </p>
           )}
         </div>
