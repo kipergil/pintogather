@@ -770,7 +770,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
     <div className="space-y-4">
       {!readOnly && (
         <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               size="sm"
@@ -799,7 +799,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
             <Link href={`/map/${mapCollection.shareUrl}/add?method=ai`}>
               <Button type="button" size="sm" variant="outline" data-testid="button-bulk-add">
                 <Sparkles className="h-4 w-4 mr-1.5" />
-                Bulk add with AI
+                Add with AI
               </Button>
             </Link>
             )}
