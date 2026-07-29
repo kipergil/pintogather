@@ -10,6 +10,7 @@ import { Compass, Lock, MapPin, Search, X } from "lucide-react";
 import { generateDiscoverCoverUrl } from "@/lib/discover-cover";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS, isCuratedCategory, isCuratedCountry } from "@/lib/curated-maps";
 import { APP_NAME } from "@/lib/branding";
+import { LikeButton } from "@/components/like-button";
 import type { CuratedCategory, CuratedCountry } from "@shared/enums";
 
 interface DiscoverMap {
@@ -24,6 +25,9 @@ interface DiscoverMap {
   curatedTagline: string | null;
   ownerName: string | null;
   pinCount: number;
+  likeCount: number;
+  /** Whether the signed-in viewer has liked this map. Always false for anonymous visitors. */
+  likedByViewer: boolean;
   createdAt: string;
 }
 
@@ -92,7 +96,10 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
             <MapPin className="h-3 w-3" />
             {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
           </span>
-          {map.ownerName && <span>Curated by {map.ownerName}</span>}
+          <div className="flex items-center gap-3">
+            {map.ownerName && <span>Curated by {map.ownerName}</span>}
+            {!map.locked && <LikeButton mapId={map.id} liked={map.likedByViewer} likeCount={map.likeCount} className="text-xs" />}
+          </div>
         </div>
       </CardContent>
     </Card>
