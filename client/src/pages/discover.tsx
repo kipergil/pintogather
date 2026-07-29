@@ -9,7 +9,7 @@ import { Compass, Lock, MapPin, X } from "lucide-react";
 import { generateDiscoverCoverUrl } from "@/lib/discover-cover";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS, isCuratedCategory, isCuratedCountry } from "@/lib/curated-maps";
 import { APP_NAME } from "@/lib/branding";
-import type { CuratedCategory, CuratedCountry } from "@shared/enums";
+import type { CuratedCategory, CuratedCountry, ItemType } from "@shared/enums";
 
 interface DiscoverMap {
   id: string;
@@ -23,6 +23,7 @@ interface DiscoverMap {
   curatedTagline: string | null;
   ownerName: string | null;
   pinCount: number;
+  itemType: ItemType;
   createdAt: string;
 }
 
@@ -89,7 +90,7 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
           <span className="inline-flex items-center gap-1">
             <MapPin className="h-3 w-3" />
-            {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+            {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
           </span>
           {map.ownerName && <span>Curated by {map.ownerName}</span>}
         </div>

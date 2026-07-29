@@ -459,6 +459,7 @@ export async function registerRoutes(app: Express): Promise<void> {
             shareUrl: map.shareUrl,
             brandingLogoUrl: hasCustomBranding ? map.brandingLogoUrl : null,
             pinCount: approvedCount,
+            itemType: map.itemType,
             likeCount: likeCounts[map.id] ?? 0,
             likedByViewer: viewerLikedMapIds.has(map.id),
             createdAt: map.createdAt,
@@ -563,6 +564,7 @@ export async function registerRoutes(app: Express): Promise<void> {
             shareUrl: map.shareUrl,
             brandingLogoUrl: hasCustomBranding ? map.brandingLogoUrl : null,
             pinCount: pins.filter((pin) => pin.approved).length,
+            itemType: map.itemType,
             likeCount: likeCounts[map.id] ?? 0,
             likedByViewer: viewerLikedMapIds.has(map.id),
             ownerId: map.ownerId,
@@ -633,6 +635,7 @@ export async function registerRoutes(app: Express): Promise<void> {
             curatedTagline: map.curatedTagline,
             ownerName,
             pinCount: pins.filter((pin) => pin.approved).length,
+            itemType: map.itemType,
             createdAt: map.createdAt,
           };
         }),

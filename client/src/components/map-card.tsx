@@ -8,6 +8,7 @@ import { MapActionsMenu } from "@/components/map-actions-menu";
 import { ShareModal } from "@/components/share-modal";
 import { useDirectusAdminUrl } from "@/lib/directusAdmin";
 import type { Folder } from "@shared/schema";
+import type { ItemType } from "@shared/enums";
 
 export interface MapCollectionSummary {
   id: string;
@@ -21,6 +22,8 @@ export interface MapCollectionSummary {
   showOnProfile?: boolean;
   /** Private, owner-only organization folder — never shown to anyone but the owner. Null/undefined means unfiled. */
   folderId?: string | null;
+  /** What kind of thing this collection holds — governs the "pin(s)"/"item(s)" count label below. Defaults to "location" when omitted (pre-item-type API responses). */
+  itemType?: ItemType;
 }
 
 function formatRelativeDate(dateString: string) {
@@ -130,7 +133,7 @@ export function MapCard({
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 mt-auto pt-1">
         <span className="inline-flex items-center gap-1">
           <MapPin className="h-3.5 w-3.5" />
-          {map.pinCount} {map.pinCount === 1 ? "pin" : "pins"}
+          {map.pinCount} {(map.itemType ?? "location") === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
         </span>
         <span aria-hidden>·</span>
         <span>{formatRelativeDate(map.createdAt)}</span>

@@ -94,6 +94,7 @@ export interface PublicProfile {
     shareUrl: string;
     brandingLogoUrl: string | null;
     pinCount: number;
+    itemType: (typeof ITEM_TYPE)[number];
     likeCount: number;
     /** Whether the signed-in viewer has liked this map. Always false for anonymous visitors. */
     likedByViewer: boolean;
@@ -125,6 +126,7 @@ export interface FeedMapItem {
   shareUrl: string;
   brandingLogoUrl: string | null;
   pinCount: number;
+  itemType: (typeof ITEM_TYPE)[number];
   likeCount: number;
   likedByViewer: boolean;
   ownerId: string | null;

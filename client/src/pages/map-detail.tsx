@@ -225,7 +225,7 @@ export default function MapDetail({ params }: MapDetailProps) {
       return;
     }
 
-    downloadPinsCsv(mapCollection.pins, mapCollection.noteLabel || "Note");
+    downloadPinsCsv(mapCollection.pins, mapCollection.noteLabel || "Note", mapCollection.itemType);
 
     toast({
       title: "CSV exported",
@@ -259,7 +259,9 @@ export default function MapDetail({ params }: MapDetailProps) {
               <MapPin className="h-4 w-4" />
               {mapCollection.pinCount}
               {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
-              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"}
+              {mapCollection.itemType === "location"
+                ? !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"
+                : !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "item" : "items"}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" />
