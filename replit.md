@@ -145,6 +145,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 Changelog:
+- July 2026. Generalized "maps" into collections that hold places, links, or recommendations; consolidated every way of adding into one hub with image-based AI extraction; added a Vitest suite and CI.
 - July 2026. Refactored backend from Supabase/Drizzle to Directus, and authentication from Replit Auth to Clerk.
 - December 11, 2025. Added Replit Auth integration with OpenID Connect for user authentication
 - June 26, 2025. Initial setup
