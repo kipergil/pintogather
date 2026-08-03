@@ -25,6 +25,61 @@ const CLUSTER_MIN_PIN_COUNT = 12;
 const CLUSTER_MAX_ZOOM = 15;
 const CLUSTER_RADIUS = 60;
 
+/**
+ * Cluster badges in the app's blue, deepening with size.
+ *
+ * MarkerClusterer's built-in renderer paints any cluster above the average
+ * size red, which on a map of one busy city means the main cluster is always
+ * red — reading as an error or a warning rather than "lots of pins here",
+ * and clashing with everything else on the page.
+ *
+ * Tailwind blue-400/500/600/700, the same ramp the rest of the UI uses.
+ */
+const CLUSTER_TONES = [
+  { upTo: 9, fill: '#60A5FA' },
+  { upTo: 24, fill: '#3B82F6' },
+  { upTo: 99, fill: '#2563EB' },
+  { upTo: Infinity, fill: '#1D4ED8' },
+];
+
+const clusterRenderer = {
+  render: ({ count, position }: { count: number; position: google.maps.LatLng }) => {
+    const { fill } = CLUSTER_TONES.find((tone) => count <= tone.upTo)!;
+    // Grows with the count but flattens off, so a 500-pin cluster doesn't
+    // swallow the map: 18px at a handful, ~28px in the hundreds.
+    const radius = Math.min(28, 15 + Math.log10(Math.max(count, 1)) * 6);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${radius * 2} ${radius * 2}" width="${radius * 2}" height="${radius * 2}">
+        <circle cx="${radius}" cy="${radius}" r="${radius}" fill="${fill}" opacity="0.25" />
+        <circle cx="${radius}" cy="${radius}" r="${radius * 0.75}" fill="${fill}" opacity="0.45" />
+        <circle cx="${radius}" cy="${radius}" r="${radius * 0.55}" fill="${fill}" />
+      </svg>`;
+    return new google.maps.Marker({
+      position,
+      icon: {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+        scaledSize: new google.maps.Size(radius * 2, radius * 2),
+        anchor: new google.maps.Point(radius, radius),
+      },
+      label: { text: String(count), color: '#FFFFFF', fontSize: '12px', fontWeight: '600' },
+      // Above individual markers, so a badge is never half-hidden behind one.
+      zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+    });
+  },
+};
+
+/**
+ * Keeps the three add buttons on one row at phone width. Each takes an equal
+ * share of the row and pays for it in type size and padding rather than by
+ * wrapping, which used to leave "Add with AI" stranded on a line of its own.
+ * From `sm` up they revert to their natural size.
+ */
+const TOOLBAR_BUTTON =
+  'flex-1 sm:flex-none min-w-0 px-1 sm:px-3 gap-1 sm:gap-2 text-[11px] sm:text-sm ' +
+  // The button base sets `gap-2` and `[&_svg]:size-4`; the latter outranks a
+  // plain size class on the icon itself, so shrinking it has to be done the
+  // same way. Between them they were eating ~36px of a ~95px button.
+  '[&_svg]:size-3.5 sm:[&_svg]:size-4';
+
 function escapeHtml(value: string): string {
   const div = document.createElement('div');
   div.textContent = value;
@@ -516,6 +571,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
         map: mapInstanceRef.current,
         markers: markersRef.current,
         algorithm: new SuperClusterAlgorithm({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM }),
+        renderer: clusterRenderer,
       });
       clusteringEnabledRef.current = shouldCluster;
     }
@@ -770,15 +826,20 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
     <div className="space-y-4">
       {!readOnly && (
         <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+          {/* One row at every width. The three buttons share the space
+              equally on a phone and shrink their type rather than wrapping,
+              which used to leave "Add with AI" stranded on a line of its
+              own; past `sm` they go back to sitting at their natural size. */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button
               type="button"
               size="sm"
               variant={isArmedForClick ? "default" : "outline"}
               onClick={() => setIsArmedForClick((prev) => !prev)}
+              className={TOOLBAR_BUTTON}
               data-testid="button-add-pin-mode"
             >
-              <MousePointerClick className="h-4 w-4 mr-1.5" />
+              <MousePointerClick />
               Add pin
             </Button>
             <Button
@@ -789,16 +850,23 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
                 setSelectedLocation(null);
                 setIsAddPinModalOpen(true);
               }}
+              className={TOOLBAR_BUTTON}
               data-testid="button-add-venue"
             >
-              <Search className="h-4 w-4 mr-1.5" />
+              <Search />
               Add venue
             </Button>
             {/* Shortcut into the add hub, where a whole list can arrive at once — the map toolbar is where people already come to add things, so the bulk/AI path has to be visible from here too. Hidden when this map *is* the hub's own drop-a-pin tab, where it would link to itself. */}
             {!onStageLocation && (
-            <Link href={`/map/${mapCollection.shareUrl}/add?method=ai`}>
-              <Button type="button" size="sm" variant="outline" data-testid="button-bulk-add">
-                <Sparkles className="h-4 w-4 mr-1.5" />
+            <Link href={`/map/${mapCollection.shareUrl}/add?method=ai`} className="flex-1 sm:flex-none min-w-0">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className={`w-full ${TOOLBAR_BUTTON}`}
+                data-testid="button-bulk-add"
+              >
+                <Sparkles />
                 Add with AI
               </Button>
             </Link>
