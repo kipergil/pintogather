@@ -1,18 +1,9 @@
 import type { Request, Response } from "express";
 import { stripe, STRIPE_PRICE_IDS } from "../lib/stripe.js";
+import { changedSubscriptionFields, subscriptionStateFor } from "../lib/subscription-sync.js";
 import { getUserByStripeCustomerId } from "../services/users.js";
 import { storage } from "../storage.js";
 import type Stripe from "stripe";
-
-function tierForPriceId(priceId: string | null | undefined): "basic" | "premium" | null {
-  if (!priceId) return null;
-  if (priceId === STRIPE_PRICE_IDS.basic) return "basic";
-  if (priceId === STRIPE_PRICE_IDS.premium) return "premium";
-  return null;
-}
-
-/** Statuses that should keep a user on their paid tier; anything else (canceled, unpaid, incomplete_expired, ...) drops them to freemium. */
-const ACTIVE_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing"]);
 
 async function syncSubscription(subscription: Stripe.Subscription): Promise<void> {
   const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
@@ -22,14 +13,16 @@ async function syncSubscription(subscription: Stripe.Subscription): Promise<void
     return;
   }
 
-  const priceId = subscription.items.data[0]?.price?.id;
-  const tier = ACTIVE_STATUSES.has(subscription.status) ? tierForPriceId(priceId) : null;
+  const next = subscriptionStateFor(subscription, STRIPE_PRICE_IDS);
+  const changes = changedSubscriptionFields(user, next);
 
-  await storage.updateStripeSubscription(user.id, {
-    stripeSubscriptionId: subscription.id,
-    stripeSubscriptionStatus: subscription.status,
-    userGroup: tier ?? "freemium",
-  });
+  // Stripe re-sends customer.subscription.updated for renewals and its own
+  // internal churn, so most of these events say nothing new. Writing the same
+  // values back would still touch the row, and the Directus Flow watching
+  // those writes would email admins about a subscription that didn't move.
+  if (Object.keys(changes).length === 0) return;
+
+  await storage.updateStripeSubscription(user.id, changes);
 }
 
 /**
