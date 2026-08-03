@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardPaste, FileUp, MousePointerClick, Search, Sparkles, type LucideIcon } from "lucide-react";
+import { ClipboardPaste, FileUp, ImageUp, MousePointerClick, Search, Sparkles, type LucideIcon } from "lucide-react";
 import type { ItemType } from "@shared/enums";
 import { ITEM_NOUN } from "@/lib/item-parsing";
 
@@ -8,7 +8,7 @@ import { ITEM_NOUN } from "@/lib/item-parsing";
  * accepts, so the map page's empty state and toolbar can deep-link straight
  * past this picker.
  */
-export const ADD_METHODS = ["paste", "file", "ai", "venue", "map"] as const;
+export const ADD_METHODS = ["paste", "image", "file", "ai", "venue", "map"] as const;
 export type AddMethod = (typeof ADD_METHODS)[number];
 
 /** Venue search and drop-a-pin only mean anything on a map of locations. */
@@ -30,6 +30,11 @@ const METHOD_META: Record<AddMethod, MethodMeta> = {
         ? "One link per line — we'll fetch each page's title and image."
         : `One ${noun.one} per line.`,
   },
+  image: {
+    icon: ImageUp,
+    title: "Screenshot or photo",
+    describe: (noun) => `Upload or paste a picture and AI reads the ${noun.many} out of it.`,
+  },
   file: {
     icon: FileUp,
     title: "Upload a file",
@@ -38,7 +43,7 @@ const METHOD_META: Record<AddMethod, MethodMeta> = {
   ai: {
     icon: Sparkles,
     title: "Generate with AI",
-    describe: (noun) => `Describe a theme, or hand us a screenshot, and get ${noun.many} back.`,
+    describe: (noun) => `Describe a theme and get ${noun.many} back to review.`,
   },
   venue: {
     icon: Search,

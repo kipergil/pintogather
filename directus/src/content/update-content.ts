@@ -2,19 +2,39 @@ import { readItems, updateItem } from "@directus/sdk";
 import { getSchemaClient } from "../lib/client.js";
 
 /**
- * One-off content update for the July 29, 2026 releases (PRs #95–#100):
- * link/recommendation collections, the add-items hub, image-based AI
- * extraction, and the method picker.
+ * Keeps the public changelog and features pages in step with what's shipped.
  *
  * Deliberately not part of seed-pages.ts: that script is "seed once"
  * idempotent and would flatten the changelog's accumulated history on every
- * re-run. This prepends one new dated section instead, and skips if that
- * date is already there — so re-running is safe.
+ * re-run. This prepends any dated section the page doesn't already carry and
+ * leaves the rest alone, so re-running is safe and adding a release means
+ * adding one entry to CHANGELOG_SECTIONS below.
  */
 
-const CHANGELOG_DATE = "## July 29, 2026";
+/** Newest first — the order they'll appear on the page. */
+const CHANGELOG_SECTIONS = [
+  `## August 3, 2026
 
-const CHANGELOG_SECTION = `${CHANGELOG_DATE}
+### Screenshots and photos are their own way of adding
+Adding from a picture used to be tucked in under three other methods as a
+second, smaller uploader. It's now a method in its own right — "Screenshot
+or photo" sits alongside pasting a list and uploading a file, with room to
+add up to four pictures and an optional line of context to help the AI read
+them ("these are all in Lisbon").
+
+### A Paste button that works on a phone
+Pasting a screenshot used to rely on Ctrl/Cmd-V, which doesn't exist on a
+phone — so on iPhone and Android there was no way to paste at all. There's
+now a Paste button next to the uploader that reads the clipboard directly.
+It appears only where the browser actually allows it, and says what went
+wrong when there's nothing on the clipboard to paste, rather than looking
+broken.
+
+### "Generate with AI" is just the prompt again
+With pictures on their own screen, the AI screen is back to one job:
+describe what you want and get suggestions to review.
+`,
+  `## July 29, 2026
 
 ### Tidier buttons on the map page
 The "Add pins" button now sits on the same line as the like and share
@@ -71,7 +91,15 @@ skipping it. Notifications say "Link added" or "Recommendation added"
 rather than calling everything a pin. And the Back button while creating a
 collection now steps back to the type picker rather than jumping all the
 way home.
-`;
+`,
+];
+
+/** The `## <date>` line a section leads with, used to tell if it's already on the page. */
+function headingOf(section: string): string {
+  const heading = section.split("\n", 1)[0].trim();
+  if (!heading.startsWith("## ")) throw new Error(`Changelog section must start with a '## <date>' heading`);
+  return heading;
+}
 
 const FEATURES_CONTENT = `## What you can collect
 
@@ -99,8 +127,8 @@ are added, the CSV export — adapts to your choice:
 Every way of adding lives on one screen, reachable from any collection — pick a method, and whatever you add collects in a single review list you can edit before saving. Sources mix freely: paste a list, add a couple of venue searches, drop a pin, then save them together.
 
 - **Paste a list** — one per line. Place names get looked up on Google Maps; links get their page title and image fetched automatically.
+- **Screenshot or photo** — its own way of adding: upload, drag in, or tap Paste to take an image straight off your clipboard, up to four at a time, and AI reads the items out of them. The Paste button works on a phone, where there's no Ctrl+V. Available on every plan, within your daily AI allowance.
 - **Upload a file** — a .txt, .csv, or .xlsx you already have.
-- **Screenshots and photos** — paste straight from your clipboard, drag an image in, or pick up to four at once, and AI reads the items out of them. Works on every plan, within your daily AI allowance.
 - **Generate with AI** — describe a theme and get suggestions back to review before anything is saved.
 - **Search a venue** — look a place up on Google Maps and add it, as many times as you like.
 - **Drop on the map** — click exactly where you want a pin, with a confirmation step so a mis-aimed click costs nothing.
@@ -154,19 +182,22 @@ async function main() {
   const client = await getSchemaClient();
 
   const changelog = await getPage(client, "changelog");
-  if (changelog.content.includes(CHANGELOG_DATE)) {
-    console.log(`Changelog already has "${CHANGELOG_DATE}" — leaving it alone.`);
+  // Oldest first, so each prepend lands above the one before it and the page
+  // ends up newest-first.
+  const missing = CHANGELOG_SECTIONS.filter((section) => !changelog.content.includes(headingOf(section))).reverse();
+  if (missing.length === 0) {
+    console.log("Changelog already has every section — leaving it alone.");
   } else {
-    // New entries go directly above the most recent existing date heading,
-    // keeping the page newest-first and preserving everything below.
-    const firstHeading = changelog.content.indexOf("\n## ");
-    if (firstHeading === -1) throw new Error("Changelog has no '## <date>' heading to insert above");
-    const intro = changelog.content.slice(0, firstHeading + 1);
-    const history = changelog.content.slice(firstHeading + 1);
-    await client.request(
-      updateItem("map_pages", changelog.id, { content: `${intro}\n${CHANGELOG_SECTION}\n${history}` }),
-    );
-    console.log(`Prepended "${CHANGELOG_DATE}" to the changelog.`);
+    let content = changelog.content;
+    for (const section of missing) {
+      // New entries go directly above the most recent existing date heading,
+      // preserving everything below.
+      const firstHeading = content.indexOf("\n## ");
+      if (firstHeading === -1) throw new Error("Changelog has no '## <date>' heading to insert above");
+      content = `${content.slice(0, firstHeading + 1)}\n${section}\n${content.slice(firstHeading + 1)}`;
+    }
+    await client.request(updateItem("map_pages", changelog.id, { content }));
+    console.log(`Prepended to the changelog: ${missing.map(headingOf).reverse().join(", ")}`);
   }
 
   const features = await getPage(client, "features");

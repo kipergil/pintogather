@@ -25,7 +25,12 @@ import {
   parseText,
   type ItemSeed,
 } from "@/lib/item-parsing";
-import { ImageDropzone, type ImageRejection } from "@/components/image-dropzone";
+import {
+  ImageDropzone,
+  MAX_IMAGES,
+  type ClipboardReadFailure,
+  type ImageRejection,
+} from "@/components/image-dropzone";
 import { AddMethodPicker, methodTitle, parseMethodParam, type AddMethod } from "@/components/add-method-picker";
 import { PlacesSearch } from "@/components/places-search";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
@@ -37,6 +42,7 @@ import {
   Check,
   ClipboardPaste,
   FileUp,
+  ImageUp,
   Link2,
   Loader2,
   MapPin,
@@ -161,6 +167,8 @@ export default function AddItems({ params }: AddItemsProps) {
   const [pasteText, setPasteText] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [images, setImages] = useState<File[]>([]);
+  /** Optional context sent alongside the images — kept apart from `aiPrompt` so switching methods doesn't carry one into the other. */
+  const [imagePrompt, setImagePrompt] = useState("");
 
   const updateItem = useCallback((id: string, patch: Partial<StagedItem>) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -376,6 +384,7 @@ export default function AddItems({ params }: AddItemsProps) {
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/usage"], (old: any) => (old ? { ...old, aiSuggestions: data.usage } : old));
       setImages([]);
+      setImagePrompt("");
       startStaging(seedsFromResponse(data));
     },
     onError: onGenerateError,
@@ -397,19 +406,28 @@ export default function AddItems({ params }: AddItemsProps) {
     });
   };
 
+  /** Explains why the Paste button came back with nothing, rather than looking broken. */
+  const reportClipboardFailure = (reason: ClipboardReadFailure) => {
+    toast({
+      title: reason === "empty" ? "No image on the clipboard" : "Couldn't read the clipboard",
+      description:
+        reason === "empty"
+          ? "Copy a screenshot or photo first, then try again."
+          : reason === "denied"
+            ? "Your browser blocked clipboard access — allow it, or use the upload button instead."
+            : "This browser won't let us read the clipboard. Use the upload button instead.",
+      variant: "destructive",
+    });
+  };
+
   const handleGenerateSuggestions = () => {
-    if (images.length > 0) {
-      extractFromImagesMutation.mutate({ files: images, prompt: aiPrompt.trim() });
-      return;
-    }
     if (!aiPrompt.trim()) return;
     generateSuggestionsMutation.mutate(aiPrompt.trim());
   };
 
-  /** Shared by the upload and paste tabs: hand images straight to the extractor. */
-  const extractNow = (files: File[]) => {
-    if (files.length === 0) return;
-    extractFromImagesMutation.mutate({ files, prompt: "" });
+  const handleExtractFromImages = () => {
+    if (images.length === 0) return;
+    extractFromImagesMutation.mutate({ files: images, prompt: imagePrompt.trim() });
   };
 
   const isGenerating = generateSuggestionsMutation.isPending || extractFromImagesMutation.isPending;
@@ -568,10 +586,10 @@ export default function AddItems({ params }: AddItemsProps) {
           </h1>
           <p className="text-muted-foreground mt-1">
             {isLocation
-              ? "Paste a list, upload a file or screenshot, or let AI suggest places — we'll look each one up on Google Maps."
+              ? "Paste a list, hand us a screenshot, upload a file, or let AI suggest places — we'll look each one up on Google Maps."
               : itemType === "link"
-                ? "Paste links, upload a file or screenshot, or let AI suggest pages — we'll fetch a title and image for each."
-                : "Paste a list, upload a file or screenshot, or let AI suggest things to recommend."}
+                ? "Paste links, hand us a screenshot, upload a file, or let AI suggest pages — we'll fetch a title and image for each."
+                : "Paste a list, hand us a screenshot, upload a file, or let AI suggest things to recommend."}
           </p>
         </div>
       </div>
@@ -633,42 +651,20 @@ export default function AddItems({ params }: AddItemsProps) {
                   )}
                 </Button>
 
-                {hasScreenshotImport && (
-                  <div className="max-w-sm mx-auto text-left mt-6 pt-5 border-t border-border">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Got a picture instead? Drop in a screenshot or photo and AI will read the {noun.many} out of
-                      it.
-                    </p>
-                    <ImageDropzone
-                      images={images}
-                      onChange={setImages}
-                      onRejected={reportRejections}
-                      disabled={isGenerating}
-                      testId="file-image-dropzone"
-                    />
-                    {images.length > 0 && (
-                      <Button
-                        variant="outline"
-                        className="w-full mt-2"
-                        onClick={() => extractNow(images)}
-                        disabled={isGenerating}
-                        data-testid="button-extract-from-file-images"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Reading images...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Read {images.length} image{images.length === 1 ? "" : "s"} with AI
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                )}
+                {/* Pictures have their own method now — pointing at it beats a
+                    second, differently-shaped uploader bolted on down here. */}
+                <p className="text-xs text-muted-foreground mt-5">
+                  Got a picture instead?{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => goToMethod("image")}
+                    data-testid="link-to-image-method"
+                  >
+                    Add from a screenshot or photo
+                  </button>
+                  .
+                </p>
               </div>
             )}
 
@@ -706,42 +702,18 @@ export default function AddItems({ params }: AddItemsProps) {
                     Add pasted list
                   </Button>
 
-                  {hasScreenshotImport && (
-                    <div className="pt-4 mt-2 border-t border-border">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Or paste a screenshot — copy an image anywhere on this tab and AI will read the {noun.many}
-                        out of it.
-                      </p>
-                      <ImageDropzone
-                        images={images}
-                        onChange={setImages}
-                        onRejected={reportRejections}
-                        disabled={isGenerating}
-                        testId="paste-image-dropzone"
-                      />
-                      {images.length > 0 && (
-                        <Button
-                          variant="outline"
-                          className="w-full mt-2"
-                          onClick={() => extractNow(images)}
-                          disabled={isGenerating}
-                          data-testid="button-extract-from-paste-images"
-                        >
-                          {isGenerating ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Reading images...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mr-2" />
-                              Read {images.length} image{images.length === 1 ? "" : "s"} with AI
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Copied a screenshot rather than text?{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-primary hover:underline"
+                      onClick={() => goToMethod("image")}
+                      data-testid="link-to-image-method-from-paste"
+                    >
+                      Paste it as an image
+                    </button>
+                    .
+                  </p>
                 </div>
               </div>
             )}
@@ -753,8 +725,7 @@ export default function AddItems({ params }: AddItemsProps) {
                 </div>
                 <h3 className="text-base font-semibold text-foreground mb-1.5">Generate suggestions with AI</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-                  Describe a theme, or attach a screenshot, and we'll suggest up to 15 {noun.many} for you to review
-                  before adding.
+                  Describe a theme and we'll suggest up to 15 {noun.many} for you to review before adding.
                 </p>
                 <div className="max-w-sm mx-auto text-left space-y-3">
                   {usage && (
@@ -780,30 +751,17 @@ export default function AddItems({ params }: AddItemsProps) {
                       <Textarea
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder={
-                          images.length > 0 ? "Optional — add context for the image(s)" : aiPlaceholder
-                        }
+                        placeholder={aiPlaceholder}
                         rows={3}
                         className="text-sm"
                         data-testid="input-ai-prompt"
                       />
 
-                      {hasScreenshotImport && (
-                        <ImageDropzone
-                          images={images}
-                          onChange={setImages}
-                          onRejected={reportRejections}
-                          disabled={isGenerating}
-                          label="Paste a screenshot, drop an image, or click to browse"
-                          testId="ai-image-dropzone"
-                        />
-                      )}
-
                       <Button
                         variant="outline"
                         className="w-full"
                         onClick={handleGenerateSuggestions}
-                        disabled={(!aiPrompt.trim() && images.length === 0) || isGenerating}
+                        disabled={!aiPrompt.trim() || isGenerating}
                         data-testid="button-generate-suggestions"
                       >
                         {isGenerating ? (
@@ -815,6 +773,99 @@ export default function AddItems({ params }: AddItemsProps) {
                           <>
                             <Sparkles className="h-4 w-4 mr-2" />
                             Generate with AI
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {method === "image" && (
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <ImageUp className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Add from a screenshot or photo</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  Upload or paste up to {MAX_IMAGES} pictures — a chat, a post, a photo of a menu — and AI reads the{" "}
+                  {noun.many} out of them for you to review before adding.
+                </p>
+                <div className="max-w-sm mx-auto text-left space-y-3">
+                  {usage && (
+                    <UsageMeter
+                      label="AI generations today"
+                      used={usage.aiSuggestions.used}
+                      limit={usage.aiSuggestions.limit}
+                    />
+                  )}
+                  {!hasScreenshotImport ? (
+                    <div
+                      className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+                      data-testid="screenshot-locked-notice"
+                    >
+                      <ImageUp className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">Reading pictures isn't available on your plan.</span>
+                      <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                        Upgrade
+                      </Link>
+                    </div>
+                  ) : aiLimitReached ? (
+                    <div
+                      className="flex items-center gap-2.5 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+                      data-testid="image-limit-locked-notice"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">
+                        You've used today's AI generations on the {usage?.userGroup ?? "current"} plan.
+                      </span>
+                      <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
+                        Upgrade
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageDropzone
+                        images={images}
+                        onChange={setImages}
+                        onRejected={reportRejections}
+                        onClipboardError={reportClipboardFailure}
+                        disabled={isGenerating}
+                        testId="image-dropzone"
+                      />
+
+                      <Textarea
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        placeholder={
+                          isLocation
+                            ? "Optional — anything that helps, e.g. \"these are all in Lisbon\""
+                            : "Optional — anything that helps us read the picture"
+                        }
+                        rows={2}
+                        className="text-sm"
+                        data-testid="input-image-prompt"
+                      />
+
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleExtractFromImages}
+                        disabled={images.length === 0 || isGenerating}
+                        data-testid="button-extract-from-images"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Reading {images.length === 1 ? "image" : "images"}...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            {images.length > 0
+                              ? `Read ${images.length} image${images.length === 1 ? "" : "s"} with AI`
+                              : "Read with AI"}
                           </>
                         )}
                       </Button>

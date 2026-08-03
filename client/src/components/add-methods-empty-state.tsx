@@ -33,8 +33,8 @@ export function AddMethodsEmptyState({ shareUrl, itemType, canAdd }: AddMethodsE
         <h3 className="text-base font-semibold text-foreground">Nothing here yet — add your first {label}</h3>
         <p className="text-sm text-muted-foreground mt-1">Pick whichever way suits what you've already got.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3 max-w-3xl mx-auto">
-        {(["paste", "file", "ai"] as const).map((method) => {
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 max-w-4xl mx-auto">
+        {(["paste", "image", "file", "ai"] as const).map((method) => {
           const { icon: Icon, title, description } = methodMeta(method, itemType);
             return (
             <Link key={method} href={`/map/${shareUrl}/add?method=${method}`}>
