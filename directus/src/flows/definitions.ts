@@ -12,14 +12,16 @@
  * row that triggers each flow, same as any other write.
  *
  * Flow `name` fields below are fixed literal strings, not built from
- * APP_NAME (unlike the email copy they send) — apply.ts's ensureFlow
- * matches existing flows by exact name to stay idempotent, so changing a
- * name here (whether to a different literal or a dynamic one) creates a
- * brand-new duplicate flow on the next `flows:apply` run instead of
- * updating the one already provisioned. Leave these alone even across a
- * rename; they're an internal admin-panel label, never seen by end users.
+ * APP_NAME (unlike the email copy they send), because apply.ts matches
+ * existing flows by exact name to stay idempotent. Renaming one therefore
+ * orphans the flow already provisioned — so if you must, move the old
+ * string into that flow's `legacyNames` in the same edit, which is what
+ * lets apply.ts adopt and rename it rather than creating a duplicate
+ * alongside it. These are internal admin-panel labels, never seen by end
+ * users; there's rarely a reason to touch them.
  */
 import { env } from "../lib/env.js";
+import { PAID_PLAN_CHANGE_FILTER, PLAN_CHANGE_KEY, PLAN_CHANGE_SCRIPT } from "./plan-change.js";
 
 /** The app's actual public origin — read from APP_BASE_URL (directus/.env), not hardcoded, since links in these emails need to point somewhere real. */
 export const APP_BASE_URL = env.APP_BASE_URL;
@@ -34,10 +36,20 @@ export interface OperationSpec {
 
 export interface FlowSpec {
   name: string;
+  /**
+   * Names this flow has gone by before. apply.ts falls back to these when
+   * `name` finds nothing, so an already-provisioned flow gets adopted and
+   * renamed instead of a duplicate being created beside it — which is what
+   * would otherwise happen after a rename, and would double every email.
+   */
+  legacyNames?: string[];
   icon: string;
   trigger: { scope: string[]; collections: string[] };
   operations: OperationSpec[];
 }
+
+/** The app was called PinTogather before it was PinGather; flows provisioned back then still carry the old prefix. */
+const legacyNameOf = (name: string) => name.replace(/^PinGather: /, "PinTogather: ");
 
 /**
  * Every admin-notification flow needs the same "who do I email" step: look
@@ -105,6 +117,7 @@ const MAP_INVITATION_MAIL_BODY = `
 
 export const mapInvitationFlow: FlowSpec = {
   name: "PinGather: Send map invitation email",
+  legacyNames: [legacyNameOf("PinGather: Send map invitation email")],
   icon: "mail",
   trigger: { scope: ["items.create"], collections: ["map_invitations"] },
   operations: [
@@ -151,6 +164,7 @@ const NEW_USER_MAIL_BODY = `
 
 export const newUserFlow: FlowSpec = {
   name: "PinGather: Notify admins of new signup",
+  legacyNames: [legacyNameOf("PinGather: Notify admins of new signup")],
   icon: "person_add",
   trigger: { scope: ["items.create"], collections: ["directus_users"] },
   operations: [
@@ -173,13 +187,23 @@ export const newUserFlow: FlowSpec = {
 // --- Flow 3: user upgrades to a paid tier -> notify admins ------------------
 
 /**
- * Fires whenever directus_users.user_group is set to a paid tier, which
- * happens on every Stripe webhook sync that results in an active paid
- * subscription — not only the first purchase. The app's own webhook
- * handler doesn't distinguish "new purchase" from "renewal kept the same
- * tier" in what it writes (both PATCH the same fields), so this can repeat
- * on renewals; tightening that would need diffing against the previous
- * revision, which isn't worth the added complexity for an admin FYI email.
+ * Fires when a user's plan actually moves onto a paid tier.
+ *
+ * Two things have to be true for that to mean what it says, because the
+ * trigger is "any update to any directus_users row":
+ *
+ *  1. The write has to have carried user_group at all. Reading the row and
+ *     checking its *current* tier isn't enough — that matches every profile
+ *     edit, username change, and avatar upload by anyone already paying,
+ *     which is what made this email arrive constantly. Nor can a plain
+ *     condition on `$trigger.payload.user_group` do the job: Directus
+ *     filters treat an absent field as "nothing to violate", so a payload
+ *     without user_group passes. Hence the Run Script below, which turns
+ *     "field present?" into a definite value the condition can reject.
+ *  2. The write has to be a real change. That half lives in the app:
+ *     server/lib/subscription-sync.ts diffs against what's stored and skips
+ *     the PATCH entirely when a Stripe renewal restates the same tier, so
+ *     no user_group write reaches Directus in the first place.
  */
 const NEW_PURCHASE_MAIL_BODY = `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
@@ -193,9 +217,22 @@ const NEW_PURCHASE_MAIL_BODY = `
 
 export const newPurchaseFlow: FlowSpec = {
   name: "PinGather: Notify admins of paid subscription",
+  legacyNames: [legacyNameOf("PinGather: Notify admins of paid subscription")],
   icon: "payments",
   trigger: { scope: ["items.update"], collections: ["directus_users"] },
   operations: [
+    {
+      key: PLAN_CHANGE_KEY,
+      name: "Read the plan out of the write itself",
+      type: "exec",
+      options: { code: PLAN_CHANGE_SCRIPT },
+    },
+    {
+      key: "is_paid",
+      name: "Only continue if this write moved them onto a paid plan",
+      type: "condition",
+      options: { filter: PAID_PLAN_CHANGE_FILTER },
+    },
     {
       key: "read_user",
       name: "Read updated user",
@@ -205,12 +242,6 @@ export const newPurchaseFlow: FlowSpec = {
         key: "{{$trigger.keys[0]}}",
         query: { fields: ["email", "first_name", "last_name", "user_group"] },
       },
-    },
-    {
-      key: "is_paid",
-      name: "Only continue if now on a paid plan",
-      type: "condition",
-      options: { filter: { read_user: { user_group: { _in: ["basic", "premium"] } } } },
     },
     ...adminRecipientOperations(),
     nonEmptyCondition("has_admins", "Skip if no admins", "admin_emails.list"),
@@ -248,6 +279,7 @@ const INVITATION_ACCEPTED_MAIL_BODY = `
 
 export const invitationAcceptedFlow: FlowSpec = {
   name: "PinGather: Notify inviter of accepted invitation",
+  legacyNames: [legacyNameOf("PinGather: Notify inviter of accepted invitation")],
   icon: "how_to_reg",
   trigger: { scope: ["items.update"], collections: ["map_invitations"] },
   operations: [

@@ -22,7 +22,11 @@ export default defineConfig({
         test: {
           name: "server",
           environment: "node",
-          include: ["server/**/*.test.ts", "shared/**/*.test.ts"],
+          // directus/ is a separate package, but its flow definitions decide
+          // when customers and admins get emailed — logic worth the same
+          // guard as the rest. Only dependency-free modules there are
+          // testable from here; anything touching directus/.env isn't.
+          include: ["server/**/*.test.ts", "shared/**/*.test.ts", "directus/src/**/*.test.ts"],
           setupFiles: ["./test/setup.server.ts"],
         },
       },

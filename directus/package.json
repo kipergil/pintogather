@@ -12,6 +12,7 @@
     "backfill:nullable-geo": "tsx src/schema/backfill-nullable-geo.ts",
     "pages:seed": "tsx src/content/seed-pages.ts",
     "map-templates:seed": "tsx src/content/seed-map-templates.ts",
+    "content:update": "tsx src/content/update-content.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -12,18 +12,20 @@ function renderAt(ui: React.ReactElement) {
 }
 
 describe("<AddMethodsEmptyState />", () => {
-  it("offers all three add methods to someone who can add", () => {
+  it("offers all four add methods to someone who can add", () => {
     renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="location" canAdd />);
     expect(screen.getByTestId("button-empty-method-paste")).toBeInTheDocument();
+    expect(screen.getByTestId("button-empty-method-image")).toBeInTheDocument();
     expect(screen.getByTestId("button-empty-method-file")).toBeInTheDocument();
     expect(screen.getByTestId("button-empty-method-ai")).toBeInTheDocument();
   });
 
-  it("deep-links each card to its own tab in the add hub", () => {
+  it("deep-links each card to its own panel in the add hub", () => {
     const { container } = renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="location" canAdd />);
     const hrefs = Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(hrefs).toEqual([
       "/map/abc123/add?method=paste",
+      "/map/abc123/add?method=image",
       "/map/abc123/add?method=file",
       "/map/abc123/add?method=ai",
     ]);

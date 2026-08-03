@@ -5,17 +5,21 @@ import { AddMethodPicker, methodsFor, parseMethodParam, methodTitle } from "./ad
 import { ITEM_TYPE } from "@shared/enums";
 
 describe("methodsFor", () => {
-  it("offers all five ways on a map of locations", () => {
-    expect(methodsFor("location")).toEqual(["paste", "file", "ai", "venue", "map"]);
+  it("offers all six ways on a map of locations", () => {
+    expect(methodsFor("location")).toEqual(["paste", "image", "file", "ai", "venue", "map"]);
   });
 
   it.each(["link", "recommendation"] as const)(
     "hides venue search and drop-on-map for a %s collection",
     (itemType) => {
       // Neither means anything without coordinates.
-      expect(methodsFor(itemType)).toEqual(["paste", "file", "ai"]);
+      expect(methodsFor(itemType)).toEqual(["paste", "image", "file", "ai"]);
     },
   );
+
+  it("keeps screenshots available on every item type — a picture can list anything", () => {
+    for (const itemType of ITEM_TYPE) expect(methodsFor(itemType)).toContain("image");
+  });
 });
 
 describe("parseMethodParam", () => {
@@ -28,7 +32,7 @@ describe("parseMethodParam", () => {
     expect(parseMethodParam("nonsense", "location")).toBeUndefined();
   });
 
-  it.each(["paste", "file", "ai", "venue", "map"] as const)("accepts %s on a location map", (method) => {
+  it.each(["paste", "image", "file", "ai", "venue", "map"] as const)("accepts %s on a location map", (method) => {
     expect(parseMethodParam(method, "location")).toBe(method);
   });
 
@@ -48,9 +52,10 @@ describe("<AddMethodPicker />", () => {
     }
   });
 
-  it("shows only the three universal methods for a link collection", () => {
+  it("shows only the four universal methods for a link collection", () => {
     render(<AddMethodPicker itemType="link" onSelect={vi.fn()} />);
     expect(screen.getByTestId("card-method-paste")).toBeInTheDocument();
+    expect(screen.getByTestId("card-method-image")).toBeInTheDocument();
     expect(screen.queryByTestId("card-method-venue")).not.toBeInTheDocument();
     expect(screen.queryByTestId("card-method-map")).not.toBeInTheDocument();
   });

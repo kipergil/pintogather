@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImageIcon, Upload, X } from "lucide-react";
+import { ClipboardPaste, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
@@ -67,11 +67,80 @@ export function useImagePaste(onImages: (files: File[]) => void, enabled = true)
   }, [enabled]);
 }
 
+const EXTENSION_BY_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+export type ClipboardReadFailure = "unsupported" | "denied" | "empty";
+
+/** Thrown by `readClipboardImages` so the caller can explain which of the three ways it failed. */
+export class ClipboardReadError extends Error {
+  constructor(readonly reason: ClipboardReadFailure) {
+    super(reason);
+    this.name = "ClipboardReadError";
+  }
+}
+
+/**
+ * Whether the browser can be *asked* for the clipboard's contents, as opposed
+ * to only being told about a paste the user performed. Chrome, Edge, and
+ * Safari (including iOS) implement this; older Firefox does not.
+ */
+export function canReadClipboardImages(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.clipboard?.read === "function";
+}
+
+/**
+ * Pulls images off the clipboard on demand.
+ *
+ * The keyboard `paste` listener below only ever fires when the user presses
+ * Ctrl/Cmd-V, which is not something that exists on a phone: iOS and Android
+ * only offer "Paste" from the selection menu of a focused editable field, so
+ * a page-level listener never hears about it. Reading the clipboard directly
+ * from a tap gives touch users the same capability — Safari and Chrome both
+ * prompt the user to confirm, which is why this must run inside a click
+ * handler and can't be done speculatively.
+ */
+export async function readClipboardImages(): Promise<File[]> {
+  if (!canReadClipboardImages()) throw new ClipboardReadError("unsupported");
+
+  let contents: Awaited<ReturnType<Clipboard["read"]>>;
+  try {
+    contents = await navigator.clipboard.read();
+  } catch {
+    // Refused at the permission prompt, or no clipboard access in this context.
+    throw new ClipboardReadError("denied");
+  }
+
+  const files: File[] = [];
+  for (const item of contents) {
+    const type =
+      item.types.find((candidate) => ALLOWED_IMAGE_TYPES.has(candidate)) ??
+      item.types.find((candidate) => candidate.startsWith("image/"));
+    if (!type) continue;
+    const blob = await item.getType(type);
+    const mime = blob.type || type;
+    files.push(
+      new File([blob], `pasted-image-${files.length + 1}.${EXTENSION_BY_TYPE[mime] ?? "png"}`, { type: mime }),
+    );
+  }
+
+  // Text on the clipboard and an empty clipboard are the same thing here, and
+  // both deserve "there's no image to paste" rather than silence.
+  if (files.length === 0) throw new ClipboardReadError("empty");
+  return files;
+}
+
 interface ImageDropzoneProps {
   images: File[];
   onChange: (images: File[]) => void;
   /** Surfaced to the user when a file is refused — the caller decides how (toast, inline text). */
   onRejected?: (rejections: ImageRejection[]) => void;
+  /** Surfaced when the explicit Paste button couldn't get anything from the clipboard. */
+  onClipboardError?: (reason: ClipboardReadFailure) => void;
   disabled?: boolean;
   /** Overrides the default prompt, e.g. to say what will be done with the image. */
   label?: string;
@@ -88,6 +157,7 @@ export function ImageDropzone({
   images,
   onChange,
   onRejected,
+  onClipboardError,
   disabled = false,
   label,
   className,
@@ -95,6 +165,10 @@ export function ImageDropzone({
 }: ImageDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isReadingClipboard, setIsReadingClipboard] = useState(false);
+  // Read once at mount: feature support can't change under us, and calling it
+  // during render on the server would touch `navigator`.
+  const [clipboardReadable] = useState(canReadClipboardImages);
 
   const accept = useCallback(
     (incoming: File[]) => {
@@ -107,6 +181,18 @@ export function ImageDropzone({
   );
 
   useImagePaste(accept, !disabled);
+
+  const pasteFromClipboard = async () => {
+    if (disabled || isReadingClipboard) return;
+    setIsReadingClipboard(true);
+    try {
+      accept(await readClipboardImages());
+    } catch (error) {
+      onClipboardError?.(error instanceof ClipboardReadError ? error.reason : "denied");
+    } finally {
+      setIsReadingClipboard(false);
+    }
+  };
 
   const atCapacity = images.length >= MAX_IMAGES;
 
@@ -149,7 +235,32 @@ export function ImageDropzone({
           data-testid={`${testId}-target`}
         >
           <Upload className="h-4 w-4" />
-          <span>{label ?? "Paste a screenshot, drop an image, or click to browse"}</span>
+          <span>{label ?? "Tap to choose a screenshot or photo, or drag one in"}</span>
+        </button>
+      )}
+
+      {/* A tappable paste, because Ctrl/Cmd-V doesn't exist on a phone — the
+          keyboard listener above can only ever serve desktop. Hidden entirely
+          where the browser won't let us read the clipboard, rather than
+          offering a button that can only fail. */}
+      {!atCapacity && clipboardReadable && (
+        <button
+          type="button"
+          disabled={disabled || isReadingClipboard}
+          onClick={pasteFromClipboard}
+          className={cn(
+            "w-full rounded-md border border-border px-3 py-2 text-xs font-medium",
+            "flex items-center justify-center gap-1.5 text-foreground transition-colors hover:bg-accent",
+            (disabled || isReadingClipboard) && "opacity-50 cursor-not-allowed hover:bg-transparent",
+          )}
+          data-testid={`${testId}-paste`}
+        >
+          {isReadingClipboard ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ClipboardPaste className="h-3.5 w-3.5" />
+          )}
+          Paste from clipboard
         </button>
       )}
 
