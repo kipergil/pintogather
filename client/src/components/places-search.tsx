@@ -23,7 +23,7 @@ interface PlacesSearchProps {
   className?: string;
 }
 
-export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place...", className = "" }: PlacesSearchProps) {
+export function PlacesSearch({ onPlaceSelect, placeholder = "Search for a place…", className = "" }: PlacesSearchProps) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ITEM_NOUN, pluralize } from "@shared/vocabulary";
 import { Link } from "wouter";
 import { MapPin, Twitter, Instagram, Linkedin, Compass } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -88,10 +89,10 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="h-4 w-4" />
-              {profile.maps.length} {profile.maps.length === 1 ? "map" : "maps"}
+              {profile.maps.length} {profile.maps.length === 1 ? "collection" : "collections"}
             </span>
             <span aria-hidden>·</span>
-            <span>{totalPins} {totalPins === 1 ? "pin" : "pins"}</span>
+            <span>{totalPins} {totalPins === 1 ? "item" : "items"}</span>
             <span aria-hidden>·</span>
             <span data-testid="text-follower-count">
               <strong className="text-foreground font-semibold">{profile.followerCount}</strong>{" "}
@@ -174,7 +175,7 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
                     <div className="mt-auto pt-1 flex items-center justify-between">
                       <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
                         <MapPin className="h-3.5 w-3.5" />
-                        {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
+                        {pluralize(map.pinCount, ITEM_NOUN[map.itemType])}
                       </span>
                       <LikeButton
                         mapId={map.id}

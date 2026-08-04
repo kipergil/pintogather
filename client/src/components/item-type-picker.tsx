@@ -10,20 +10,20 @@ const OPTIONS: { itemType: ItemType; icon: typeof MapPinned; label: string; tagl
   {
     itemType: "location",
     icon: MapPinned,
-    label: "Locations",
-    tagline: "A map — pin places for people to visit.",
+    label: "Places",
+    tagline: "Pins on a real map, with addresses, photos, and notes.",
   },
   {
     itemType: "link",
     icon: Link2,
     label: "Links",
-    tagline: "A shared reading/watch list — paste a URL and it fills itself in.",
+    tagline: "A shared reading or watch list — paste a URL and it fills itself in.",
   },
   {
     itemType: "recommendation",
     icon: Sparkles,
     label: "Recommendations",
-    tagline: "Anything worth recommending — no location or link required.",
+    tagline: "Anything worth recommending — books, films, tools, dishes.",
   },
 ];
 

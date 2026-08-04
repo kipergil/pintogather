@@ -173,7 +173,7 @@ export default function MapForm({ params }: MapFormProps) {
             <Plus className="h-5 w-5 text-primary" />
           )}
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {isEditing ? "Edit map" : "Create a new map"}
+            {isEditing ? "Edit collection" : "New collection"}
           </h1>
         </div>
         <Button
@@ -183,7 +183,7 @@ export default function MapForm({ params }: MapFormProps) {
           data-testid="button-back-from-map-form"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          {isEditing ? "Back to map" : isMidFlow ? "Back" : "Back to home"}
+          {isEditing ? "Back to collection" : isMidFlow ? "Back" : "Back to home"}
         </Button>
       </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ITEM_NOUN, pluralize } from "@shared/vocabulary";
 import { Link, useLocation } from "wouter";
 import { MapPin, Crown, Users, ArchiveRestore, Loader2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,7 +134,7 @@ export function MapCard({
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 mt-auto pt-1">
         <span className="inline-flex items-center gap-1">
           <MapPin className="h-3.5 w-3.5" />
-          {map.pinCount} {(map.itemType ?? "location") === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
+          {pluralize(map.pinCount, ITEM_NOUN[map.itemType ?? "location"])}
         </span>
         <span aria-hidden>·</span>
         <span>{formatRelativeDate(map.createdAt)}</span>

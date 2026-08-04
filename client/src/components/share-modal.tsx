@@ -70,15 +70,17 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
       const response = await apiRequest("POST", invitationsUrl, data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [invitationsUrl] });
       setInviteEmail("");
-      toast({ title: "Invitation sent", description: "Map invitation has been sent successfully." });
+      // Naming the address turns a restatement into something you can act on
+      // when it's the wrong one.
+      toast({ title: "Invitation sent", description: `We emailed ${variables.email}.` });
     },
     onError: (error: any) => {
       toast({
         title: "Couldn't send invitation",
-        description: error.message || "Failed to send invitation.",
+        description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
@@ -105,10 +107,10 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
     try {
       await navigator.clipboard.writeText(fullShareUrl);
       setCopied(true);
-      toast({ title: "Success", description: "URL copied to clipboard!", variant: "success" });
+      toast({ title: "Link copied", variant: "success" });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to copy URL", variant: "destructive" });
+      toast({ title: "Couldn't copy", description: "Select the link and copy it manually", variant: "destructive" });
     }
   };
 
@@ -117,7 +119,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
       await navigator.clipboard.writeText(`${window.location.origin}/invitations/${token}`);
       toast({ title: "Invite link copied", description: "Share it directly if email doesn't arrive.", variant: "success" });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to copy invite link", variant: "destructive" });
+      toast({ title: "Couldn't copy", description: "Select the link and copy it manually", variant: "destructive" });
     }
   };
 
@@ -167,7 +169,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Share2 className="h-5 w-5 mr-2" />
-            {showLinkAndSocial ? "Share Map" : "Invite collaborators"}
+            {showLinkAndSocial ? "Share collection" : "Invite collaborators"}
           </DialogTitle>
         </DialogHeader>
 
@@ -185,7 +187,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="shareUrl">Share URL</Label>
+                <Label htmlFor="shareUrl">Public link</Label>
                 <div className="flex">
                   <Input
                     id="shareUrl"
@@ -203,7 +205,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
               </div>
 
               <div className="space-y-2">
-                <Label>Share on Social Media</Label>
+                <Label>Share on social</Label>
                 <div className="flex space-x-2">
                   <Button
                     onClick={() => shareToSocial("twitter")}
@@ -303,7 +305,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
                       className="w-full"
                       size="sm"
                     >
-                      {sendInvitationMutation.isPending ? "Sending..." : "Send Invitation"}
+                      {sendInvitationMutation.isPending ? "Sending…" : "Send invitation"}
                     </Button>
                   </div>
                 )}

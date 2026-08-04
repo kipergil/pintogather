@@ -179,7 +179,7 @@ export default function SearchPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search maps, pins, or people..."
+          placeholder="Search collections, items, or people…"
           className="pl-10 h-11"
           autoFocus
           data-testid="input-search-query"

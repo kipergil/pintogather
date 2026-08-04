@@ -170,7 +170,7 @@ export function ActivityFeed() {
             Community Activity
           </CardTitle>
           <Badge variant="outline" className="text-xs">
-            Live Feed
+            Live feed
           </Badge>
         </div>
       </CardHeader>

@@ -310,7 +310,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {saveMutation.isPending ? "Saving..." : "Save"}
+              {saveMutation.isPending ? "Saving…" : "Save"}
             </Button>
           </form>
         </CardContent>

@@ -81,7 +81,7 @@ export default function AcceptInvitation({ params }: AcceptInvitationProps) {
       <InvitationCard
         icon={<AlertCircle className="h-8 w-8 text-destructive" />}
         title="Invitation expired"
-        description="This invitation has expired. Ask the map owner to send you a new one."
+        description="This invitation has expired. Ask whoever invited you to send a new one."
       />
     );
   }
@@ -110,7 +110,7 @@ export default function AcceptInvitation({ params }: AcceptInvitationProps) {
         title={`Join "${invitation.mapName}"`}
         description={
           <>
-            <strong>{invitation.inviterName}</strong> invited you to collaborate on this map.
+            <strong>{invitation.inviterName}</strong> invited you to collaborate on this collection.
           </>
         }
         action={
@@ -121,7 +121,7 @@ export default function AcceptInvitation({ params }: AcceptInvitationProps) {
               ) : (
                 <Lock className="h-4 w-4" />
               )}
-              You'll be able to {invitation.permission === "editable" ? "add and edit pins" : "view pins"}
+              You'll be able to {invitation.permission === "editable" ? "add and edit items" : "view everything in it"}
             </div>
             {user ? (
               <Button

@@ -7,11 +7,9 @@ export interface ItemSeed {
   note?: string;
 }
 
-export const ITEM_NOUN: Record<ItemType, { one: string; many: string }> = {
-  location: { one: "pin", many: "pins" },
-  link: { one: "link", many: "links" },
-  recommendation: { one: "recommendation", many: "recommendations" },
-};
+// Re-exported so existing importers keep working; the words themselves now
+// live in shared/vocabulary.ts, which the Expo app reads from too.
+export { ITEM_NOUN } from "@shared/vocabulary";
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
 

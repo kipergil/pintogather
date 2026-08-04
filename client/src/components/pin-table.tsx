@@ -1,3 +1,4 @@
+import { ITEM_NOUN } from "@shared/vocabulary";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -157,6 +158,9 @@ function NoteContent({ label, note }: { label: string; note: string }) {
   );
 }
 
+/** "link" -> "Link", for toast titles that lead with the noun. */
+const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+
 export function PinTable({
   pins,
   mapOwnerId,
@@ -168,6 +172,7 @@ export function PinTable({
   headerActionsSlot,
   initialApprovalFilter,
 }: PinTableProps) {
+  const noun = ITEM_NOUN[itemType];
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -207,8 +212,8 @@ export function PinTable({
     },
     onSuccess: () => {
       toast({
-        title: "Pin deleted",
-        description: "The pin has been removed from this map.",
+        title: `${capitalize(noun.one)} deleted`,
+        description: "It's been removed from this collection.",
         variant: "success",
       });
       if (shareUrl) {
@@ -219,7 +224,7 @@ export function PinTable({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete pin",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -227,8 +232,8 @@ export function PinTable({
 
   const handleDeletePin = (pin: Pin) => {
     const message = pin.approved === false
-      ? "Discard this pending pin? It will be permanently removed."
-      : "Are you sure you want to delete this pin?";
+      ? `Discard this pending ${noun.one}? It will be permanently removed.`
+      : `Delete this ${noun.one}?`;
     if (window.confirm(message)) {
       deletePinMutation.mutate(pin.id);
     }
@@ -242,11 +247,11 @@ export function PinTable({
     onSuccess: (result) => {
       setSelectedPinIds(new Set());
       toast({
-        title: result.deletedCount === 1 ? "Pin deleted" : `${result.deletedCount} pins deleted`,
+        title: result.deletedCount === 1 ? `${capitalize(noun.one)} deleted` : `${result.deletedCount} ${noun.many} deleted`,
         description:
           result.skippedCount > 0
             ? `${result.skippedCount} pin${result.skippedCount === 1 ? "" : "s"} couldn't be removed — you don't have permission.`
-            : "The selected pins have been removed from this map.",
+            : `The selected ${noun.many} have been removed.`,
         variant: result.deletedCount > 0 ? "success" : "destructive",
       });
       if (shareUrl) {
@@ -257,7 +262,7 @@ export function PinTable({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete pins",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -287,11 +292,11 @@ export function PinTable({
     onSuccess: (result, pinIds) => {
       setSelectedPinIds(new Set());
       toast({
-        title: result.approvedCount === 1 ? "Pin approved" : `${result.approvedCount} pins approved`,
+        title: result.approvedCount === 1 ? `${capitalize(noun.one)} approved` : `${result.approvedCount} ${noun.many} approved`,
         description:
           result.skippedCount > 0
             ? `${result.skippedCount} pin${result.skippedCount === 1 ? "" : "s"} couldn't be approved.`
-            : "They're now visible to everyone on this map.",
+            : "They're now visible to everyone.",
         variant: result.approvedCount > 0 ? "success" : "destructive",
       });
       markPinsApproved(shareUrl, pinIds);
@@ -300,7 +305,7 @@ export function PinTable({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to approve pins",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -334,8 +339,8 @@ export function PinTable({
     },
     onSuccess: (_data, pinId) => {
       toast({
-        title: "Pin approved",
-        description: "It's now visible to everyone on this map.",
+        title: `${capitalize(noun.one)} approved`,
+        description: "It's now visible to everyone.",
         variant: "success",
       });
       markPinsApproved(shareUrl, [pinId]);
@@ -344,7 +349,7 @@ export function PinTable({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to approve pin",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -433,7 +438,7 @@ export function PinTable({
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={searchInputRef}
-                placeholder="Search pins..."
+                placeholder={`Search ${noun.many}…`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onBlur={() => {
@@ -466,7 +471,7 @@ export function PinTable({
                 setSearchOpen(true);
                 requestAnimationFrame(() => searchInputRef.current?.focus());
               }}
-              aria-label="Search pins"
+              aria-label={`Search ${noun.many}`}
               data-testid="button-open-search"
             >
               <Search className="h-4 w-4" />
@@ -479,7 +484,7 @@ export function PinTable({
             <Checkbox
               checked={allSelected}
               onCheckedChange={toggleSelectAll}
-              aria-label="Select all pins"
+              aria-label="Select all"
               data-testid="checkbox-select-all-pins"
             />
             Select all
@@ -554,23 +559,16 @@ export function PinTable({
         <div className="text-center py-12 rounded-2xl border border-dashed border-border bg-muted/30">
           <MapPin className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
           <h3 className="text-base font-medium text-foreground mb-1">
-            {pins.length === 0
-              ? itemType === "location"
-                ? "No pins yet"
-                : "No items yet"
-              : itemType === "location"
-                ? "No pins match your search"
-                : "No items match your search"}
+            {pins.length === 0 ? `No ${noun.many} yet` : "Nothing matches your search"}
           </h3>
           <p className="text-sm text-muted-foreground">
             {pins.length === 0
               ? readOnly
-                ? `This ${itemType === "location" ? "map" : "collection"} doesn't have any ${itemType === "location" ? "pins" : "items"} yet.`
+                ? `This collection doesn't have any ${noun.many} yet.`
                 : itemType === "location"
-                  ? "Click on the map to add the first pin to this collection."
-                  : `Use the "Add ${itemType === "link" ? "link" : "recommendation"}" button above to add the first item.`
-              : "Try adjusting your search terms."
-            }
+                  ? "Click the map to drop your first pin."
+                  : `Add your first ${noun.one} to get started.`
+              : "Try adjusting your search terms."}
           </p>
         </div>
       ) : (

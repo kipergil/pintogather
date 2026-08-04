@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ITEM_NOUN } from "@shared/vocabulary";
 import { ArrowLeft, ArchiveRestore, Users, MapPin, AlertCircle, Crown, Clock, Compass, Loader2, Plus, Sparkles } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
@@ -143,17 +144,17 @@ export default function MapDetail({ params }: MapDetailProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${params.shareUrl}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
       if (result.restoredCount > 0) {
-        toast({ title: "Map restored", description: "It's back on your home page.", variant: "success" });
+        toast({ title: "Collection restored", description: "It's back on your home page.", variant: "success" });
       } else {
         toast({
           title: "Couldn't restore",
-          description: "You've reached your plan's map limit. Upgrade or archive another map first.",
+          description: "You've reached your plan's limit. Upgrade, or archive another collection first.",
           variant: "destructive",
         });
       }
     },
     onError: (error: any) => {
-      toast({ title: "Couldn't restore map", description: error.message || "Please try again", variant: "destructive" });
+      toast({ title: "Couldn't restore it", description: error.message || "Please try again", variant: "destructive" });
     },
   });
 
@@ -164,12 +165,12 @@ export default function MapDetail({ params }: MapDetailProps) {
     },
     onSuccess: (clonedMap) => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
-      toast({ title: "Map cloned", description: "It's now in your own maps, ready to edit.", variant: "success" });
+      toast({ title: "Copied", description: "It's in your own collections now, ready to edit.", variant: "success" });
       setLocation(`/map/${clonedMap.shareUrl}`);
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't clone map",
+        title: "Couldn't copy it",
         description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
@@ -212,6 +213,7 @@ export default function MapDetail({ params }: MapDetailProps) {
   const contributorsCount = countDistinctContributors(mapCollection.pins);
   const isOwner = !!user && user.id === mapCollection.ownerId;
   const pendingCount = mapCollection.pins.filter((pin) => pin.approved === false).length;
+  const noun = ITEM_NOUN[mapCollection.itemType];
   const pinCapReached = Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount >= mapCollection.maxPins;
   const pinCapNear =
     !pinCapReached && Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount / mapCollection.maxPins >= 0.8;
@@ -220,7 +222,7 @@ export default function MapDetail({ params }: MapDetailProps) {
     if (mapCollection.pins.length === 0) {
       toast({
         title: "Nothing to export",
-        description: "This map doesn't have any pins yet.",
+        description: `This collection doesn't have any ${noun.many} yet.`,
         variant: "destructive",
       });
       return;
@@ -260,9 +262,7 @@ export default function MapDetail({ params }: MapDetailProps) {
               <MapPin className="h-4 w-4" />
               {mapCollection.pinCount}
               {Number.isFinite(mapCollection.maxPins) && ` / ${mapCollection.maxPins}`}{" "}
-              {mapCollection.itemType === "location"
-                ? !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "pin" : "pins"
-                : !Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? "item" : "items"}
+              {!Number.isFinite(mapCollection.maxPins) && mapCollection.pinCount === 1 ? noun.one : noun.many}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Users className="h-4 w-4" />
@@ -270,7 +270,7 @@ export default function MapDetail({ params }: MapDetailProps) {
             </span>
             {isOwner && (pinCapReached || pinCapNear) && (
               <Link href="/pricing" className="font-medium text-primary hover:underline" data-testid="link-pin-cap-upgrade">
-                {pinCapReached ? "Pin limit reached — upgrade →" : "Approaching pin limit — upgrade →"}
+                {pinCapReached ? "Limit reached — upgrade →" : "Approaching the limit — upgrade →"}
               </Link>
             )}
           </div>
@@ -355,7 +355,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                       data-testid="button-add-items"
                     >
                       <Sparkles className="h-4 w-4 mr-1.5" />
-                      Add {mapCollection.itemType === "location" ? "pins" : "items"}
+                      Add {noun.many}
                     </Button>
                   )}
                   <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
@@ -406,7 +406,7 @@ export default function MapDetail({ params }: MapDetailProps) {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 flex-wrap">
-                {mapCollection.itemType === "location" ? "Pins" : "Items"}{" "}
+                {noun.many.charAt(0).toUpperCase() + noun.many.slice(1)}{" "}
                 <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
                 {isOwner && pendingCount > 0 && (
                   <Badge variant="outline" className="gap-1 border-amber-300 bg-amber-50 text-amber-700 font-normal text-xs">
@@ -419,7 +419,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                 {mapCollection.itemType !== "location" && (
                   <Button size="sm" onClick={() => setIsAddItemModalOpen(true)} data-testid="button-add-item">
                     <Plus className="h-4 w-4 mr-1.5" />
-                    Add {mapCollection.itemType === "link" ? "link" : "recommendation"}
+                    Add {noun.one}
                   </Button>
                 )}
                 <div ref={setPinHeaderSlot} className="flex items-center" />

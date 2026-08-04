@@ -879,7 +879,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
             </p>
           ) : (
             <p className="text-sm text-muted-foreground mt-2.5">
-              Add one at a time — click the map or search a venue — or bulk-add a whole list from a paste, file,
+              Add one at a time — click the map or search a venue — or add a whole list from a paste, file,
               screenshot, or AI prompt.
             </p>
           )}

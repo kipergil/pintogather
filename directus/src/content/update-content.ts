@@ -13,6 +13,38 @@ import { getSchemaClient } from "../lib/client.js";
 
 /** Newest first — the order they'll appear on the page. */
 const CHANGELOG_SECTIONS = [
+  `## August 4, 2026
+
+### A collection is a collection, not a map
+A collection can hold places, links, or recommendations — but most of the app
+still called it a map and called everything in it a pin, whichever kind you
+had chosen. That's now fixed throughout: "My maps" is "My collections", plan
+limits are counted in collections and items, and a links collection says
+"links" everywhere it used to say "pins". "Map" now means only the actual map
+inside a collection of places.
+
+### Wording that matches what you're collecting
+The table above your links is headed "Links", its search box says "Search
+links", and deleting one says "Link deleted". On an empty links collection
+the page used to tell you to "click on the map to add the first pin" — on a
+page with no map on it. It now tells you to add your first link.
+
+### The front page says what the app actually does
+Someone arriving for the first time was promised a map app, so anyone after a
+reading list or a recommendations board had no reason to stay. The landing
+page, the page title, and the preview text that shows when you share a link
+now describe all three kinds of collection — and finally mention that AI can
+read a whole list out of a screenshot, which was the one thing nowhere on the
+page.
+
+### Clearer plans, and a smaller fix everywhere
+Plans are priced in collections and items rather than maps and pins, and
+"Custom pin colours & icons" now says it applies to place collections, so
+nobody pays for something they can't use. Errors that said "Failed to…" now
+say what you couldn't do and what to try, two toasts titled just "Success"
+and "Error" now say what happened, and a handful of stray US spellings and
+Title Case headings have been brought back in line.
+`,
   `## August 3, 2026
 
 ### Screenshots and photos are their own way of adding

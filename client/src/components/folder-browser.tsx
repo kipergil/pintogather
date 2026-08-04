@@ -94,7 +94,7 @@ export function FolderBrowser<TMap extends { folderId?: string | null }>({
             onClick={() => setCurrentFolderId(null)}
             data-testid="button-breadcrumb-root"
           >
-            My maps
+            My collections
           </button>
           {path.map((folder, i) => (
             <span key={folder.id} className="flex items-center gap-1">
@@ -140,7 +140,7 @@ export function FolderBrowser<TMap extends { folderId?: string | null }>({
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-foreground truncate">{folder.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {countUnder(folder.id)} {countUnder(folder.id) === 1 ? "map" : "maps"}
+                  {countUnder(folder.id)} {countUnder(folder.id) === 1 ? "collection" : "collections"}
                 </div>
               </div>
               <DropdownMenu>
@@ -180,7 +180,7 @@ export function FolderBrowser<TMap extends { folderId?: string | null }>({
       )}
 
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
-        {currentFolderId === null ? "Unfiled maps" : "Maps in this folder"}
+        {currentFolderId === null ? "Unfiled" : "In this folder"}
       </div>
       {mapsHere.length === 0 ? (
         <p className="text-sm text-muted-foreground border border-dashed border-border rounded-xl px-4 py-3 mb-2">

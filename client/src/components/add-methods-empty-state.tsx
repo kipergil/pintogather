@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ITEM_NOUN } from "@shared/vocabulary";
 import type { ItemType } from "@shared/enums";
 // Descriptions come from the picker so the two surfaces can't drift apart.
 import { methodMeta } from "@/components/add-method-picker";
@@ -17,7 +18,7 @@ interface AddMethodsEmptyStateProps {
  * put them in front of someone, one click from each method.
  */
 export function AddMethodsEmptyState({ shareUrl, itemType, canAdd }: AddMethodsEmptyStateProps) {
-  const label = itemType === "location" ? "pins" : "items";
+  const label = ITEM_NOUN[itemType].many;
 
   if (!canAdd) {
     return (
