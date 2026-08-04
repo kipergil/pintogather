@@ -12,10 +12,11 @@ import {
   Compass,
   Sparkles,
   Building2,
-  Globe2,
   HeartHandshake,
   PartyPopper,
-  Landmark,
+  BookOpen,
+  Star,
+  ImageUp,
   Check,
   UserCircle,
   Archive,
@@ -99,14 +100,14 @@ export default function Home() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
       toast({
-        title: result.archivedCount === 1 ? "Map archived" : `${result.archivedCount} maps archived`,
-        description: "Find them anytime in the Archived maps tab.",
+        title: result.archivedCount === 1 ? "Collection archived" : `${result.archivedCount} collections archived`,
+        description: "Find them anytime in the Archived tab.",
         variant: "success",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't archive maps",
+        title: "Couldn't archive",
         description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
@@ -122,17 +123,17 @@ export default function Home() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/maps"] });
       const parts: string[] = [];
-      if (result.restoredCount > 0) parts.push(`${result.restoredCount} map${result.restoredCount === 1 ? "" : "s"} restored`);
-      if (result.skippedDueToLimit > 0) parts.push(`${result.skippedDueToLimit} skipped — map limit reached`);
+      if (result.restoredCount > 0) parts.push(`${result.restoredCount} collection${result.restoredCount === 1 ? "" : "s"} restored`);
+      if (result.skippedDueToLimit > 0) parts.push(`${result.skippedDueToLimit} skipped — plan limit reached`);
       toast({
         title: result.restoredCount > 0 ? "Restored" : "Couldn't restore",
-        description: parts.length > 0 ? `${parts.join(", ")}.` : "No maps were restored.",
+        description: parts.length > 0 ? `${parts.join(", ")}.` : "Nothing was restored.",
         variant: result.restoredCount > 0 ? "success" : "destructive",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't restore maps",
+        title: "Couldn't restore",
         description: error.message || "Please try again",
         variant: "destructive",
       });
@@ -147,7 +148,7 @@ export default function Home() {
       if (pins.length === 0) {
         toast({
           title: "Nothing to export",
-          description: "This map doesn't have any pins yet.",
+          description: "This collection is empty.",
           variant: "destructive",
         });
         return;
@@ -155,7 +156,7 @@ export default function Home() {
       downloadPinsCsv(pins, data.noteLabel || "Note", data.itemType);
       toast({
         title: "CSV exported",
-        description: `${pins.length} pin${pins.length === 1 ? "" : "s"} exported.`,
+        description: `${pins.length} row${pins.length === 1 ? "" : "s"} exported.`,
         variant: "success",
       });
     } catch (error: any) {
@@ -186,7 +187,7 @@ export default function Home() {
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't move map",
+        title: "Couldn't move it",
         description: error.message || "Please try again",
         variant: "destructive",
       });
@@ -196,7 +197,7 @@ export default function Home() {
   const handleDeleteFolder = (folder: Folder) => {
     if (
       !window.confirm(
-        `Delete "${folder.name}"? Maps and subfolders inside it move back to the root level — nothing is deleted.`,
+        `Delete "${folder.name}"? Collections and subfolders inside it move back to the root level — nothing is deleted.`,
       )
     ) {
       return;
@@ -408,7 +409,7 @@ function SignedInDashboard({
       <Tabs defaultValue="owned" className="w-full">
         <TabsList>
           <TabsTrigger value="owned" data-testid="tab-my-maps">
-            My maps {ownedMaps.length > 0 && `(${ownedMaps.length})`}
+            My collections {ownedMaps.length > 0 && `(${ownedMaps.length})`}
           </TabsTrigger>
           <TabsTrigger value="contributed" data-testid="tab-contributed-maps">
             Contributed {contributedMaps.length > 0 && `(${contributedMaps.length})`}
@@ -430,8 +431,8 @@ function SignedInDashboard({
           ) : ownedMaps.length === 0 ? (
             <EmptyState
               icon={<MapPin className="h-8 w-8" />}
-              title="No maps yet"
-              description="Create your first map to start collecting pins from your community."
+              title="Nothing here yet"
+              description="Create your first collection — places on a map, links, or recommendations — and invite people to add to it."
               action={
                 <Button onClick={onCreateClick} data-testid="button-create-first-map">
                   <Plus className="h-4 w-4 mr-2" />
@@ -448,7 +449,7 @@ function SignedInDashboard({
                     <Input
                       value={mapSearchQuery}
                       onChange={(e) => setMapSearchQuery(e.target.value)}
-                      placeholder="Search your maps…"
+                      placeholder="Search your collections…"
                       className="pl-9 pr-8 h-9 w-full"
                       data-testid="input-search-maps"
                     />
@@ -472,7 +473,7 @@ function SignedInDashboard({
                     <SelectContent>
                       <SelectItem value="created">Recently created</SelectItem>
                       <SelectItem value="alpha">Alphabetical</SelectItem>
-                      <SelectItem value="pins">Most pins</SelectItem>
+                      <SelectItem value="pins">Most items</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -556,8 +557,8 @@ function SignedInDashboard({
               {visibleOwnedMaps.length === 0 ? (
                 <EmptyState
                   icon={<Search className="h-8 w-8" />}
-                  title="No maps match your search"
-                  description={`Nothing in "My maps" matches "${mapSearchQuery}".`}
+                  title="Nothing matches your search"
+                  description={`Nothing in your collections matches "${mapSearchQuery}".`}
                   action={
                     <Button variant="outline" onClick={() => setMapSearchQuery("")} data-testid="button-clear-map-search-empty">
                       Clear search
@@ -591,7 +592,7 @@ function SignedInDashboard({
             <EmptyState
               icon={<Users className="h-8 w-8" />}
               title="No contributions yet"
-              description="Once you add a pin to someone else's shared map, it'll show up here."
+              description="Once you add something to someone else's collection, it'll show up here."
             />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -613,8 +614,8 @@ function SignedInDashboard({
             ) : archivedMaps.length === 0 ? (
               <EmptyState
                 icon={<Archive className="h-8 w-8" />}
-                title="No archived maps"
-                description="Archived maps are hidden from your home page and public profile, but never deleted — restore one anytime."
+                title="Nothing archived"
+                description="Archived collections are hidden from your home page and public profile, but never deleted — restore one anytime."
               />
             ) : (
               <>
@@ -709,7 +710,7 @@ function PlanSummaryCard({ userGroup, usage }: { userGroup: string; usage?: Usag
         </div>
         {usage && (
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-            <UsageMeter label="Maps" used={usage.maps.used} limit={usage.maps.limit} />
+            <UsageMeter label="Collections" used={usage.maps.used} limit={usage.maps.limit} />
             <UsageMeter label="AI suggestions today" used={usage.aiSuggestions.used} limit={usage.aiSuggestions.limit} />
           </div>
         )}
@@ -738,7 +739,7 @@ function PendingApprovalsBanner({ maps }: { maps: MapCollectionSummary[] }) {
           <span className="inline-flex items-center gap-2 text-sm font-medium text-amber-900">
             <Clock className="h-4 w-4 shrink-0" />
             {totalPending} pin{totalPending === 1 ? "" : "s"} waiting for approval across {mapsWithPending.length}{" "}
-            {mapsWithPending.length === 1 ? "map" : "maps"}
+            {mapsWithPending.length === 1 ? "collection" : "collections"}
           </span>
           {expanded ? (
             <ChevronUp className="h-4 w-4 text-amber-700 shrink-0" />
@@ -809,14 +810,14 @@ function AnonymousLanding() {
       <div className="text-center py-10 sm:py-16">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground mb-6">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Collaborative maps, made simple
+          Shared collections, made simple
         </div>
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground mb-5 max-w-3xl mx-auto">
-          Gather what matters, one pin at a time.
+          Gather what matters, together.
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          Create a shared map and invite your community. Each person can mark where they are, or search Google Maps
-          to drop a pin on a specific venue — then everyone sees it all in one place.
+          Start a collection and invite your community. Pin places on a map, paste links that fill themselves in,
+          or gather recommendations — everyone adds, everyone sees it in one place.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link href="/auth">
@@ -832,27 +833,48 @@ function AnonymousLanding() {
         <HowItWorksStep
           step={1}
           icon={<Plus className="h-5 w-5" />}
-          title="Create a map"
-          description="Name it, describe it, done. No setup, no credit card."
+          title="Start a collection"
+          description="Choose what it holds — places, links, or recommendations — then name it. No setup, no credit card."
         />
         <HowItWorksStep
           step={2}
           icon={<Share2 className="h-5 w-5" />}
-          title="Everyone adds a pin"
-          description="Contributors mark their own location, or search for a specific venue — restaurant, cafe, landmark, anywhere."
+          title="Everyone adds to it"
+          description="Contributors add one at a time, or drop in a whole list — pasted, uploaded, or read out of a screenshot by AI."
         />
         <HowItWorksStep
           step={3}
           icon={<Check className="h-5 w-5" />}
           title="Approve what's public"
-          description="Review pins from your community and approve the ones you want to keep."
+          description="Review what people add and approve the ones you want to keep."
         />
         <HowItWorksStep
           step={4}
           icon={<UserCircle className="h-5 w-5" />}
           title="Curate your profile"
-          description="Pick which maps show up on your own public profile page."
+          description="Pick which collections show up on your public profile."
         />
+      </div>
+
+      {/* The screenshot importer is the app's most distinctive trick and is on
+          every plan, but a signed-out visitor had no way to find that out —
+          the four steps above can only mention it in passing. */}
+      <div className="max-w-5xl mx-auto mt-10 rounded-2xl border border-border bg-card p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="w-12 h-12 shrink-0 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <ImageUp className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-foreground">
+              Got a screenshot? That's a collection already.
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
+              Paste or upload a picture — a chat thread, a post, a photo of a menu — and AI reads the places,
+              links, or recommendations out of it for you to check before anything is saved. Same for a pasted
+              list, a .csv, or a plain description of what you're after. It works on the free plan.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -892,11 +914,6 @@ const USE_CASES = [
     description: "Map where colleagues are based and build stronger connections across offices and time zones.",
   },
   {
-    icon: Globe2,
-    title: "Digital nomads",
-    description: "Share coworking spaces, cafes, and meetup spots with a globally scattered community.",
-  },
-  {
     icon: HeartHandshake,
     title: "Families & friends",
     description: "Keep everyone connected across cities — homes, hangouts, and the places that matter.",
@@ -907,14 +924,19 @@ const USE_CASES = [
     description: "Map club venues, event spaces, and member meetup spots around shared interests.",
   },
   {
-    icon: Landmark,
-    title: "Brand locations",
-    description: "Showcase franchise or store locations and let customers share their favourites.",
-  },
-  {
     icon: PartyPopper,
     title: "Event planning",
     description: "Coordinate venues, accommodation, and local tips for weddings, reunions, and conferences.",
+  },
+  {
+    icon: BookOpen,
+    title: "Reading lists",
+    description: "Gather the articles, papers, and talks your team keeps sending each other — paste a URL and it fills itself in.",
+  },
+  {
+    icon: Star,
+    title: "Recommendations",
+    description: "Books, films, tools, restaurants — whatever your group keeps asking each other for, kept in one place.",
   },
 ];
 
@@ -926,7 +948,7 @@ function UseCasesSection({ showCta }: { showCta: boolean }) {
           Built for every kind of community
         </h2>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Some communities map where people are. Others map the places they love. Many do both.
+          Some gather places. Some gather links worth reading. Some gather everything they'd recommend.
         </p>
       </div>
 

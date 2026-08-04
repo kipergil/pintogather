@@ -11,16 +11,11 @@ import { useBulkImportPins, useMap } from "@/hooks/useMaps";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { apiRequest, apiUpload, type UploadFile } from "@/lib/api";
 import type { ItemType } from "../../../../shared/enums";
+import { ITEM_NOUN } from "../../../../shared/vocabulary";
 
 const DEFAULT_REGION = { latitude: 51.5074, longitude: -0.1278, latitudeDelta: 0.05, longitudeDelta: 0.05 };
 /** Matches the server's multer maxCount for the extraction endpoint. */
 const MAX_IMAGES = 4;
-
-const ITEM_NOUN: Record<ItemType, { one: string; many: string }> = {
-  location: { one: "pin", many: "pins" },
-  link: { one: "link", many: "links" },
-  recommendation: { one: "recommendation", many: "recommendations" },
-};
 
 /** A candidate before it's saved. Mirrors the web hub's StagedItem, minus the Places resolution the RN SDK can't do. */
 interface Staged {

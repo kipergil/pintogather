@@ -168,7 +168,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               disabled={loading}
             >
               <Save className="h-4 w-4 mr-2" />
-              {loading ? "Saving..." : "Save Profile"}
+              {loading ? "Saving…" : "Save Profile"}
             </Button>
           </div>
         </form>

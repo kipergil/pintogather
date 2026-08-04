@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ITEM_NOUN, pluralize } from "@shared/vocabulary";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -95,7 +96,7 @@ function DiscoverCard({ map }: { map: DiscoverMap }) {
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
           <span className="inline-flex items-center gap-1">
             <MapPin className="h-3 w-3" />
-            {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
+            {pluralize(map.pinCount, ITEM_NOUN[map.itemType])}
           </span>
           <div className="flex items-center gap-3">
             {map.ownerName && <span>Curated by {map.ownerName}</span>}
@@ -202,7 +203,7 @@ export default function Discover() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search curated maps…"
+            placeholder="Search curated collections…"
             className="pl-9"
             data-testid="input-discover-search"
           />

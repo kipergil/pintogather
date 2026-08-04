@@ -17,7 +17,7 @@ export interface PricingTier {
  * the marketing-facing feature list.
  *
  * A function rather than a static array because one line of copy names the
- * app itself ("<App> branding on public maps") — `shared/` can't read any
+ * app itself ("<App> branding on public collections") — `shared/` can't read any
  * platform's env vars (Vite's `import.meta.env`, Expo's `process.env.EXPO_PUBLIC_*`,
  * and Node's `process.env` all resolve differently), so each caller passes
  * in its own already-resolved app name instead.
@@ -29,12 +29,11 @@ export function getPricingTiers(appName: string): PricingTier[] {
       name: "Free",
       priceLabel: "Free",
       features: [
-        "3 maps",
-        "Up to 50 pins per map",
-        "3 AI generations per day (prompt or screenshot)",
-        "Screenshot-based AI import",
-        "Up to 2 collaborators per map",
-        `${appName} branding on public maps`,
+        "3 collections",
+        "Up to 50 items per collection",
+        "3 AI generations per day — from a prompt, a screenshot, or a photo",
+        "Up to 2 collaborators per collection",
+        `${appName} branding on public collections`,
       ],
     },
     {
@@ -43,13 +42,13 @@ export function getPricingTiers(appName: string): PricingTier[] {
       priceLabel: "£4.99/mo",
       checkoutTier: "basic",
       features: [
-        "10 maps",
-        "Up to 200 pins per map",
-        "15 AI generations per day (prompt or screenshot)",
-        "Up to 8 collaborators per map",
-        `${appName} branding on public maps`,
-        "Archive & restore maps",
-        "Custom pin colors & icons",
+        "10 collections",
+        "Up to 200 items per collection",
+        "15 AI generations per day — from a prompt, a screenshot, or a photo",
+        "Up to 8 collaborators per collection",
+        `${appName} branding on public collections`,
+        "Archive & restore collections",
+        "Custom pin colours & icons (place collections)",
       ],
     },
     {
@@ -58,13 +57,13 @@ export function getPricingTiers(appName: string): PricingTier[] {
       priceLabel: "£9.99/mo",
       checkoutTier: "premium",
       features: [
-        "Unlimited maps",
-        "Unlimited pins per map",
-        "200 AI generations per day (prompt or screenshot)",
-        "Unlimited collaborators per map",
-        "Your own branding on public maps",
-        "Archive & restore maps",
-        "Custom pin colors & icons",
+        "Unlimited collections",
+        "Unlimited items per collection",
+        "200 AI generations per day — from a prompt, a screenshot, or a photo",
+        "Unlimited collaborators per collection",
+        "Your own branding on public collections",
+        "Archive & restore collections",
+        "Custom pin colours & icons (place collections)",
       ],
     },
   ];

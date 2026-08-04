@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ITEM_NOUN, pluralize } from "@shared/vocabulary";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Users } from "lucide-react";
 import { SimpleGoogleMap } from "@/components/simple-google-map";
@@ -125,7 +126,7 @@ export default function PublicMap({ params }: PublicMapProps) {
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
-                {mapCollection.pinCount} {mapCollection.itemType === "location" ? (mapCollection.pinCount === 1 ? "pin" : "pins") : (mapCollection.pinCount === 1 ? "item" : "items")}
+                {pluralize(mapCollection.pinCount, ITEM_NOUN[mapCollection.itemType])}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
@@ -145,7 +146,7 @@ export default function PublicMap({ params }: PublicMapProps) {
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">
-            {mapCollection.itemType === "location" ? "Pins" : "Items"}{" "}
+            {ITEM_NOUN[mapCollection.itemType].many.replace(/^./, (c) => c.toUpperCase())}{" "}
             <span className="text-muted-foreground font-normal">({mapCollection.pinCount})</span>
           </h2>
           <PinTable

@@ -198,7 +198,7 @@ export default function Profile() {
           <CardContent className="space-y-4">
             {usage && (
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-                <UsageMeter label="Maps" used={usage.maps.used} limit={usage.maps.limit} />
+                <UsageMeter label="Collections" used={usage.maps.used} limit={usage.maps.limit} />
                 <UsageMeter label="AI suggestions today" used={usage.aiSuggestions.used} limit={usage.aiSuggestions.limit} />
               </div>
             )}
@@ -366,7 +366,7 @@ export default function Profile() {
                   data-testid="button-save-profile"
                 >
                   <Save className="h-5 w-5 mr-2" />
-                  {loading ? "Saving..." : "Save Profile"}
+                  {loading ? "Saving…" : "Save Profile"}
                 </Button>
 
                 <Link href="/">

@@ -45,15 +45,15 @@ export function DeleteMapModal({ isOpen, onClose, mapCollection, canArchive, onA
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/maps'] });
       toast({
-        title: "Map deleted",
-        description: "Your map and all its pins have been permanently deleted."
+        title: "Collection deleted",
+        description: "It and everything in it have been permanently deleted."
       });
       onClose();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete map.",
+        description: error.message || "Please try again",
         variant: "destructive"
       });
     }

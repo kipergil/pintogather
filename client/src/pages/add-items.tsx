@@ -887,7 +887,7 @@ export default function AddItems({ params }: AddItemsProps) {
                 </p>
                 <div className="max-w-sm mx-auto text-left">
                   <PlacesSearch
-                    placeholder="Search for a place..."
+                    placeholder="Search for a place…"
                     onPlaceSelect={(place) =>
                       stageResolvedVenue({
                         id: place.placeId,

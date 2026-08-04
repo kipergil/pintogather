@@ -270,7 +270,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     onSuccess: () => {
       toast({
         title: "Pin added",
-        description: "Your pin is now live on the map.",
+        description: "It's live on the map now.",
         variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${mapCollection.shareUrl}`] });
@@ -292,7 +292,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     if (!formData.title.trim()) {
       toast({
         title: "Title required",
-        description: "Please enter a title for this pin",
+        description: "Give it a title first",
         variant: "destructive",
       });
       return;
@@ -301,7 +301,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     if (!user && !formData.contributorName.trim()) {
       toast({
         title: "Name required",
-        description: "Please enter your name so we know who added this pin",
+        description: "Add your name so people know who contributed this",
         variant: "destructive",
       });
       return;
@@ -310,7 +310,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     if (!selectedLocation) {
       toast({
         title: "Location required",
-        description: "Please search and select a place, or pick a spot on the map",
+        description: "Search for a place, or pick a spot on the map",
         variant: "destructive",
       });
       return;
@@ -375,7 +375,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
           <DialogDescription>
             {!selectedLocation
               ? "Search for the place you want to pin."
-              : "Fill in the details, then add it to the map."}
+              : "Fill in the details, then add it to the collection."}
           </DialogDescription>
         </DialogHeader>
 
@@ -384,7 +384,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
           {!selectedLocation ? (
             <PlacesSearch
               onPlaceSelect={handlePlaceSelect}
-              placeholder="Search restaurants, cafes, landmarks..."
+              placeholder="Search restaurants, cafes, landmarks…"
             />
           ) : (
             <>
@@ -423,7 +423,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                 <Input
                   id="title"
                   type="text"
-                  placeholder="Venue name, or whatever this pin is about"
+                  placeholder="Venue name, or whatever this is about"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
@@ -437,7 +437,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                   <Input
                     id="contributorName"
                     type="text"
-                    placeholder="So the map owner knows who added this"
+                    placeholder="So the owner knows who added this"
                     value={formData.contributorName}
                     onChange={(e) => setFormData({ ...formData, contributorName: e.target.value })}
                     required
@@ -507,7 +507,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                       ) : (
                         <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
                       )}
-                      {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+                      {isUploadingPhoto ? "Uploading…" : "Add a photo"}
                     </Button>
                   </>
                 )}
@@ -596,7 +596,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                       color={formData.pinColor}
                       icon={formData.pinIcon}
                       onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
-                      noneLabel="Map default"
+                      noneLabel="Collection default"
                     />
                   </CollapsibleContent>
                 </Collapsible>
@@ -627,7 +627,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               data-testid="button-add-pin"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {createPinMutation.isPending ? "Adding..." : "Add to map"}
+              {createPinMutation.isPending ? "Adding…" : "Add to collection"}
             </Button>
           )}
         </div>

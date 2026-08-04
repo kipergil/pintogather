@@ -38,12 +38,31 @@ interface CreateMapFormProps {
   /** When set, the form edits this existing map instead of creating a new one. */
   mapId?: string;
   /** shareUrl is only used to show the public branded-page link in edit mode — it's never submitted. */
-  initialValues?: Partial<MapDetailsFormData> & { shareUrl?: string };
+  initialValues?: Partial<MapDetailsFormData> & { shareUrl?: string; itemType?: ItemType };
   /** Chosen on the item-type-picker step just before this form; undefined when editing (itemType is fixed after creation, never re-chosen). */
   itemType?: ItemType;
 }
 
+/** Example names, so the field suggests what a collection of this kind is for. */
+const NAME_PLACEHOLDER: Record<ItemType, string> = {
+  location: "e.g. Our favourite coffee spots",
+  link: "e.g. Worth reading this month",
+  recommendation: "e.g. What to watch next",
+};
+
+/** Example note prompts — what the owner might ask contributors for. */
+const NOTE_PROMPT_PLACEHOLDER: Record<ItemType, string> = {
+  location: "What makes this place worth a visit?",
+  link: "Why is this worth reading?",
+  recommendation: "Why do you recommend it?",
+};
+
 export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: CreateMapFormProps) {
+  // Editing never re-chooses the type, so fall back to the collection's own
+  // value there and to the only type that has a template step when creating.
+  const kind: ItemType = itemType ?? initialValues?.itemType ?? "location";
+  const namePlaceholder = NAME_PLACEHOLDER[kind];
+  const notePlaceholder = NOTE_PROMPT_PLACEHOLDER[kind];
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -110,7 +129,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     if (!publicUrl) return;
     try {
       await navigator.clipboard.writeText(publicUrl);
-      toast({ title: "Link copied", description: "Public map link copied to clipboard", variant: "success" });
+      toast({ title: "Link copied", description: "Anyone with this link can view it", variant: "success" });
     } catch {
       toast({ title: "Couldn't copy link", description: "Please copy it manually", variant: "destructive" });
     }
@@ -135,7 +154,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     },
     onSuccess: (data) => {
       toast({
-        title: "Map created",
+        title: "Collection created",
         description: `"${data.name}" is ready — start adding pins.`,
         variant: "success",
       });
@@ -148,8 +167,8 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     },
     onError: (error: any) => {
       toast({
-        title: "Couldn't create map",
-        description: error.message || "Failed to create map collection",
+        title: "Couldn't create it",
+        description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
@@ -174,7 +193,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     },
     onSuccess: (data) => {
       toast({
-        title: "Map updated",
+        title: "Collection updated",
         description: "Your changes have been saved.",
         variant: "success",
       });
@@ -185,7 +204,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     onError: (error: any) => {
       toast({
         title: "Couldn't save changes",
-        description: error.message || "Failed to update map",
+        description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
       });
@@ -199,7 +218,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     if (!formData.name.trim()) {
       toast({
         title: "Name required",
-        description: "Give your map a name to continue",
+        description: "Give your collection a name to continue",
         variant: "destructive",
       });
       return;
@@ -210,11 +229,11 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="mapName">{isEditing || (itemType ?? "location") === "location" ? "Map name *" : "Collection name *"}</Label>
+        <Label htmlFor="mapName">Collection name *</Label>
         <Input
           id="mapName"
           type="text"
-          placeholder="e.g. Our favourite coffee spots"
+          placeholder={namePlaceholder}
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           required
@@ -222,7 +241,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         />
         <p className="text-xs text-muted-foreground">
           {isEditing || (itemType ?? "location") === "location"
-            ? "You'll invite people to pin their location or favorite spots here."
+            ? "You'll invite people to pin their location or favourite spots here."
             : itemType === "link"
               ? "You'll invite people to add links here — paste a URL and it fills itself in."
               : "You'll invite people to add recommendations here — no location or link required."}
@@ -233,7 +252,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         <Label htmlFor="mapDescription">Description (optional)</Label>
         <Textarea
           id="mapDescription"
-          placeholder="What brings this community together?"
+          placeholder="What's this collection for?"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           rows={3}
@@ -243,7 +262,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
 
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
         <div className="space-y-0.5">
-          <Label htmlFor="requirePinApproval">Require approval for new pins</Label>
+          <Label htmlFor="requirePinApproval">Require approval for new items</Label>
           <p className="text-xs text-muted-foreground">
             Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
           </p>
@@ -309,7 +328,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
             <Label htmlFor="notePrompt">Note prompt</Label>
             <Textarea
               id="notePrompt"
-              placeholder="What makes this place worth pinning?"
+              placeholder={notePlaceholder}
               value={formData.notePrompt}
               onChange={(e) => setFormData({ ...formData, notePrompt: e.target.value })}
               rows={2}
@@ -475,7 +494,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
               data-testid="pin-style-locked-notice"
             >
               <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1">Custom pin colors & icons are a Basic/Premium feature.</span>
+              <span className="flex-1">Custom pin colours & icons are a Basic/Premium feature.</span>
               <Link href="/pricing" className="font-medium text-primary hover:underline shrink-0">
                 Upgrade
               </Link>
@@ -489,12 +508,12 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         {isEditing ? (
           <>
             <Save className="h-4 w-4 mr-2" />
-            {mutation.isPending ? "Saving..." : "Save changes"}
+            {mutation.isPending ? "Saving…" : "Save changes"}
           </>
         ) : (
           <>
             <Plus className="h-4 w-4 mr-2" />
-            {mutation.isPending ? "Creating..." : "Create map"}
+            {mutation.isPending ? "Creating…" : "Create collection"}
           </>
         )}
       </Button>

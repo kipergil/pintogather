@@ -308,7 +308,7 @@ export function AddItemModal({
                 <Input
                   id="itemContributorName"
                   type="text"
-                  placeholder="So the map owner knows who added this"
+                  placeholder="So the owner knows who added this"
                   value={formData.contributorName}
                   onChange={(e) =>
                     setFormData({
@@ -397,7 +397,7 @@ export function AddItemModal({
                     ) : (
                       <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+                    {isUploadingPhoto ? "Uploading…" : "Add a photo"}
                   </Button>
                 </>
               )}

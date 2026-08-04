@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { ITEM_NOUN, pluralize } from "@shared/vocabulary";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,7 +63,7 @@ function FeedCard({ map }: { map: FeedMapItem }) {
         <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
             <MapPin className="h-3.5 w-3.5" />
-            {map.pinCount} {map.itemType === "location" ? (map.pinCount === 1 ? "pin" : "pins") : map.pinCount === 1 ? "item" : "items"}
+            {pluralize(map.pinCount, ITEM_NOUN[map.itemType])}
           </span>
           <LikeButton
             mapId={map.id}
@@ -104,11 +105,11 @@ export default function Feed() {
         <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-muted/30">
           <Rss className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
           <h3 className="text-base font-medium text-foreground mb-1">
-            {data && data.followingCount === 0 ? "You're not following anyone yet" : "No new maps yet"}
+            {data && data.followingCount === 0 ? "You're not following anyone yet" : "Nothing new yet"}
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
             {data && data.followingCount === 0
-              ? "Follow other users from their public profile to see their maps here."
+              ? "Follow people from their public profile to see their collections here."
               : "Check back soon, or explore curated collections in the meantime."}
           </p>
           <Link

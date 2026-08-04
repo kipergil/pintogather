@@ -92,7 +92,7 @@ export default function AdminPage() {
     onError: (error: any) => {
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update user group",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -278,7 +278,7 @@ export default function AdminPage() {
             <div className="relative mb-4 max-w-sm">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by map name or owner..."
+                placeholder="Search by collection name or owner…"
                 value={mapSearch}
                 onChange={(e) => setMapSearch(e.target.value)}
                 className="pl-9"

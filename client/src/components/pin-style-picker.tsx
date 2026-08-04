@@ -64,7 +64,7 @@ export function PinStylePicker({ color, icon, onChange, noneLabel = "Default" }:
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Color</p>
+        <p className="text-xs font-medium text-muted-foreground">Colour</p>
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"

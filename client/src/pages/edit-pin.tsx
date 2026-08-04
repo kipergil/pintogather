@@ -103,7 +103,7 @@ export default function EditPin({ params }: EditPinProps) {
       if (user && pin.userId !== user.id) {
         toast({
           title: "Access Denied",
-          description: "You can only edit pins you created.",
+          description: "You can only edit what you added yourself.",
           variant: "destructive",
         });
         setLocation(`/map/${shareUrl}`);
@@ -164,8 +164,7 @@ export default function EditPin({ params }: EditPinProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/pins/${pinId}`] });
       toast({
-        title: "Pin Updated",
-        description: "Your pin has been updated successfully.",
+        title: "Pin updated",
         variant: "success",
       });
       setLocation(`/map/${shareUrl}`);
@@ -173,7 +172,7 @@ export default function EditPin({ params }: EditPinProps) {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update pin",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     },
@@ -199,7 +198,7 @@ export default function EditPin({ params }: EditPinProps) {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update pin",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -278,7 +277,7 @@ export default function EditPin({ params }: EditPinProps) {
                 <Input
                   id="title"
                   type="text"
-                  placeholder="Venue name, or whatever this pin is about"
+                  placeholder="Venue name, or whatever this is about"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
@@ -340,7 +339,7 @@ export default function EditPin({ params }: EditPinProps) {
                 {notePrompt && <p className="text-xs text-muted-foreground -mt-1">{notePrompt}</p>}
                 <Textarea
                   id="note"
-                  placeholder={notePrompt || "Add a note about this location..."}
+                  placeholder={notePrompt || "Add a note about this location…"}
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   rows={3}
@@ -391,7 +390,7 @@ export default function EditPin({ params }: EditPinProps) {
                       ) : (
                         <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
                       )}
-                      {isUploadingPhoto ? "Uploading..." : "Add a photo"}
+                      {isUploadingPhoto ? "Uploading…" : "Add a photo"}
                     </Button>
                   </>
                 )}
@@ -421,7 +420,7 @@ export default function EditPin({ params }: EditPinProps) {
                       color={formData.pinColor}
                       icon={formData.pinIcon}
                       onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
-                      noneLabel="Map default"
+                      noneLabel="Collection default"
                     />
                   </CollapsibleContent>
                 </Collapsible>
@@ -440,7 +439,7 @@ export default function EditPin({ params }: EditPinProps) {
                   data-testid="button-update-pin"
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {loading || updatePinMutation.isPending ? "Saving..." : "Save changes"}
+                  {loading || updatePinMutation.isPending ? "Saving…" : "Save changes"}
                 </Button>
               </div>
             </form>
