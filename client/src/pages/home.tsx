@@ -383,11 +383,11 @@ function SignedInDashboard({
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
           </h1>
-          <p className="text-muted-foreground mt-1">Manage your maps and see where your community is gathering.</p>
+          <p className="text-muted-foreground mt-1">Manage your collections and see where your community is gathering.</p>
         </div>
         <Button onClick={onCreateClick} size="lg" className="sm:w-auto w-full" data-testid="button-create-map">
           <Plus className="h-4 w-4 mr-2" />
-          Create new map
+          Create new collection
         </Button>
       </div>
 
@@ -396,8 +396,8 @@ function SignedInDashboard({
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
-        <StatTile label="Maps created" value={ownedMaps.length} icon={<MapPin className="h-4 w-4" />} />
-        <StatTile label="Total pins" value={totalPins} icon={<Sparkles className="h-4 w-4" />} />
+        <StatTile label="Collections created" value={ownedMaps.length} icon={<MapPin className="h-4 w-4" />} />
+        <StatTile label="Total items" value={totalPins} icon={<Sparkles className="h-4 w-4" />} />
         <StatTile
           label="Contributing to"
           value={contributedMaps.length}
@@ -436,7 +436,7 @@ function SignedInDashboard({
               action={
                 <Button onClick={onCreateClick} data-testid="button-create-first-map">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create your first map
+                  Create your first collection
                 </Button>
               }
             />

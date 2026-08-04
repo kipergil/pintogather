@@ -361,7 +361,7 @@ export function SimpleGoogleMap({ mapCollection, readOnly = false, focusRequest,
 
       } catch (error) {
         console.error('Failed to initialize map:', error);
-        setError(`Failed to initialize map: ${error}`);
+        setError(`Couldn't load the map: ${error}`);
         setIsLoading(false);
       }
     };

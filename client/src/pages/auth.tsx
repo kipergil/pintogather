@@ -40,8 +40,8 @@ export default function Auth() {
         {returnUrl && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Return to Community Map:</strong> After signing in, you'll be redirected back to the
-              map you were viewing to pin with the community.
+              <strong>Picking up where you left off:</strong> after signing in you'll go back to the
+              collection you were viewing.
             </p>
           </div>
         )}

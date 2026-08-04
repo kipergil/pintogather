@@ -150,7 +150,7 @@ export default function PublicProfilePage({ params }: PublicProfileProps) {
         {profile.maps.length === 0 ? (
           <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-muted/30">
             <MapPin className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="text-base font-medium text-foreground mb-1">No public maps yet</h3>
+            <h3 className="text-base font-medium text-foreground mb-1">No public collections yet</h3>
             <p className="text-sm text-muted-foreground">Check back later.</p>
           </div>
         ) : (

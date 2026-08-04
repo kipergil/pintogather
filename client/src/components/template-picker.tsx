@@ -37,7 +37,7 @@ export function TemplatePicker({ onSelect }: TemplatePickerProps) {
             </div>
             <div className="min-w-0">
               <div className="font-medium text-foreground">Start from scratch</div>
-              <p className="text-xs text-muted-foreground mt-0.5">A blank map — set it up your own way.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Start from scratch — set it up your own way.</p>
             </div>
           </CardContent>
         </Card>

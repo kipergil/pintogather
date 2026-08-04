@@ -19,7 +19,7 @@ export function ForkedFromBadge({ forkedFrom }: ForkedFromBadgeProps) {
         <button
           type="button"
           className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          title="Forked from another map"
+          title="Copied from another collection"
           data-testid="button-forked-from"
         >
           <GitFork className="h-3.5 w-3.5" />
@@ -39,7 +39,7 @@ export function ForkedFromBadge({ forkedFrom }: ForkedFromBadgeProps) {
             {forkedFrom.ownerName && <p className="text-xs text-muted-foreground">by {forkedFrom.ownerName}</p>}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Forked from a map that's no longer available.</p>
+          <p className="text-sm text-muted-foreground">Copied from a collection that's no longer available.</p>
         )}
       </PopoverContent>
     </Popover>

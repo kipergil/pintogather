@@ -547,7 +547,7 @@ export default function AddItems({ params }: AddItemsProps) {
             <Link href={`/map/${shareUrl}`}>
               <Button className="w-full">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to map
+                Back to collection
               </Button>
             </Link>
           </CardContent>

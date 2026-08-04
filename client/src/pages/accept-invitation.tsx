@@ -95,7 +95,7 @@ export default function AcceptInvitation({ params }: AcceptInvitationProps) {
         action={
           invitation.mapShareUrl && (
             <Button onClick={() => setLocation(`/map/${invitation.mapShareUrl}`)} data-testid="button-go-to-map">
-              Go to map
+              Go to collection
             </Button>
           )
         }

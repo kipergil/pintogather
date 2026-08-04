@@ -89,7 +89,7 @@ export default function PublicMap({ params }: PublicMapProps) {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-lg font-semibold text-foreground mb-1">Map not found</h1>
+          <h1 className="text-lg font-semibold text-foreground mb-1">Collection not found</h1>
           <p className="text-sm text-muted-foreground">This link is no longer valid.</p>
         </div>
       </main>

@@ -74,7 +74,7 @@ export default function Pricing() {
     <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fade-in">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Plans &amp; pricing</h1>
-        <p className="text-muted-foreground">Upgrade for more maps, more pins, and more AI-generated suggestions.</p>
+        <p className="text-muted-foreground">Upgrade for more collections, more items, and more AI-generated suggestions.</p>
         {user && user.userGroup !== "freemium" && (
           <Button
             variant="outline"

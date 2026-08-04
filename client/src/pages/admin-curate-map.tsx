@@ -102,7 +102,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/admin/maps/${mapId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/discover"] });
       toast({
-        title: curated ? "Map curated" : "Map updated",
+        title: curated ? "Collection curated" : "Collection updated",
         description: curated ? "It's now visible on /discover." : "Curation changes saved.",
         variant: "success",
       });
@@ -122,7 +122,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
     if (curated && (category === NONE || country === NONE || city === NONE)) {
       toast({
         title: "Category, country, and city are required",
-        description: "Fill in all three to curate this map, or turn curation off.",
+        description: "Fill in all three to curate this collection, or turn curation off.",
         variant: "destructive",
       });
       return;
@@ -166,7 +166,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardContent className="p-8 text-center">
-            <h2 className="text-lg font-semibold mb-2">Map not found</h2>
+            <h2 className="text-lg font-semibold mb-2">Collection not found</h2>
             <Link href="/admin">
               <Button className="w-full">Back to admin panel</Button>
             </Link>
@@ -181,7 +181,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Compass className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Curate map</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Curate collection</h1>
         </div>
         <Button variant="ghost" size="sm" onClick={() => setLocation("/admin")} data-testid="button-back-to-admin">
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -208,7 +208,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
             className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            View map
+            View collection
           </a>
         </CardContent>
       </Card>
@@ -220,7 +220,7 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
               <div className="space-y-0.5">
                 <Label htmlFor="curated">Show on /discover</Label>
                 <p className="text-xs text-muted-foreground">
-                  Featured maps stay real, live maps — visitors are taken to the normal map page.
+                  Featured collections stay real and live — visitors are taken to the normal page.
                 </p>
               </div>
               <Switch id="curated" checked={curated} onCheckedChange={setCurated} data-testid="switch-curated" />
