@@ -130,7 +130,7 @@ export default function Discover() {
   const [searchQuery, setSearchQuery] = useState<string>(() => initialParam("q", ""));
 
   useEffect(() => {
-    document.title = `Discover curated maps — ${APP_NAME}`;
+    document.title = `Discover curated collections — ${APP_NAME}`;
   }, []);
 
   const queryUrl = useMemo(() => {
@@ -191,7 +191,7 @@ export default function Discover() {
           <Compass className="h-5 w-5" />
           <span className="text-sm font-semibold uppercase tracking-wide">Discover</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Curated maps, ready to explore</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Curated collections, ready to explore</h1>
         <p className="text-muted-foreground">
           Hand-picked collections from the {APP_NAME} team and the community — real venues, organized by theme and city.
         </p>
@@ -268,13 +268,13 @@ export default function Discover() {
       ) : !data || data.maps.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-muted/30">
           <Compass className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-          <h3 className="text-base font-medium text-foreground mb-1">No curated maps match these filters yet</h3>
+          <h3 className="text-base font-medium text-foreground mb-1">No curated collections match these filters yet</h3>
           <p className="text-sm text-muted-foreground">Try a different category or city, or check back soon.</p>
         </div>
       ) : filteredMaps.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border bg-muted/30" data-testid="discover-no-search-results">
           <Search className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-          <h3 className="text-base font-medium text-foreground mb-1">No curated maps match "{searchQuery}"</h3>
+          <h3 className="text-base font-medium text-foreground mb-1">No curated collections match "{searchQuery}"</h3>
           <p className="text-sm text-muted-foreground">Try a different search, or clear it to browse everything.</p>
         </div>
       ) : (

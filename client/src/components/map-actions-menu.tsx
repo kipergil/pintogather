@@ -72,7 +72,7 @@ export function MapActionsMenu({
         {isOwner && onEditMap && (
           <DropdownMenuItem onClick={onEditMap} data-testid={`menu-item-edit-map${suffix}`}>
             <Settings className="h-4 w-4 mr-2" />
-            Edit map
+            Edit collection
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={onAddItems} data-testid={`menu-item-add-items${suffix}`}>
@@ -144,7 +144,7 @@ export function MapActionsMenu({
               data-testid={`menu-item-delete-map${suffix}`}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete map
+              Delete collection
             </DropdownMenuItem>
           </>
         )}

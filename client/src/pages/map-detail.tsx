@@ -194,9 +194,9 @@ export default function MapDetail({ params }: MapDetailProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Map not found</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Collection not found</h2>
             <p className="text-muted-foreground mb-5">
-              This map doesn't exist, or the link is no longer valid.
+              This collection doesn't exist, or the link is no longer valid.
             </p>
             <Link href="/">
               <Button>
@@ -232,7 +232,7 @@ export default function MapDetail({ params }: MapDetailProps) {
 
     toast({
       title: "CSV exported",
-      description: `${mapCollection.pins.length} pin${mapCollection.pins.length === 1 ? "" : "s"} exported.`,
+      description: `${mapCollection.pins.length} row${mapCollection.pins.length === 1 ? "" : "s"} exported.`,
       variant: "success",
     });
   };

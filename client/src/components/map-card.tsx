@@ -143,7 +143,7 @@ export function MapCard({
       <div className="flex items-center gap-2">
         <Link href={`/map/${map.shareUrl}`}>
           <Button variant="default" size="sm" data-testid={`button-view-map-${map.id}`}>
-            Open map
+            Open
           </Button>
         </Link>
         {archived ? (

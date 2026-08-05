@@ -295,7 +295,7 @@ export function PinTable({
         title: result.approvedCount === 1 ? `${capitalize(noun.one)} approved` : `${result.approvedCount} ${noun.many} approved`,
         description:
           result.skippedCount > 0
-            ? `${result.skippedCount} pin${result.skippedCount === 1 ? "" : "s"} couldn't be approved.`
+            ? `${result.skippedCount} ${result.skippedCount === 1 ? noun.one : noun.many} couldn't be approved.`
             : "They're now visible to everyone.",
         variant: result.approvedCount > 0 ? "success" : "destructive",
       });
@@ -323,7 +323,7 @@ export function PinTable({
   const handleBulkDelete = () => {
     const count = selectedPinIds.size;
     if (count === 0) return;
-    if (window.confirm(`Delete ${count} selected pin${count === 1 ? "" : "s"}? This can't be undone.`)) {
+    if (window.confirm(`Delete ${count} selected ${count === 1 ? noun.one : noun.many}? This can't be undone.`)) {
       bulkDeletePinsMutation.mutate(Array.from(selectedPinIds));
     }
   };
@@ -426,8 +426,8 @@ export function PinTable({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All pins</SelectItem>
-                <SelectItem value="mine">My pins only</SelectItem>
+                <SelectItem value="all">All {noun.many}</SelectItem>
+                <SelectItem value="mine">Mine only</SelectItem>
                 <SelectItem value="others">Added by others</SelectItem>
               </SelectContent>
             </Select>

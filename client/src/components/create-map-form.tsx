@@ -155,7 +155,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     onSuccess: (data) => {
       toast({
         title: "Collection created",
-        description: `"${data.name}" is ready — start adding pins.`,
+        description: `"${data.name}" is ready — start adding.`,
         variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/maps", user?.id] });
@@ -280,7 +280,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
           <div className="space-y-0.5">
             <Label htmlFor="showOnProfile">Show on public profile</Label>
             <p className="text-xs text-muted-foreground">
-              List this map on your public profile page. Hidden maps stay private to you.
+              List this collection on your public profile page. Hidden ones stay private to you.
             </p>
           </div>
           <Switch
@@ -301,7 +301,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
           >
             <span className="flex items-center gap-1.5">
               <MessageSquareText className="h-3.5 w-3.5" />
-              Customize the pin note question
+              Customise the note question
               <span className="text-xs font-normal text-muted-foreground/70">optional</span>
             </span>
             <ChevronDown className={`h-4 w-4 transition-transform ${showNoteCustomization ? "rotate-180" : ""}`} />
@@ -355,7 +355,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-3 space-y-3">
           <p className="text-xs text-muted-foreground -mt-1">
-            Add your own logo and this map gets a clean, read-only public page with no {APP_NAME} branding —
+            Add your own logo and this collection gets a clean, read-only public page with no {APP_NAME} branding —
             just your logo, the description above, and the map.
           </p>
           {hasCustomBranding ? (
@@ -471,7 +471,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
           >
             <span className="flex items-center gap-1.5">
               <MapPinned className="h-3.5 w-3.5" />
-              Default pin color & icon
+              Default pin colour & icon
               <span className="text-xs font-normal text-muted-foreground/70">optional</span>
             </span>
             <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
@@ -479,7 +479,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-3 space-y-3">
           <p className="text-xs text-muted-foreground -mt-1">
-            Set the default look for pins on this map. Contributors can still override it per pin.
+            Set the default look for pins in this collection. Contributors can still override it per pin.
           </p>
           {hasPinCustomization ? (
             <PinStylePicker

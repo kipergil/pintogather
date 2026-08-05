@@ -603,7 +603,7 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
               )}
 
               <p className="text-xs text-muted-foreground/80 leading-relaxed">
-                Anyone with access to this map can see the details you add here.
+                Anyone with access to this collection can see the details you add here.
               </p>
             </>
           )}

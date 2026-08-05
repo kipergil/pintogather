@@ -245,7 +245,7 @@ export const curateMapSchema = z
     curatedTagline: z.string().trim().max(200).nullable().optional(),
   })
   .refine((data) => !data.curated || !!(data.curatedCategory && data.curatedCountry && data.curatedCity), {
-    message: "Category, country, and city are required to curate a map.",
+    message: "Category, country, and city are required to curate a collection.",
     path: ["curatedCategory"],
   })
   .refine(

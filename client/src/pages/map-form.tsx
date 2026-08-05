@@ -75,7 +75,7 @@ export default function MapForm({ params }: MapFormProps) {
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Sign in to create a map
+              Sign in to create a collection
             </h2>
             <p className="text-muted-foreground mb-5">
               You'll need an account so this map — and its shareable link —
@@ -99,10 +99,10 @@ export default function MapForm({ params }: MapFormProps) {
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Map not found
+              Collection not found
             </h2>
             <p className="text-muted-foreground mb-5">
-              This map doesn't exist, or the link is no longer valid.
+              This collection doesn't exist, or the link is no longer valid.
             </p>
             <Link href="/">
               <Button>
@@ -124,15 +124,15 @@ export default function MapForm({ params }: MapFormProps) {
         <Card className="border-border">
           <CardContent className="pt-8 pb-8 text-center">
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              Only the owner can edit this map
+              Only the owner can edit this collection
             </h2>
             <p className="text-muted-foreground mb-5">
-              You don't have permission to change this map's settings.
+              You don't have permission to change this collection's settings.
             </p>
             <Link href={`/map/${mapCollection!.shareUrl}`}>
               <Button>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to map
+                Back to collection
               </Button>
             </Link>
           </CardContent>

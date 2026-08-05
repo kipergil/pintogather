@@ -91,7 +91,7 @@ export default function Feed() {
           <Rss className="h-5 w-5" />
           <span className="text-sm font-semibold uppercase tracking-wide">Feed</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Recently added maps</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Recently added collections</h1>
         <p className="text-muted-foreground">From people you follow and {APP_NAME}'s own curated collections.</p>
       </div>
 

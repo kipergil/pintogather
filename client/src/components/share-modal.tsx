@@ -124,7 +124,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
   };
 
   const shareToSocial = (platform: string) => {
-    const text = `Check out this collaborative map: ${mapName}`;
+    const text = `Check out this collection: ${mapName}`;
     const url = encodeURIComponent(fullShareUrl);
     const textEncoded = encodeURIComponent(text);
 
@@ -201,7 +201,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-neutral-500">Anyone with this link can view and contribute to your map</p>
+                <p className="text-xs text-neutral-500">Anyone with this link can view and contribute to your collection</p>
               </div>
 
               <div className="space-y-2">
@@ -264,7 +264,7 @@ export function ShareModal({ isOpen, onClose, shareUrl, mapName, mapId, isOwner,
                     data-testid="seat-limit-locked-notice"
                   >
                     <Lock className="h-3.5 w-3.5 shrink-0" />
-                    <span className="flex-1">This map has reached its {seatLimit}-collaborator limit for this plan.</span>
+                    <span className="flex-1">This collection has reached its {seatLimit}-collaborator limit for this plan.</span>
                     <WouterLink href="/pricing" className="font-medium text-primary hover:underline shrink-0">
                       Upgrade
                     </WouterLink>

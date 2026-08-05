@@ -13,6 +13,7 @@ import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PinStylePicker } from "@/components/pin-style-picker";
 import type { PinColor, PinIcon } from "@shared/enums";
+import { ITEM_NOUN } from "@shared/vocabulary";
 
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
 const PHOTO_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
@@ -94,6 +95,10 @@ export default function EditPin({ params }: EditPinProps) {
   const noteLabel = mapCollection?.noteLabel || "Note";
   const notePrompt = mapCollection?.notePrompt || null;
   const hasPinCustomization = mapCollection?.hasPinCustomization ?? false;
+  // This page edits any item type, so its headings follow the collection's
+  // own noun rather than always saying "pin".
+  const noun = ITEM_NOUN[pin?.itemType ?? "location"];
+  const Noun = noun.one.charAt(0).toUpperCase() + noun.one.slice(1);
 
   // Populate form when pin data loads, falling back to the signed-in user's
   // own profile for empty fields
@@ -102,7 +107,7 @@ export default function EditPin({ params }: EditPinProps) {
       // Check if user owns this pin
       if (user && pin.userId !== user.id) {
         toast({
-          title: "Access Denied",
+          title: "That's not yours to edit",
           description: "You can only edit what you added yourself.",
           variant: "destructive",
         });
@@ -164,14 +169,14 @@ export default function EditPin({ params }: EditPinProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/maps/${shareUrl}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/pins/${pinId}`] });
       toast({
-        title: "Pin updated",
+        title: `${Noun} updated`,
         variant: "success",
       });
       setLocation(`/map/${shareUrl}`);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "Couldn't save it",
         description: error.message || "Please try again",
         variant: "destructive",
       });
@@ -197,7 +202,7 @@ export default function EditPin({ params }: EditPinProps) {
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Couldn't save it",
         description: error.message || "Please try again",
         variant: "destructive",
       });
@@ -212,7 +217,7 @@ export default function EditPin({ params }: EditPinProps) {
         <Card className="w-full max-w-md border-border">
           <CardContent className="p-8 text-center">
             <Loader2 className="h-7 w-7 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-lg font-semibold">Loading pin...</h2>
+            <h2 className="text-lg font-semibold">Loading…</h2>
           </CardContent>
         </Card>
       </div>
@@ -224,12 +229,12 @@ export default function EditPin({ params }: EditPinProps) {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-border">
           <CardContent className="p-8 text-center">
-            <h2 className="text-lg font-semibold mb-2">Pin not found</h2>
+            <h2 className="text-lg font-semibold mb-2">Not found</h2>
             <p className="text-muted-foreground mb-5 text-sm">
               This pin doesn't exist or you don't have permission to edit it.
             </p>
             <Link href={`/map/${shareUrl}`}>
-              <Button className="w-full">Back to map</Button>
+              <Button className="w-full">Back to collection</Button>
             </Link>
           </CardContent>
         </Card>
@@ -243,7 +248,7 @@ export default function EditPin({ params }: EditPinProps) {
         <Link href={`/map/${shareUrl}`}>
           <Button variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground">
             <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Back to map
+            Back to collection
           </Button>
         </Link>
 
@@ -252,7 +257,7 @@ export default function EditPin({ params }: EditPinProps) {
             <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <MapPin className="h-4 w-4" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Edit pin</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Edit {noun.one}</h1>
           </div>
           {pin.address && <p className="text-sm text-muted-foreground ml-11">{pin.address}</p>}
           {pin.googleMapsUrl && (
@@ -353,7 +358,7 @@ export default function EditPin({ params }: EditPinProps) {
                   <div className="relative w-fit">
                     <img
                       src={formData.photoUrl}
-                      alt="Pin preview"
+                      alt="Preview"
                       className="h-24 w-24 rounded-lg object-cover border border-border"
                       data-testid="img-pin-photo-preview"
                     />
