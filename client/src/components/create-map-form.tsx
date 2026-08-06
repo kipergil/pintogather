@@ -244,7 +244,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
             ? "You'll invite people to pin their location or favourite spots here."
             : itemType === "link"
               ? "You'll invite people to add links here — paste a URL and it fills itself in."
-              : "You'll invite people to add recommendations here — no location or link required."}
+              : "You'll invite people to add recs here — books, films, tools, anything worth passing on."}
         </p>
       </div>
 

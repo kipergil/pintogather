@@ -46,6 +46,8 @@ import {
   Link2,
   Loader2,
   MapPin,
+  PenLine,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -165,6 +167,10 @@ export default function AddItems({ params }: AddItemsProps) {
   const [isResolvingAll, setIsResolvingAll] = useState(false);
   const [resolveProgress, setResolveProgress] = useState(0);
   const [pasteText, setPasteText] = useState("");
+  /** The "add one at a time" form — cleared after each one so the next can be typed straight in. */
+  const [oneName, setOneName] = useState("");
+  const [oneUrl, setOneUrl] = useState("");
+  const [oneNote, setOneNote] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [images, setImages] = useState<File[]>([]);
   /** Optional context sent alongside the images — kept apart from `aiPrompt` so switching methods doesn't carry one into the other. */
@@ -425,6 +431,21 @@ export default function AddItems({ params }: AddItemsProps) {
     generateSuggestionsMutation.mutate(aiPrompt.trim());
   };
 
+  /**
+   * Stages one hand-typed item. Goes through startStaging like every other
+   * method, so a link still gets its title and image fetched, and the entry
+   * lands in the same review list rather than saving straight away.
+   */
+  const addOne = () => {
+    const name = oneName.trim();
+    const url = oneUrl.trim();
+    if (!name && !url) return;
+    startStaging([{ name, url, note: oneNote.trim() }]);
+    setOneName("");
+    setOneUrl("");
+    setOneNote("");
+  };
+
   const handleExtractFromImages = () => {
     if (images.length === 0) return;
     extractFromImagesMutation.mutate({ files: images, prompt: imagePrompt.trim() });
@@ -665,6 +686,58 @@ export default function AddItems({ params }: AddItemsProps) {
                   </button>
                   .
                 </p>
+              </div>
+            )}
+
+            {method === "one" && (
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                  <PenLine className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground mb-1.5">Add one at a time</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+                  {itemType === "link"
+                    ? "Paste a URL and we'll fetch the title, description, and image. Each one joins the list below — keep going, then save them together."
+                    : "Type it in yourself. Each one joins the list below — keep going, then save them together."}
+                </p>
+                <div className="max-w-sm mx-auto text-left space-y-2">
+                  {itemType === "link" && (
+                    <Input
+                      value={oneUrl}
+                      onChange={(e) => setOneUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addOne()}
+                      placeholder="https://…"
+                      className="text-sm"
+                      data-testid="input-one-url"
+                    />
+                  )}
+                  <Input
+                    value={oneName}
+                    onChange={(e) => setOneName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addOne()}
+                    placeholder={itemType === "link" ? "Title (optional — we'll fetch it)" : `Name of the ${noun.one}`}
+                    className="text-sm"
+                    data-testid="input-one-name"
+                  />
+                  <Textarea
+                    value={oneNote}
+                    onChange={(e) => setOneNote(e.target.value)}
+                    placeholder={mapCollection?.notePrompt || "Note (optional)"}
+                    rows={2}
+                    className="text-sm"
+                    data-testid="input-one-note"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={addOne}
+                    disabled={!oneName.trim() && !oneUrl.trim()}
+                    data-testid="button-add-one"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add to the list
+                  </Button>
+                </div>
               </div>
             )}
 

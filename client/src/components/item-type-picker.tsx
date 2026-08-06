@@ -22,8 +22,8 @@ const OPTIONS: { itemType: ItemType; icon: typeof MapPinned; label: string; tagl
   {
     itemType: "recommendation",
     icon: Sparkles,
-    label: "Recommendations",
-    tagline: "Anything worth recommending — books, films, tools, dishes.",
+    label: "Recs",
+    tagline: "Recommendations — books, films, tools, dishes, anything worth passing on.",
   },
 ];
 

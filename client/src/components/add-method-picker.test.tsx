@@ -9,16 +9,41 @@ describe("methodsFor", () => {
     expect(methodsFor("location")).toEqual(["paste", "image", "file", "ai", "venue", "map"]);
   });
 
+  it("doesn't offer typing one out by hand on a location collection", () => {
+    // Venue search and dropping a pin are its single-item paths, and both
+    // produce coordinates a typed name can't.
+    expect(methodsFor("location")).not.toContain("one");
+  });
+
   it.each(["link", "recommendation"] as const)(
-    "hides venue search and drop-on-map for a %s collection",
+    "offers a single-item method and hides venue search and drop-on-map for a %s collection",
     (itemType) => {
       // Neither means anything without coordinates.
-      expect(methodsFor(itemType)).toEqual(["paste", "image", "file", "ai"]);
+      expect(methodsFor(itemType)).toEqual(["one", "paste", "image", "file", "ai"]);
     },
   );
 
   it("keeps screenshots available on every item type — a picture can list anything", () => {
     for (const itemType of ITEM_TYPE) expect(methodsFor(itemType)).toContain("image");
+  });
+});
+
+describe("the single-item method", () => {
+  it.each(["link", "recommendation"] as const)("is the first thing offered on a %s collection", (itemType) => {
+    // It was missing entirely, so someone wanting to add one link had to
+    // paste a one-line list. Leading with it makes it the obvious path.
+    expect(methodsFor(itemType)[0]).toBe("one");
+  });
+
+  it("is reachable by deep link on a link collection but not a location one", () => {
+    expect(parseMethodParam("one", "link")).toBe("one");
+    expect(parseMethodParam("one", "location")).toBeUndefined();
+  });
+
+  it("renders its own card", () => {
+    render(<AddMethodPicker itemType="link" onSelect={vi.fn()} />);
+    expect(screen.getByTestId("card-method-one")).toBeInTheDocument();
+    expect(screen.getByTestId("card-method-one")).toHaveTextContent(/paste a url/i);
   });
 });
 
@@ -69,7 +94,7 @@ describe("<AddMethodPicker />", () => {
 
   it("uses the collection's own noun in the heading", () => {
     render(<AddMethodPicker itemType="recommendation" onSelect={vi.fn()} />);
-    expect(screen.getByText(/add recommendations\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/add recs\?/i)).toBeInTheDocument();
   });
 
   it("describes pasting differently for a link collection", () => {

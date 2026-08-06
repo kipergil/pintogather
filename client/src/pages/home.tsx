@@ -395,11 +395,11 @@ function SignedInDashboard({
       <PendingApprovalsBanner maps={ownedMaps} />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
-        <StatTile label="Collections created" value={ownedMaps.length} icon={<MapPin className="h-4 w-4" />} />
-        <StatTile label="Total items" value={totalPins} icon={<Sparkles className="h-4 w-4" />} />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-10">
+        <StatTile label="Collections" value={ownedMaps.length} icon={<MapPin className="h-4 w-4" />} />
+        <StatTile label="Items" value={totalPins} icon={<Sparkles className="h-4 w-4" />} />
         <StatTile
-          label="Contributing to"
+          label="Contributing"
           value={contributedMaps.length}
           icon={<Users className="h-4 w-4" />}
         />
@@ -771,10 +771,19 @@ function PendingApprovalsBanner({ maps }: { maps: MapCollectionSummary[] }) {
 
 function StatTile({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-        {icon}
-        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+    // Centred on a phone, where three tiles leave each one too narrow for a
+    // left-aligned label to look deliberate; back to left-aligned from `sm`.
+    <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-5 text-center sm:text-left">
+      {/* The icon needs shrink-0 and the label min-w-0: a flex item defaults to
+          min-width:auto, so without them a long label ("Collections created")
+          refuses to wrap, squeezes the icon to nothing, and spills out of the
+          card. w-full matters too: items-center makes a flex child shrink to
+          fit its content, so break-words never engages without a bounded box. */}
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-1 sm:gap-2 text-muted-foreground mb-1.5">
+        <span className="shrink-0">{icon}</span>
+        <span className="w-full min-w-0 text-[10px] sm:text-xs font-medium uppercase tracking-normal sm:tracking-wide leading-tight text-balance break-words">
+          {label}
+        </span>
       </div>
       <div className="text-2xl sm:text-3xl font-bold text-foreground">{value}</div>
     </div>

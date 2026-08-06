@@ -13,6 +13,22 @@ import { getSchemaClient } from "../lib/client.js";
 
 /** Newest first — the order they'll appear on the page. */
 const CHANGELOG_SECTIONS = [
+  `## August 5, 2026
+
+### Recommendation collections say "recs"
+"Recommendation" is fourteen characters, and on a phone that was enough to
+push the share and menu buttons off the edge of the screen, wrap the item
+count onto its own line, and truncate the filter dropdown to "All…". These
+collections now say "recs" wherever the word appears in the interface —
+"Add recs", "Recs (1)", "1 / 200 recs". Nothing about what they hold has
+changed, and the type picker still explains the word when you choose it.
+
+### Dashboard tiles fit their labels again
+The three tiles at the top of your collections page were spilling their
+labels outside the card and squeezing the icons to nothing. They now read
+"Collections", "Items", and "Contributing", centred on a phone with the
+icon above the label.
+`,
   `## August 4, 2026
 
 ### A collection is a collection, not a map

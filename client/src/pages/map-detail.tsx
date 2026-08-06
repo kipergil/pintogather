@@ -347,7 +347,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                     button — wrapped with the like/share group so the two sit on one line
                     instead of the button stacking above them on a phone. */}
                 <div className="flex items-center gap-2">
-                  {user && (
+                  {user ? (
                     <Button
                       size="sm"
                       className="h-9"
@@ -357,6 +357,21 @@ export default function MapDetail({ params }: MapDetailProps) {
                       <Sparkles className="h-4 w-4 mr-1.5" />
                       Add {noun.many}
                     </Button>
+                  ) : (
+                    // The hub is sign-in only, so a visitor contributing
+                    // anonymously gets the direct form instead — same button,
+                    // same place, the only destination that works for them.
+                    mapCollection.itemType !== "location" && (
+                      <Button
+                        size="sm"
+                        className="h-9"
+                        onClick={() => setIsAddItemModalOpen(true)}
+                        data-testid="button-add-item"
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Add {noun.one}
+                      </Button>
+                    )
                   )}
                   <div className="inline-flex items-stretch rounded-md border border-border divide-x divide-border overflow-hidden">
                     <LikeButton
@@ -415,15 +430,7 @@ export default function MapDetail({ params }: MapDetailProps) {
                   </Badge>
                 )}
               </h2>
-              <div className="flex items-center gap-2">
-                {mapCollection.itemType !== "location" && (
-                  <Button size="sm" onClick={() => setIsAddItemModalOpen(true)} data-testid="button-add-item">
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Add {noun.one}
-                  </Button>
-                )}
-                <div ref={setPinHeaderSlot} className="flex items-center" />
-              </div>
+              <div ref={setPinHeaderSlot} className="flex items-center" />
             </div>
             {mapCollection.pins.length === 0 ? (
               <AddMethodsEmptyState
