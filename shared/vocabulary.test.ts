@@ -64,7 +64,7 @@ describe("pluralize", () => {
 
   it("reads correctly for every type", () => {
     expect(pluralize(3, ITEM_NOUN.location)).toBe("3 pins");
-    expect(pluralize(1, ITEM_NOUN.recommendation)).toBe("1 recommendation");
+    expect(pluralize(1, ITEM_NOUN.recommendation)).toBe("1 rec");
   });
 });
 
@@ -72,7 +72,7 @@ describe("addLabel", () => {
   it.each([
     ["location", "Add pins"],
     ["link", "Add links"],
-    ["recommendation", "Add recommendations"],
+    ["recommendation", "Add recs"],
   ] as const)("labels the %s button %s", (itemType, expected) => {
     expect(addLabel(itemType)).toBe(expected);
   });

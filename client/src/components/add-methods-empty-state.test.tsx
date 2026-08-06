@@ -43,7 +43,7 @@ describe("<AddMethodsEmptyState />", () => {
     // Not "items": the collection's own noun is what F11 fixed — a links
     // collection saying "add your first items" was the generic fallback.
     ["link", "links"],
-    ["recommendation", "recommendations"],
+    ["recommendation", "recs"],
   ] as const)("uses the right noun in the heading for a %s collection", (itemType, expected) => {
     renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType={itemType} canAdd />);
     expect(screen.getByText(new RegExp(`add your first ${expected}`, "i"))).toBeInTheDocument();

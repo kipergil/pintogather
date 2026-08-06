@@ -10,7 +10,7 @@ import type { ItemType } from "./enums.js";
  *    map left half the interface describing something that wasn't on screen.
  *    "Map" now means only the actual Google Map inside a place collection.
  *  - The **item** inside it, which does vary by type: a pin, a link, or a
- *    recommendation.
+ *    recommendation (shown as "rec").
  *
  * Everything user-facing reads from here rather than hardcoding either.
  * Shared rather than client-local because the Expo app needs the same words,
@@ -29,7 +29,11 @@ export interface Noun {
 export const ITEM_NOUN: Record<ItemType, Noun> = {
   location: { one: "pin", many: "pins" },
   link: { one: "link", many: "links" },
-  recommendation: { one: "recommendation", many: "recommendations" },
+  // Short on purpose. "Recommendation" is 14 characters, which broke the
+  // primary button, the header count, and the filter dropdown at phone
+  // width — the full word only ever fitted on a desktop. The stored type is
+  // still `recommendation`; this is display only.
+  recommendation: { one: "rec", many: "recs" },
 };
 
 /**

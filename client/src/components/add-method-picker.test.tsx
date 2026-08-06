@@ -69,7 +69,7 @@ describe("<AddMethodPicker />", () => {
 
   it("uses the collection's own noun in the heading", () => {
     render(<AddMethodPicker itemType="recommendation" onSelect={vi.fn()} />);
-    expect(screen.getByText(/add recommendations\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/add recs\?/i)).toBeInTheDocument();
   });
 
   it("describes pasting differently for a link collection", () => {

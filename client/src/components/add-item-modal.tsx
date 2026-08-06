@@ -181,7 +181,7 @@ export function AddItemModal({
     },
     onError: (error: any) => {
       toast({
-        title: isLink ? "Couldn't add link" : "Couldn't add recommendation",
+        title: `Couldn't add ${isLink ? "link" : "rec"}`,
         description: error.message || "Please try again",
         variant: "destructive",
         action: isUpgradeableError(error) ? upgradeToastAction() : undefined,
@@ -246,7 +246,7 @@ export function AddItemModal({
                 <Sparkles className="h-4 w-4" />
               )}
             </div>
-            Add {isLink ? "a link" : "a recommendation"}
+            Add {isLink ? "a link" : "a rec"}
           </DialogTitle>
           <DialogDescription>
             {isLink
