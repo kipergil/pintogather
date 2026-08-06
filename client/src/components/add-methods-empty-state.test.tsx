@@ -31,6 +31,19 @@ describe("<AddMethodsEmptyState />", () => {
     ]);
   });
 
+  it("leads with typing one in on a link collection", () => {
+    // The single-item method was missing from the hub entirely, so an empty
+    // links collection had nothing but bulk methods to offer.
+    const { container } = renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="link" canAdd />);
+    expect(screen.getByTestId("button-empty-method-one")).toBeInTheDocument();
+    expect(container.querySelector("a")).toHaveAttribute("href", "/map/abc123/add?method=one");
+  });
+
+  it("keeps the bulk methods first on a location collection, which adds singles on the map", () => {
+    renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="location" canAdd />);
+    expect(screen.queryByTestId("button-empty-method-one")).not.toBeInTheDocument();
+  });
+
   it("shows a plain message instead of cards when the viewer can't add", () => {
     // Method cards would dead-end at a sign-in wall for a signed-out visitor.
     renderAt(<AddMethodsEmptyState shareUrl="abc123" itemType="location" canAdd={false} />);

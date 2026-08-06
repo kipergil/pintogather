@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardPaste, FileUp, ImageUp, MousePointerClick, Search, Sparkles, type LucideIcon } from "lucide-react";
+import { ClipboardPaste, FileUp, ImageUp, MousePointerClick, PenLine, Search, Sparkles, type LucideIcon } from "lucide-react";
 import type { ItemType } from "@shared/enums";
 import { ITEM_NOUN } from "@/lib/item-parsing";
 
@@ -8,11 +8,18 @@ import { ITEM_NOUN } from "@/lib/item-parsing";
  * accepts, so the map page's empty state and toolbar can deep-link straight
  * past this picker.
  */
-export const ADD_METHODS = ["paste", "image", "file", "ai", "venue", "map"] as const;
+export const ADD_METHODS = ["one", "paste", "image", "file", "ai", "venue", "map"] as const;
 export type AddMethod = (typeof ADD_METHODS)[number];
 
 /** Venue search and drop-a-pin only mean anything on a map of locations. */
 const LOCATION_ONLY = new Set<AddMethod>(["venue", "map"]);
+
+/**
+ * Typing one out by hand is only offered where there's nothing to look it up
+ * against. A location collection already has two single-item paths — venue
+ * search and dropping a pin — and both produce better data than a typed name.
+ */
+const NOT_ON_LOCATIONS = new Set<AddMethod>(["one"]);
 
 interface MethodMeta {
   icon: LucideIcon;
@@ -22,6 +29,14 @@ interface MethodMeta {
 }
 
 const METHOD_META: Record<AddMethod, MethodMeta> = {
+  one: {
+    icon: PenLine,
+    title: "Add one at a time",
+    describe: (noun, itemType) =>
+      itemType === "link"
+        ? "Paste a URL and we'll fill in the rest."
+        : `Type a ${noun.one} in yourself.`,
+  },
   paste: {
     icon: ClipboardPaste,
     title: "Paste a list",
@@ -58,7 +73,9 @@ const METHOD_META: Record<AddMethod, MethodMeta> = {
 };
 
 export function methodsFor(itemType: ItemType): AddMethod[] {
-  return ADD_METHODS.filter((m) => itemType === "location" || !LOCATION_ONLY.has(m));
+  return ADD_METHODS.filter((m) =>
+    itemType === "location" ? !NOT_ON_LOCATIONS.has(m) : !LOCATION_ONLY.has(m),
+  );
 }
 
 /** Parses a `?method=` value, returning undefined when absent or not valid for this collection. */
