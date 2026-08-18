@@ -1,5 +1,6 @@
 import { readItems, updateItem } from "@directus/sdk";
 import { getSchemaClient } from "../lib/client.js";
+import { env } from "../lib/env.js";
 
 /**
  * Keeps the public changelog and features pages in step with what's shipped.
@@ -13,6 +14,29 @@ import { getSchemaClient } from "../lib/client.js";
 
 /** Newest first — the order they'll appear on the page. */
 const CHANGELOG_SECTIONS = [
+  `## August 18, 2026
+
+### The static pages describe the whole product
+"How it works", "Who it's for", and "PinGather for business" all still
+described a map tool — every step, every audience, every example was about
+pinning places. Anyone who arrived wanting a shared reading list or a
+recommendations board found nothing that spoke to them. All three are
+rewritten around what the app actually is: one place where a group curates
+a collection together, of places, links, or recommendations.
+
+"How it works" now starts where you actually start — choosing what you're
+collecting — and covers adding a hundred things at once as well as one at a
+time. "Who it's for" leads with the problem rather than the format, since
+the thing being collected varies but the scattered-group-chat problem
+doesn't. The business page has resource libraries and onboarding alongside
+the property and field-ops examples.
+
+### Features, reorganised
+The features page led with "Mapping & pins", so the first thing you read
+was the half that only applies to one collection type. It now separates
+what every collection gets — the shareable link, custom note fields, photos,
+the searchable table — from what's specific to collections of places.
+`,
   `## August 5, 2026
 
 ### Recommendation collections say "recs"
@@ -149,7 +173,14 @@ function headingOf(section: string): string {
   return heading;
 }
 
-const FEATURES_CONTENT = `## What you can collect
+const FEATURES_META =
+  `Everything ${env.APP_NAME} includes: collections of places, links, or recommendations; ` +
+  `bulk and AI adding from a paste, a file, or a screenshot; approval-based curation; and the ` +
+  `collaboration, branding, and discovery tools around them.`;
+
+const FEATURES_CONTENT = `${env.APP_NAME} is one place for a group to curate a collection together — and a collection isn't only a map.
+
+## What you can collect
 
 Not every list is a map. When you create a collection you choose what it
 holds, and everything after that — the views, the wording, the way things
@@ -159,16 +190,22 @@ are added, the CSV export — adapts to your choice:
 - **Links** — paste a URL and the page's title, description, and image fill themselves in.
 - **Recommendations** — free-form entries for anything nameable: books, films, tools, dishes, places.
 
-## Mapping & pins
+## Every collection
 
-- **Shareable collections** with a short, memorable link — no account needed to view or contribute, unless you want to require one.
-- **Click-to-drop or search-to-add** pins, backed by place search so you can pin a real venue by name instead of guessing coordinates.
-- **Custom note fields** — change the label and prompt so each collection asks contributors the right question for its purpose.
-- **Photos per pin**, so a map shows what a place looks like, not just its name.
-- **Social links** per pin (Twitter/X, Instagram, LinkedIn) for pins about people or businesses with an online presence.
+Whatever a collection holds, it gets all of this:
+
+- **A short, shareable link** — no account needed to view or contribute, unless you want to require one.
+- **Custom note fields** — change the label and prompt so each collection asks contributors the right question for its purpose: "What should I order here?", "Why is this worth reading?"
+- **A photo per item**, so a collection shows what something looks like, not just its name.
+- **Social links** per item (Twitter/X, Instagram, LinkedIn), for entries about people or businesses with an online presence.
+- **A sortable, searchable table** with filters for pending, yours, and other people's.
+
+## For collections of places
+
+- **Click-to-drop or search-to-add** pins, backed by place search, so you can pin a real venue by name instead of guessing coordinates.
 - **Marker clustering** keeps dense maps readable as they grow.
 - **Route/itinerary mode** — drag pins into a visiting order, see the distance between stops, and follow a driving-route line on the map.
-- **Templates** for common map types: weekend trip, neighborhood guide, wedding guest list, team locations, event guide.
+- **Templates** for common kinds: weekend trip, neighbourhood guide, wedding guest list, team locations, event guide.
 
 ## Adding things
 
@@ -215,6 +252,7 @@ interface Page {
   id: string;
   slug: string;
   content: string;
+  meta_description: string | null;
 }
 
 async function getPage(client: Awaited<ReturnType<typeof getSchemaClient>>, slug: string): Promise<Page> {
@@ -249,10 +287,15 @@ async function main() {
   }
 
   const features = await getPage(client, "features");
-  if (features.content.trim() === FEATURES_CONTENT.trim()) {
+  // meta_description as well as content: this script is the only owner of the
+  // features page now, and the description was still the original map-only
+  // copy left behind when seed-pages.ts stopped writing it.
+  if (features.content.trim() === FEATURES_CONTENT.trim() && features.meta_description === FEATURES_META) {
     console.log("Features page already up to date.");
   } else {
-    await client.request(updateItem("map_pages", features.id, { content: FEATURES_CONTENT }));
+    await client.request(
+      updateItem("map_pages", features.id, { content: FEATURES_CONTENT, meta_description: FEATURES_META }),
+    );
     console.log("Updated the features page.");
   }
 
