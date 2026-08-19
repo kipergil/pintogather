@@ -7,6 +7,7 @@ import {
   insertMapCollectionSchema,
   insertPinSchema,
   updateFolderSchema,
+  isDiscoverSubmittable,
   updateMapDetailsSchema,
   updatePinSchema,
   updateProfileSchema,
@@ -1166,8 +1167,41 @@ export async function registerRoutes(app: Express): Promise<void> {
         }
       }
 
+      // Submitting to Discover is judged on the row as it will be *after*
+      // this save: the owner may have filed the category last week and only
+      // pressed submit today.
+      if (data.discoverStatus === "pending") {
+        const merged = {
+          curatedCategory: data.curatedCategory !== undefined ? data.curatedCategory : map.curatedCategory,
+          curatedCountry: data.curatedCountry !== undefined ? data.curatedCountry : map.curatedCountry,
+          curatedCity: data.curatedCity !== undefined ? data.curatedCity : map.curatedCity,
+        };
+        if (!isDiscoverSubmittable(merged)) {
+          return res.status(400).json({
+            message: "Choose a category, country, and city before submitting this collection to Discover.",
+          });
+        }
+      }
+
       const updatedMap = await storage.updateMapDetails(mapId, data);
       if (!updatedMap) return res.status(404).json({ message: "Map not found" });
+
+      // Withdrawing a listing that's already live has to take it off
+      // Discover too — otherwise the owner is told it's withdrawn while the
+      // page still shows it. `curated` is admin-only in every other
+      // direction: this can only ever unlist, never list.
+      if (data.discoverStatus === "none" && map.curated) {
+        const unlisted = await storage.updateMapCuration(mapId, {
+          curated: false,
+          curatedCategory: updatedMap.curatedCategory,
+          curatedCountry: updatedMap.curatedCountry,
+          curatedCity: updatedMap.curatedCity,
+          curatedOrder: updatedMap.curatedOrder,
+          curatedTagline: updatedMap.curatedTagline,
+          discoverStatus: "none",
+        });
+        if (unlisted) return res.json(unlisted);
+      }
 
       res.json(updatedMap);
     } catch (error) {
@@ -2311,6 +2345,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           ownerName: await getMapOwnerName(map),
           curated: map.curated,
           curatedCategory: map.curatedCategory,
+          curatedCountry: map.curatedCountry,
+          curatedCity: map.curatedCity,
+          // Drives the "waiting for review" queue at the top of the admin
+          // maps screen — owners can now ask to be listed.
+          discoverStatus: map.discoverStatus,
           createdAt: map.createdAt,
         })),
       );

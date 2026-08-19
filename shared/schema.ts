@@ -3,6 +3,7 @@ import {
   CURATED_CATEGORY,
   CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
+  DISCOVER_STATUS,
   INVITATION_STATUS,
   ITEM_TYPE,
   MAP_VIEWER_ROLE,
@@ -12,7 +13,8 @@ import {
   USER_GROUP,
   VENUE_TYPE,
 } from "./enums.js";
-import type { TemplateIcon } from "./enums.js";
+import { OWNER_DISCOVER_STATUS } from "./enums.js";
+import type { DiscoverStatus, TemplateIcon } from "./enums.js";
 
 /**
  * Domain types used throughout the app (client + server). These are the
@@ -170,14 +172,29 @@ export interface MapCollection {
    */
   itemType: (typeof ITEM_TYPE)[number];
   /**
-   * Curated-map fields (/discover page) — admin-managed directly in Directus,
-   * never through the app's own map-create/edit forms, so these are absent
-   * from insertMapCollectionSchema/updateMapDetailsSchema below on purpose.
+   * Whether this collection is live on the /discover page. Admin-only: set
+   * in Directus, or by approving an owner's submission through the admin
+   * curate route. Never writable through the owner's own forms — an owner
+   * asks to be listed by setting discoverStatus to "pending" instead.
    */
   curated: boolean;
+  /**
+   * Category/country/city — how /discover files and filters this
+   * collection. Unlike `curated`, these three *are* owner-editable (see
+   * updateMapDetailsSchema): they're closed enums, so an owner filling them
+   * in can't put anything arbitrary on the Discover page, and they're what
+   * makes a submission reviewable in the first place.
+   */
   curatedCategory: (typeof CURATED_CATEGORY)[number] | null;
   curatedCountry: (typeof CURATED_COUNTRY)[number] | null;
   curatedCity: string | null;
+  /**
+   * The owner's request to be listed, and the admin's answer. Purely a
+   * review record — `curated` above is what /discover actually reads, so a
+   * pending or rejected submission is invisible everywhere but the owner's
+   * own settings and the admin queue.
+   */
+  discoverStatus: DiscoverStatus;
   /** Display order among curated maps — also determines which 3 freemium/anonymous visitors see. Lower shows first. */
   curatedOrder: number | null;
   /** Short editorial blurb shown on the Discover card, distinct from the map's own owner-written description. */
@@ -224,8 +241,48 @@ export const updateMapDetailsSchema = z.object({
   showOnProfile: z.boolean().optional(),
   /** Move this map into a folder (or back to the root level with null). Ownership of the target folder is checked server-side. */
   folderId: z.string().nullable().optional(),
+  /**
+   * Discover filing, owner-settable. Closed enums, so an owner can label
+   * their collection without being able to write free text onto the
+   * Discover page. Setting these alone lists nothing — `curated` stays
+   * admin-only; see discoverStatus below.
+   */
+  curatedCategory: z.enum(CURATED_CATEGORY).nullable().optional(),
+  curatedCountry: z.enum(CURATED_COUNTRY).nullable().optional(),
+  curatedCity: z.string().trim().max(100).nullable().optional(),
+  /**
+   * Submit for review, or withdraw. Deliberately narrower than the stored
+   * DiscoverStatus: an owner can't approve their own collection onto
+   * Discover, only ask. The route additionally refuses a submission whose
+   * category/country/city aren't all filled in — that check needs the
+   * stored row as well as this payload, so it can't live here.
+   */
+  discoverStatus: z.enum(OWNER_DISCOVER_STATUS).optional(),
 });
 export type UpdateMapDetails = z.infer<typeof updateMapDetailsSchema>;
+
+/** Whether a city is one of its country's known cities — the same rule the Discover filters and the Directus field both assume. */
+export function isKnownCuratedCity(
+  country: (typeof CURATED_COUNTRY)[number] | null | undefined,
+  city: string | null | undefined,
+): boolean {
+  if (!country || !city) return false;
+  return (CURATED_CITY_BY_COUNTRY[country] as readonly string[]).includes(city);
+}
+
+/**
+ * Whether a collection carries enough Discover filing to be reviewable.
+ * Applied to the *merged* row (stored values plus the incoming patch),
+ * since an owner may submit in one request and have filed it in an earlier
+ * one.
+ */
+export function isDiscoverSubmittable(map: {
+  curatedCategory?: (typeof CURATED_CATEGORY)[number] | null;
+  curatedCountry?: (typeof CURATED_COUNTRY)[number] | null;
+  curatedCity?: string | null;
+}): boolean {
+  return !!map.curatedCategory && isKnownCuratedCity(map.curatedCountry, map.curatedCity);
+}
 
 /**
  * Admin-only: converts an existing map (any owner) into a curated /discover
@@ -243,14 +300,19 @@ export const curateMapSchema = z
     curatedCity: z.string().trim().max(100).nullable().optional(),
     curatedOrder: z.number().int().nullable().optional(),
     curatedTagline: z.string().trim().max(200).nullable().optional(),
+    /**
+     * The admin's answer to an owner's submission. Omitted for a plain
+     * curation done straight from the admin screen, where the route derives
+     * it from `curated` instead.
+     */
+    discoverStatus: z.enum(DISCOVER_STATUS).optional(),
   })
   .refine((data) => !data.curated || !!(data.curatedCategory && data.curatedCountry && data.curatedCity), {
     message: "Category, country, and city are required to curate a collection.",
     path: ["curatedCategory"],
   })
   .refine(
-    (data) =>
-      !data.curatedCountry || !data.curatedCity || (CURATED_CITY_BY_COUNTRY[data.curatedCountry] as readonly string[]).includes(data.curatedCity),
+    (data) => !data.curatedCountry || !data.curatedCity || isKnownCuratedCity(data.curatedCountry, data.curatedCity),
     { message: "That city isn't one of the selected country's known cities.", path: ["curatedCity"] },
   );
 export type CurateMap = z.infer<typeof curateMapSchema>;

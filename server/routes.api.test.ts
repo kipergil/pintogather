@@ -31,6 +31,10 @@ vi.mock("./storage.js", () => ({
     getPinsByMapId: vi.fn(),
     upsertPins: vi.fn(),
     uploadVenueScreenshot: vi.fn(),
+    updateMapDetails: vi.fn(),
+    updateMapCuration: vi.fn(),
+    getFolderById: vi.fn(),
+    getMapCollectionByName: vi.fn(),
     getPublishedPages: vi.fn().mockResolvedValue([]),
     getCuratedMapCollections: vi.fn().mockResolvedValue([]),
   },
@@ -316,5 +320,139 @@ describe("POST /api/maps/:shareUrl/extract-items", () => {
 
     // 429 rather than 404 proves the alias resolves to the same handler.
     expect(res.status).toBe(429);
+  });
+});
+
+/**
+ * Discover used to be reachable only by an admin noticing your collection
+ * and typing its category into Directus. Owners file it themselves now —
+ * but filing and being listed are deliberately two different things, and
+ * these tests are about keeping them apart.
+ */
+describe("PUT /api/maps/:mapId/details — Discover filing", () => {
+  const FILED = { curatedCategory: "food-drink", curatedCountry: "uk", curatedCity: "London" };
+
+  function detailsFixture(overrides: Record<string, unknown> = {}) {
+    return mapFixture({ curated: false, discoverStatus: "none", ...overrides });
+  }
+
+  beforeEach(() => {
+    mockStorage.updateMapDetails.mockImplementation(
+      async (_id: string, data: Record<string, unknown>) => ({ ...detailsFixture(), ...data }) as never,
+    );
+  });
+
+  it("saves an owner's category, country and city", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ name: "Test collection", ...FILED });
+
+    expect(res.status).toBe(200);
+    expect(mockStorage.updateMapDetails).toHaveBeenCalledWith("map-1", expect.objectContaining(FILED));
+  });
+
+  it("never lets an owner list their own collection", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ ...FILED, curated: true });
+
+    expect(res.status).toBe(200);
+    // `curated` is simply not in the schema, so it's dropped rather than
+    // honoured — the only route that writes it is the admin one.
+    expect(mockStorage.updateMapDetails).toHaveBeenCalledWith("map-1", expect.not.objectContaining({ curated: true }));
+  });
+
+  it("rejects an owner writing the admin's own verdict", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ ...FILED, discoverStatus: "approved" });
+
+    expect(res.status).toBe(400);
+    expect(mockStorage.updateMapDetails).not.toHaveBeenCalled();
+  });
+
+  it("accepts a submission that arrives with its filing", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ ...FILED, discoverStatus: "pending" });
+
+    expect(res.status).toBe(200);
+    expect(mockStorage.updateMapDetails).toHaveBeenCalledWith(
+      "map-1",
+      expect.objectContaining({ discoverStatus: "pending" }),
+    );
+  });
+
+  it("accepts a submission of a collection filed in an earlier save", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture(FILED) as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ discoverStatus: "pending" });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a submission with nothing to file it under", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ discoverStatus: "pending" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/category, country, and city/i);
+    expect(mockStorage.updateMapDetails).not.toHaveBeenCalled();
+  });
+
+  it("refuses a submission whose city isn't in the chosen country", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app)
+      .put("/api/maps/map-1/details")
+      .send({ ...FILED, curatedCity: "Paris", discoverStatus: "pending" });
+
+    expect(res.status).toBe(400);
+    expect(mockStorage.updateMapDetails).not.toHaveBeenCalled();
+  });
+
+  it("takes a live collection off Discover when its owner withdraws", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture({ ...FILED, curated: true, discoverStatus: "approved" }) as never);
+    mockStorage.updateMapCuration.mockResolvedValue(detailsFixture({ ...FILED, curated: false }) as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ discoverStatus: "none" });
+
+    expect(res.status).toBe(200);
+    // Withdrawing has to unlist as well — otherwise the owner is told it's
+    // withdrawn while /discover still shows it.
+    expect(mockStorage.updateMapCuration).toHaveBeenCalledWith(
+      "map-1",
+      expect.objectContaining({ curated: false, discoverStatus: "none" }),
+    );
+    expect(res.body.curated).toBe(false);
+  });
+
+  it("leaves curation alone when a collection that was never listed withdraws", async () => {
+    currentUser = OWNER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture({ ...FILED, discoverStatus: "pending" }) as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ discoverStatus: "none" });
+
+    expect(res.status).toBe(200);
+    expect(mockStorage.updateMapCuration).not.toHaveBeenCalled();
+  });
+
+  it("403s someone editing a collection that isn't theirs", async () => {
+    currentUser = OTHER;
+    mockStorage.getMapCollectionById.mockResolvedValue(detailsFixture() as never);
+
+    const res = await request(app).put("/api/maps/map-1/details").send({ ...FILED, discoverStatus: "pending" });
+
+    expect(res.status).toBe(403);
+    expect(mockStorage.updateMapDetails).not.toHaveBeenCalled();
   });
 });

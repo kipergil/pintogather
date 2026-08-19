@@ -71,6 +71,7 @@ const MAP_FIELDS = [
   "curated_city",
   "curated_order",
   "curated_tagline",
+  "discover_status",
   "forked_from_map",
   "folder",
   "date_created",
@@ -204,6 +205,9 @@ function toMapCollection(row: DirectusMapCollection): MapCollection {
     curatedCity: row.curated_city,
     curatedOrder: row.curated_order,
     curatedTagline: row.curated_tagline,
+    // Rows written before this field existed come back null; "none" is the
+    // truthful reading of a collection nobody has ever submitted.
+    discoverStatus: row.discover_status ?? "none",
     forkedFromMapId: row.forked_from_map,
     folderId: row.folder,
     createdAt: new Date(row.date_created),
@@ -782,6 +786,12 @@ class DirectusStorage implements IStorage {
       if (data.defaultPinIcon !== undefined) payload.default_pin_icon = data.defaultPinIcon;
       if (data.requirePinApproval !== undefined) payload.require_pin_approval = data.requirePinApproval;
       if (data.folderId !== undefined) payload.folder = data.folderId;
+      if (data.curatedCategory !== undefined) payload.curated_category = data.curatedCategory;
+      if (data.curatedCountry !== undefined) payload.curated_country = data.curatedCountry;
+      if (data.curatedCity !== undefined) payload.curated_city = data.curatedCity;
+      // `curated` is never touched here — an owner files and submits, an
+      // admin lists. See the route for the guard on this value.
+      if (data.discoverStatus !== undefined) payload.discover_status = data.discoverStatus;
 
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
@@ -803,6 +813,10 @@ class DirectusStorage implements IStorage {
         curated_city: data.curatedCity ?? null,
         curated_order: data.curatedOrder ?? null,
         curated_tagline: data.curatedTagline ?? null,
+        // Curating a map answers any submission on it, so the two stay in
+        // step even when an admin acts straight from Directus-side habits
+        // rather than the review queue.
+        discover_status: data.discoverStatus ?? (data.curated ? "approved" : "none"),
       };
       const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);

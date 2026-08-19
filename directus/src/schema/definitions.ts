@@ -2,6 +2,8 @@ import {
   CURATED_CATEGORY,
   CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
+  DISCOVER_STATUS,
+  DISCOVER_STATUS_LABELS,
   INVITATION_STATUS,
   ITEM_TYPE,
   ITEM_TYPE_LABELS,
@@ -186,6 +188,12 @@ export const mapCollectionsCollection: CollectionDefinition = {
     richTextField("curated_tagline", {
       nullable: true,
       note: "Short editorial blurb shown on the Discover card, distinct from this map's own owner-written description.",
+    }),
+    selectField("discover_status", DISCOVER_STATUS, {
+      defaultValue: "none",
+      nullable: false,
+      labels: DISCOVER_STATUS_LABELS,
+      note: "Review state of the owner's request to be listed on /discover. 'pending' is an owner asking; approving one means setting curated above to true. This field alone lists nothing.",
     }),
     dateCreatedField(),
   ],

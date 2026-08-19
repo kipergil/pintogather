@@ -23,6 +23,18 @@ if (!globalThis.ResizeObserver) {
   };
 }
 
+// Radix's Select opens on a pointer event and then scrolls the highlighted
+// option into view; jsdom has neither API, so without these every test that
+// opens a dropdown dies with "target.hasPointerCapture is not a function".
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 if (!window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: false,
