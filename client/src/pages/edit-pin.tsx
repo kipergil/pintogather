@@ -6,14 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, AtSign, ExternalLink, ImageIcon, Link2, MapPin, MapPinned, Save, Loader2, ChevronDown, X } from "lucide-react";
+import { ArrowLeft, AtSign, ExternalLink, ImageIcon, Link2, MapPin, MapPinned, Save, Loader2, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PinStylePicker } from "@/components/pin-style-picker";
+import { OptionalSection } from "@/components/optional-section";
+import { VenueDetailsFields } from "@/components/venue-details-fields";
 import { SocialLinksFields } from "@/components/social-links-fields";
-import type { PinColor, PinIcon } from "@shared/enums";
+import type { PinColor, PinIcon, VenueType } from "@shared/enums";
+import type { VenueDetails } from "@/components/venue-details-fields";
 import { ITEM_NOUN } from "@shared/vocabulary";
 
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
@@ -26,7 +28,7 @@ interface EditPinProps {
   };
 }
 
-interface PinFormData {
+interface PinFormFields {
   title: string;
   url: string;
   twitterHandle: string;
@@ -37,6 +39,9 @@ interface PinFormData {
   pinColor: PinColor | null;
   pinIcon: PinIcon | null;
 }
+
+/** The pin's own fields, plus the venue facts VenueDetailsFields manages. */
+type PinFormData = PinFormFields & VenueDetails;
 
 interface PinRecord {
   id: string;
@@ -52,6 +57,15 @@ interface PinRecord {
   googleMapsUrl?: string | null;
   /** The venue's own site, from Google Places — the source for social suggestions. */
   website?: string | null;
+  venueType?: VenueType | null;
+  priceLevel?: number | null;
+  editorialSummary?: string | null;
+  city?: string | null;
+  state?: string | null;
+  town?: string | null;
+  borough?: string | null;
+  postcode?: string | null;
+  country?: string | null;
   photoUrl?: string | null;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
@@ -96,7 +110,6 @@ export default function EditPin({ params }: EditPinProps) {
   const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
-  const [showPinStyle, setShowPinStyle] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<PinFormData>({
@@ -109,6 +122,16 @@ export default function EditPin({ params }: EditPinProps) {
     photoUrl: null,
     pinColor: null,
     pinIcon: null,
+    website: "",
+    venueType: null,
+    priceLevel: null,
+    editorialSummary: "",
+    city: "",
+    state: "",
+    town: "",
+    borough: "",
+    postcode: "",
+    country: "",
   });
 
   // Fetch pin data
@@ -127,6 +150,9 @@ export default function EditPin({ params }: EditPinProps) {
   // own noun rather than always saying "pin".
   const noun = ITEM_NOUN[pin?.itemType ?? "location"];
   const Noun = noun.one.charAt(0).toUpperCase() + noun.one.slice(1);
+  // Venue and address details only mean anything for a place; a link or a
+  // recommendation has no opening hours or postcode to correct.
+  const isLocation = (pin?.itemType ?? "location") === "location";
 
   // Populate form when pin data loads, falling back to the signed-in user's
   // own profile for empty fields
@@ -156,8 +182,17 @@ export default function EditPin({ params }: EditPinProps) {
         photoUrl: pin.photoUrl ?? null,
         pinColor: pin.pinColor ?? null,
         pinIcon: pin.pinIcon ?? null,
+        website: pin.website || "",
+        venueType: pin.venueType ?? null,
+        priceLevel: pin.priceLevel ?? null,
+        editorialSummary: pin.editorialSummary || "",
+        city: pin.city || "",
+        state: pin.state || "",
+        town: pin.town || "",
+        borough: pin.borough || "",
+        postcode: pin.postcode || "",
+        country: pin.country || "",
       });
-      if (pin.pinColor || pin.pinIcon) setShowPinStyle(true);
     }
   }, [pin, user, shareUrl, setLocation, toast]);
 
@@ -193,7 +228,32 @@ export default function EditPin({ params }: EditPinProps) {
 
   const updatePinMutation = useMutation({
     mutationFn: async (data: PinFormData) => {
-      const response = await apiRequest("PUT", `/api/pins/${pinId}`, data);
+      // Blanking a field has to reach the server as null, not "" — these are
+      // nullable columns, and an empty string would read as a real (empty)
+      // value on the pin rather than "not known".
+      const orNull = (value: string) => value.trim() || null;
+      const payload = {
+        title: data.title,
+        url: data.url,
+        twitterHandle: data.twitterHandle,
+        instagramHandle: data.instagramHandle,
+        linkedinHandle: data.linkedinHandle,
+        note: data.note,
+        photoUrl: data.photoUrl,
+        pinColor: data.pinColor,
+        pinIcon: data.pinIcon,
+        website: orNull(data.website),
+        venueType: data.venueType,
+        priceLevel: data.priceLevel,
+        editorialSummary: orNull(data.editorialSummary),
+        city: orNull(data.city),
+        state: orNull(data.state),
+        town: orNull(data.town),
+        borough: orNull(data.borough),
+        postcode: orNull(data.postcode),
+        country: orNull(data.country),
+      };
+      const response = await apiRequest("PUT", `/api/pins/${pinId}`, payload);
       return response.json();
     },
     onSuccess: () => {
@@ -220,17 +280,7 @@ export default function EditPin({ params }: EditPinProps) {
 
     setLoading(true);
     try {
-      updatePinMutation.mutate({
-        title: formData.title,
-        url: formData.url || "",
-        twitterHandle: formData.twitterHandle || "",
-        instagramHandle: formData.instagramHandle || "",
-        linkedinHandle: formData.linkedinHandle || "",
-        note: formData.note || "",
-        photoUrl: formData.photoUrl,
-        pinColor: formData.pinColor,
-        pinIcon: formData.pinIcon,
-      });
+      updatePinMutation.mutate(formData);
     } catch (error: any) {
       toast({
         title: "Couldn't save it",
@@ -416,35 +466,35 @@ export default function EditPin({ params }: EditPinProps) {
 
               </FormSection>
 
+              {isLocation && (
+                <FormSection
+                  title="Venue details"
+                  hint="Filled in from Google when this was added. Correct anything that's wrong or missing."
+                >
+                  <VenueDetailsFields
+                    value={formData}
+                    onChange={(details) => setFormData({ ...formData, ...details })}
+                    noteLabel={noteLabel}
+                  />
+                </FormSection>
+              )}
+
               {hasPinCustomization && (
                 <FormSection title="Appearance" hint="How this pin looks on the map.">
-                <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
-                      data-testid="button-toggle-pin-style"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <MapPinned className="h-3.5 w-3.5" />
-                        Pin color & icon
-                        <span className="text-xs font-normal text-muted-foreground/70">optional</span>
-                      </span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-3 space-y-3">
-                    <p className="text-xs text-muted-foreground -mt-1">
-                      Leave this as the default to use the map's usual pin style.
-                    </p>
-                    <PinStylePicker
-                      color={formData.pinColor}
-                      icon={formData.pinIcon}
-                      onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
-                      noneLabel="Collection default"
-                    />
-                  </CollapsibleContent>
-                </Collapsible>
+                <OptionalSection
+                  title="Pin color & icon"
+                  icon={<MapPinned className="h-3.5 w-3.5" />}
+                  hint="Leave this as the default to use the collection's usual pin style."
+                  defaultOpen={!!(pin.pinColor || pin.pinIcon)}
+                  testId="button-toggle-pin-style"
+                >
+                  <PinStylePicker
+                    color={formData.pinColor}
+                    icon={formData.pinIcon}
+                    onChange={({ color, icon }) => setFormData({ ...formData, pinColor: color, pinIcon: icon })}
+                    noneLabel="Collection default"
+                  />
+                </OptionalSection>
                 </FormSection>
               )}
 

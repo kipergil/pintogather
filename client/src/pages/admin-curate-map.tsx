@@ -12,13 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Compass, ExternalLink, Loader2, Save, Shield } from "lucide-react";
+import { ArrowLeft, Compass, ExternalLink, Loader2, Save, Shield, X } from "lucide-react";
 import {
   CURATED_CATEGORY,
   CURATED_CITY_BY_COUNTRY,
   CURATED_COUNTRY,
   type CuratedCategory,
   type CuratedCountry,
+  type DiscoverStatus,
 } from "@shared/enums";
 import { CURATED_CATEGORY_LABELS, CURATED_COUNTRY_LABELS } from "@/lib/curated-maps";
 
@@ -38,6 +39,8 @@ interface AdminMapDetail {
   curatedCity: string | null;
   curatedOrder: number | null;
   curatedTagline: string | null;
+  /** "pending" means the owner asked for this themselves, rather than an admin picking the collection out. */
+  discoverStatus: DiscoverStatus;
 }
 
 const NONE = "__none__";
@@ -86,24 +89,30 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
   }, [citiesForCountry, city]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (verdict: { curated: boolean; discoverStatus: DiscoverStatus }) => {
       const response = await apiRequest("PUT", `/api/admin/maps/${mapId}/curate`, {
-        curated,
+        curated: verdict.curated,
         curatedCategory: category === NONE ? null : category,
         curatedCountry: country === NONE ? null : country,
         curatedCity: city === NONE ? null : city,
         curatedOrder: order.trim() ? Number(order) : null,
         curatedTagline: tagline.trim() || null,
+        discoverStatus: verdict.discoverStatus,
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, verdict) => {
       queryClient.invalidateQueries({ queryKey: ["admin", "maps"] });
       queryClient.invalidateQueries({ queryKey: [`/api/admin/maps/${mapId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/discover"] });
       toast({
-        title: curated ? "Collection curated" : "Collection updated",
-        description: curated ? "It's now visible on /discover." : "Curation changes saved.",
+        title:
+          verdict.discoverStatus === "rejected"
+            ? "Request turned down"
+            : verdict.curated
+              ? "Collection curated"
+              : "Collection updated",
+        description: verdict.curated ? "It's now visible on /discover." : "Curation changes saved.",
         variant: "success",
       });
       setLocation("/admin");
@@ -127,8 +136,16 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
       });
       return;
     }
-    saveMutation.mutate();
+    // An admin saving with curation on is the answer to any request on this
+    // collection; saving with it off leaves a pending request pending, since
+    // editing a draft entry isn't the same as turning it down.
+    saveMutation.mutate({
+      curated,
+      discoverStatus: curated ? "approved" : map?.discoverStatus === "pending" ? "pending" : "none",
+    });
   };
+
+  const turnDown = () => saveMutation.mutate({ curated: false, discoverStatus: "rejected" });
 
   if (authLoading || (isLoading && isAdmin)) {
     return (
@@ -201,6 +218,12 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
             )}
           </div>
           <p className="text-sm text-muted-foreground">Owner: {map.ownerName || "(no owner)"} — stays unchanged</p>
+          {map.discoverStatus === "pending" && (
+            <p className="text-sm text-primary" data-testid="text-owner-request">
+              The owner asked to be featured. Turning curation on answers the request; "Turn down request" declines it
+              without changing anything else.
+            </p>
+          )}
           <a
             href={`/map/${map.shareUrl}`}
             target="_blank"
@@ -304,14 +327,34 @@ export default function AdminCurateMap({ params }: AdminCurateMapProps) {
               <p className="text-xs text-muted-foreground text-right">{tagline.length}/200</p>
             </div>
 
-            <Button type="submit" className="w-full" disabled={saveMutation.isPending} data-testid="button-save-curation">
-              {saveMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={saveMutation.isPending}
+                data-testid="button-save-curation"
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {saveMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+              {map.discoverStatus === "pending" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:w-auto"
+                  onClick={turnDown}
+                  disabled={saveMutation.isPending}
+                  data-testid="button-decline-curation"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Turn down request
+                </Button>
               )}
-              {saveMutation.isPending ? "Saving…" : "Save"}
-            </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

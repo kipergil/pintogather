@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { insertPinSchema, bulkInsertPinsSchema, updatePinSchema } from "./schema.js";
+import {
+  insertPinSchema,
+  bulkInsertPinsSchema,
+  curateMapSchema,
+  isDiscoverSubmittable,
+  updateMapDetailsSchema,
+  updatePinSchema,
+} from "./schema.js";
 
 const LOCATION_PIN = {
   mapId: "map-1",
@@ -143,5 +150,66 @@ describe("updatePinSchema", () => {
     const result = updatePinSchema.safeParse({ note: "x", approved: true });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data).not.toHaveProperty("approved");
+  });
+});
+
+describe("Discover filing", () => {
+  const FILED = { curatedCategory: "food-drink", curatedCountry: "uk", curatedCity: "London" } as const;
+
+  it("accepts an owner filing their collection", () => {
+    expect(updateMapDetailsSchema.safeParse(FILED).success).toBe(true);
+  });
+
+  it.each(["none", "pending"] as const)("lets an owner set discoverStatus to %s", (discoverStatus) => {
+    expect(updateMapDetailsSchema.safeParse({ discoverStatus }).success).toBe(true);
+  });
+
+  it.each(["approved", "rejected"] as const)("refuses an owner setting discoverStatus to %s", (discoverStatus) => {
+    // Approving your own collection onto Discover is the admin's call — the
+    // narrower enum is what keeps the review from being optional.
+    expect(updateMapDetailsSchema.safeParse({ discoverStatus }).success).toBe(false);
+  });
+
+  it("has no way to express `curated`, so an owner can't list themselves", () => {
+    const parsed = updateMapDetailsSchema.parse({ ...FILED, curated: true } as never);
+    expect(parsed).not.toHaveProperty("curated");
+  });
+
+  it("rejects a category outside the closed list", () => {
+    expect(updateMapDetailsSchema.safeParse({ curatedCategory: "whatever-i-like" }).success).toBe(false);
+  });
+
+  describe("isDiscoverSubmittable", () => {
+    it("is true only with all three filled in", () => {
+      expect(isDiscoverSubmittable(FILED)).toBe(true);
+    });
+
+    it.each([
+      ["no category", { ...FILED, curatedCategory: null }],
+      ["no country", { ...FILED, curatedCountry: null }],
+      ["no city", { ...FILED, curatedCity: null }],
+    ])("is false with %s", (_label, map) => {
+      expect(isDiscoverSubmittable(map as never)).toBe(false);
+    });
+
+    it("is false when the city belongs to a different country", () => {
+      // The Discover filters are cascading, so a UK collection filed under
+      // Paris would be unreachable by either filter path.
+      expect(isDiscoverSubmittable({ ...FILED, curatedCity: "Paris" })).toBe(false);
+    });
+  });
+
+  describe("curateMapSchema — the admin's side", () => {
+    it("accepts an approval", () => {
+      expect(curateMapSchema.safeParse({ curated: true, ...FILED, discoverStatus: "approved" }).success).toBe(true);
+    });
+
+    it("accepts a turned-down request", () => {
+      expect(curateMapSchema.safeParse({ curated: false, ...FILED, discoverStatus: "rejected" }).success).toBe(true);
+    });
+
+    it("still refuses listing a collection with nothing to file it under", () => {
+      expect(curateMapSchema.safeParse({ curated: true, discoverStatus: "approved" }).success).toBe(false);
+    });
   });
 });

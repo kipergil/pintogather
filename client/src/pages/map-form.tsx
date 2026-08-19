@@ -9,7 +9,7 @@ import { TemplatePicker } from "@/components/template-picker";
 import { ItemTypePicker } from "@/components/item-type-picker";
 import { useAuth } from "@/contexts/AuthContext";
 import { TIER_LIMITS } from "@shared/limits";
-import type { ItemType, PinColor, PinIcon } from "@shared/enums";
+import type { CuratedCategory, CuratedCountry, DiscoverStatus, ItemType, PinColor, PinIcon } from "@shared/enums";
 import type { MapTemplate } from "@shared/schema";
 
 interface MapFormProps {
@@ -32,6 +32,10 @@ interface MapCollection {
   defaultPinColor?: PinColor | null;
   defaultPinIcon?: PinIcon | null;
   itemType?: ItemType;
+  curatedCategory?: CuratedCategory | null;
+  curatedCountry?: CuratedCountry | null;
+  curatedCity?: string | null;
+  discoverStatus?: DiscoverStatus;
 }
 
 export default function MapForm({ params }: MapFormProps) {
@@ -218,6 +222,12 @@ export default function MapForm({ params }: MapFormProps) {
                         mapCollection.requirePinApproval ?? true,
                       defaultPinColor: mapCollection.defaultPinColor ?? null,
                       defaultPinIcon: mapCollection.defaultPinIcon ?? null,
+                      discover: {
+                        curatedCategory: mapCollection.curatedCategory ?? null,
+                        curatedCountry: mapCollection.curatedCountry ?? null,
+                        curatedCity: mapCollection.curatedCity ?? null,
+                        discoverStatus: mapCollection.discoverStatus ?? "none",
+                      },
                       shareUrl: mapCollection.shareUrl,
                     }
                   : template

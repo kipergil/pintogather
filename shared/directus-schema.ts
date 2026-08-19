@@ -1,6 +1,7 @@
 import type {
   CuratedCategory,
   CuratedCountry,
+  DiscoverStatus,
   InvitationStatus,
   ItemType,
   MapViewerRole,
@@ -71,6 +72,8 @@ export interface MapCollection {
   curated_city: string | null;
   curated_order: number | null;
   curated_tagline: string | null;
+  /** Owner's request to appear on /discover, and the admin's answer. Only `curated` above actually lists a map. */
+  discover_status: DiscoverStatus;
   /** Set once at clone time (POST /api/maps/:shareUrl/clone); never editable afterward. Null if this map wasn't cloned, or its original was deleted. */
   forked_from_map: string | null;
   /** Private, owner-only organization folder this map is filed under. Never exposed to non-owners. */

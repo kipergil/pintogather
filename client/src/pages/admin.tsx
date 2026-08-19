@@ -12,7 +12,7 @@ import { Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { OpenInDirectusButton } from "@/components/open-in-directus-button";
 import { CURATED_CATEGORY_LABELS } from "@/lib/curated-maps";
-import type { CuratedCategory } from "@shared/enums";
+import type { CuratedCategory, CuratedCountry, DiscoverStatus } from "@shared/enums";
 
 interface UserProfile {
   id: string;
@@ -31,6 +31,10 @@ interface AdminMapSummary {
   ownerName: string | null;
   curated: boolean;
   curatedCategory: CuratedCategory | null;
+  curatedCountry: CuratedCountry | null;
+  curatedCity: string | null;
+  /** Where the owner's own request to be featured stands. Owners file the category/country/city themselves now; listing is still decided here. */
+  discoverStatus: DiscoverStatus;
   createdAt: string;
 }
 
@@ -76,6 +80,11 @@ export default function AdminPage() {
       (m) => m.name.toLowerCase().includes(query) || (m.ownerName ?? "").toLowerCase().includes(query),
     );
   }, [maps, mapSearch]);
+
+  // Owners can ask to be featured on /discover, so the admin screen needs a
+  // queue rather than only a search box — a request nobody looks at is the
+  // same as no request at all.
+  const pendingMaps = useMemo(() => maps.filter((m) => m.discoverStatus === "pending"), [maps]);
 
   const updateUserGroupMutation = useMutation({
     mutationFn: async ({ userId, userGroup }: { userId: string; userGroup: string }) => {
@@ -275,6 +284,47 @@ export default function AdminPage() {
             </p>
           </CardHeader>
           <CardContent>
+            {pendingMaps.length > 0 && (
+              <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-4" data-testid="panel-discover-requests">
+                <h3 className="font-semibold text-gray-900 mb-1">
+                  {pendingMaps.length} collection{pendingMaps.length === 1 ? "" : "s"} waiting for review
+                </h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  Owners who've asked to be featured on /discover. Reviewing one means curating it — or turning it down.
+                </p>
+                <div className="space-y-2">
+                  {pendingMaps.map((map) => (
+                    <div
+                      key={map.id}
+                      className="flex items-center justify-between gap-3 rounded-md border bg-background p-3"
+                      data-testid={`row-discover-request-${map.id}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{map.name}</p>
+                        <p className="text-sm text-gray-500 truncate">
+                          {[
+                            map.curatedCategory ? CURATED_CATEGORY_LABELS[map.curatedCategory] : null,
+                            map.curatedCity,
+                            map.ownerName ? `by ${map.ownerName}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => setLocation(`/admin/maps/${map.id}/curate`)}
+                        data-testid={`button-review-map-${map.id}`}
+                      >
+                        Review
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="relative mb-4 max-w-sm">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input

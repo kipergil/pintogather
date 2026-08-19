@@ -5,17 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, Copy, ExternalLink, ImageIcon, Loader2, Lock, MapPinned, MessageSquareText, Plus, Save, Upload } from "lucide-react";
+import { Compass, Copy, ExternalLink, ImageIcon, Loader2, Lock, MapPinned, MessageSquareText, Plus, Save, Upload, Users } from "lucide-react";
 import { Link } from "wouter";
 import { TIER_LIMITS } from "@shared/limits";
+import { DISCOVER_STATUS_LABELS } from "@shared/enums";
 import type { ItemType, PinColor, PinIcon } from "@shared/enums";
 import { PinStylePicker } from "@/components/pin-style-picker";
+import { OptionalSection } from "@/components/optional-section";
+import { DiscoverListingFields, type DiscoverListingValue } from "@/components/discover-listing-fields";
 import { APP_NAME } from "@/lib/branding";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024; // 5MB, matches the server-side limit
@@ -31,6 +33,8 @@ interface MapDetailsFormData {
   requirePinApproval: boolean;
   defaultPinColor: PinColor | null;
   defaultPinIcon: PinIcon | null;
+  /** How this collection is filed on the public Discover page, and whether its owner has asked to be listed there. */
+  discover: DiscoverListingValue;
 }
 
 interface CreateMapFormProps {
@@ -79,14 +83,13 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
     requirePinApproval: initialValues?.requirePinApproval ?? true,
     defaultPinColor: initialValues?.defaultPinColor ?? null,
     defaultPinIcon: initialValues?.defaultPinIcon ?? null,
+    discover: initialValues?.discover ?? {
+      curatedCategory: null,
+      curatedCountry: null,
+      curatedCity: null,
+      discoverStatus: "none",
+    },
   });
-  const [showNoteCustomization, setShowNoteCustomization] = useState(
-    !!(initialValues?.noteLabel || initialValues?.notePrompt),
-  );
-  const [showBranding, setShowBranding] = useState(!!initialValues?.brandingLogoUrl);
-  const [showPinStyle, setShowPinStyle] = useState(
-    !!(initialValues?.defaultPinColor || initialValues?.defaultPinIcon),
-  );
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -187,6 +190,19 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         requirePinApproval: data.requirePinApproval,
         defaultPinColor: data.defaultPinColor,
         defaultPinIcon: data.defaultPinIcon,
+        curatedCategory: data.discover.curatedCategory,
+        curatedCountry: data.discover.curatedCountry,
+        curatedCity: data.discover.curatedCity,
+        // Only ever "none" or "pending" from here — the server rejects an
+        // owner trying to write the admin's own verdict. An untouched
+        // "approved"/"rejected" is left out of the payload entirely: sending
+        // "none" for it would read as a withdrawal and quietly take a live
+        // collection off Discover on an unrelated save.
+        ...(data.discover.discoverStatus === "pending"
+          ? { discoverStatus: "pending" as const }
+          : data.discover.discoverStatus === "none"
+            ? { discoverStatus: "none" as const }
+            : {}),
       };
       const response = await apiRequest("PUT", `/api/maps/${mapId}/details`, mapData);
       return response.json();
@@ -260,58 +276,52 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
-        <div className="space-y-0.5">
-          <Label htmlFor="requirePinApproval">Require approval for new items</Label>
-          <p className="text-xs text-muted-foreground">
-            Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
-          </p>
-        </div>
-        <Switch
-          id="requirePinApproval"
-          checked={formData.requirePinApproval}
-          onCheckedChange={(checked) => setFormData({ ...formData, requirePinApproval: checked })}
-          data-testid="switch-require-pin-approval"
-        />
-      </div>
-
-      {isEditing && (
+      <OptionalSection
+        title="Who can add and see it"
+        icon={<Users className="h-3.5 w-3.5" />}
+        hint="Sensible defaults are already set: contributions wait for your approval, and the collection stays off your public profile until you say otherwise."
+        testId="button-toggle-visibility"
+      >
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
           <div className="space-y-0.5">
-            <Label htmlFor="showOnProfile">Show on public profile</Label>
+            <Label htmlFor="requirePinApproval">Require approval for new items</Label>
             <p className="text-xs text-muted-foreground">
-              List this collection on your public profile page. Hidden ones stay private to you.
+              Pins from anyone but you stay hidden until you approve them. Turn this off to have them go live right away.
             </p>
           </div>
           <Switch
-            id="showOnProfile"
-            checked={formData.showOnProfile}
-            onCheckedChange={(checked) => setFormData({ ...formData, showOnProfile: checked })}
-            data-testid="switch-show-on-profile"
+            id="requirePinApproval"
+            checked={formData.requirePinApproval}
+            onCheckedChange={(checked) => setFormData({ ...formData, requirePinApproval: checked })}
+            data-testid="switch-require-pin-approval"
           />
         </div>
-      )}
 
-      <Collapsible open={showNoteCustomization} onOpenChange={setShowNoteCustomization}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
-            data-testid="button-toggle-note-customization"
-          >
-            <span className="flex items-center gap-1.5">
-              <MessageSquareText className="h-3.5 w-3.5" />
-              Customise the note question
-              <span className="text-xs font-normal text-muted-foreground/70">optional</span>
-            </span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showNoteCustomization ? "rotate-180" : ""}`} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-3">
-          <p className="text-xs text-muted-foreground -mt-1">
-            Ask contributors something specific instead of a generic "Note" — e.g. "Favourite dish" with the
-            prompt "What should people order here?"
-          </p>
+        {isEditing && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="showOnProfile">Show on public profile</Label>
+              <p className="text-xs text-muted-foreground">
+                List this collection on your public profile page. Hidden ones stay private to you.
+              </p>
+            </div>
+            <Switch
+              id="showOnProfile"
+              checked={formData.showOnProfile}
+              onCheckedChange={(checked) => setFormData({ ...formData, showOnProfile: checked })}
+              data-testid="switch-show-on-profile"
+            />
+          </div>
+        )}
+      </OptionalSection>
+
+      <OptionalSection
+        title="Customise the note question"
+        icon={<MessageSquareText className="h-3.5 w-3.5" />}
+        hint={`Ask contributors something specific instead of a generic "Note" — e.g. "Favourite dish" with the prompt "What should people order here?"`}
+        defaultOpen={!!(initialValues?.noteLabel || initialValues?.notePrompt)}
+        testId="button-toggle-note-customization"
+      >
           <div className="space-y-2">
             <Label htmlFor="noteLabel">Note field label</Label>
             <Input
@@ -335,29 +345,15 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
               data-testid="input-note-prompt"
             />
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+      </OptionalSection>
 
-      <Collapsible open={showBranding} onOpenChange={setShowBranding}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
-            data-testid="button-toggle-branding"
-          >
-            <span className="flex items-center gap-1.5">
-              <ImageIcon className="h-3.5 w-3.5" />
-              Public branding
-              <span className="text-xs font-normal text-muted-foreground/70">optional</span>
-            </span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showBranding ? "rotate-180" : ""}`} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-3">
-          <p className="text-xs text-muted-foreground -mt-1">
-            Add your own logo and this collection gets a clean, read-only public page with no {APP_NAME} branding —
-            just your logo, the description above, and the map.
-          </p>
+      <OptionalSection
+        title="Public branding"
+        icon={<ImageIcon className="h-3.5 w-3.5" />}
+        hint={`Add your own logo and this collection gets a clean, read-only public page with no ${APP_NAME} branding — just your logo, the description above, and the collection itself.`}
+        defaultOpen={!!initialValues?.brandingLogoUrl}
+        testId="button-toggle-branding"
+      >
           {hasCustomBranding ? (
             <div className="space-y-2">
               <Label>Logo</Label>
@@ -458,29 +454,38 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
               </p>
             </div>
           )}
-        </CollapsibleContent>
-      </Collapsible>
+      </OptionalSection>
+
+      {isEditing && (
+        <OptionalSection
+          title="Feature it on Discover"
+          icon={<Compass className="h-3.5 w-3.5" />}
+          hint="Tell people what this collection covers, and ask us to feature it on the public Discover page. Filling these in doesn't publish anything on its own."
+          defaultOpen={formData.discover.discoverStatus !== "none"}
+          badge={
+            formData.discover.discoverStatus !== "none" ? (
+              <span className="text-xs font-normal text-primary shrink-0" data-testid="badge-discover-status">
+                {DISCOVER_STATUS_LABELS[formData.discover.discoverStatus]}
+              </span>
+            ) : undefined
+          }
+          testId="button-toggle-discover"
+        >
+          <DiscoverListingFields
+            value={formData.discover}
+            onChange={(discover) => setFormData({ ...formData, discover })}
+          />
+        </OptionalSection>
+      )}
 
       {(itemType ?? "location") === "location" && (
-      <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-1"
-            data-testid="button-toggle-pin-style"
-          >
-            <span className="flex items-center gap-1.5">
-              <MapPinned className="h-3.5 w-3.5" />
-              Default pin colour & icon
-              <span className="text-xs font-normal text-muted-foreground/70">optional</span>
-            </span>
-            <ChevronDown className={`h-4 w-4 transition-transform ${showPinStyle ? "rotate-180" : ""}`} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-3">
-          <p className="text-xs text-muted-foreground -mt-1">
-            Set the default look for pins in this collection. Contributors can still override it per pin.
-          </p>
+      <OptionalSection
+        title="Default pin colour & icon"
+        icon={<MapPinned className="h-3.5 w-3.5" />}
+        hint="Set the default look for pins in this collection. Contributors can still override it per pin."
+        defaultOpen={!!(initialValues?.defaultPinColor || initialValues?.defaultPinIcon)}
+        testId="button-toggle-pin-style"
+      >
           {hasPinCustomization ? (
             <PinStylePicker
               color={formData.defaultPinColor}
@@ -500,8 +505,7 @@ export function CreateMapForm({ onCreated, mapId, initialValues, itemType }: Cre
               </Link>
             </div>
           )}
-        </CollapsibleContent>
-      </Collapsible>
+      </OptionalSection>
       )}
 
       <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-submit-map-form">

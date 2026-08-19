@@ -125,6 +125,28 @@ export const CURATED_CITY_BY_COUNTRY: Record<CuratedCountry, readonly string[]> 
 export const CURATED_CITY = Object.values(CURATED_CITY_BY_COUNTRY).flat() as string[];
 
 /**
+ * Where a collection stands in the Discover review queue.
+ *
+ * Discover listing itself is still the `curated` boolean — this field only
+ * records the owner's *request* and the admin's answer to it, so the
+ * /discover page's own query never has to change. An owner can move a
+ * collection between "none" and "pending"; only an admin writes "approved"
+ * or "rejected".
+ */
+export const DISCOVER_STATUS = ["none", "pending", "approved", "rejected"] as const;
+export type DiscoverStatus = (typeof DISCOVER_STATUS)[number];
+
+/** The two values a collection's owner is allowed to set — submitting, and withdrawing a submission. */
+export const OWNER_DISCOVER_STATUS = ["none", "pending"] as const;
+
+export const DISCOVER_STATUS_LABELS: Record<DiscoverStatus, string> = {
+  none: "Not submitted",
+  pending: "Waiting for review",
+  approved: "Listed on Discover",
+  rejected: "Not accepted",
+};
+
+/**
  * Curated subset of Google Places' legacy "type" strings (see
  * https://developers.google.com/maps/documentation/places/web-service/supported_types),
  * covering the categories most likely for a pin worth adding to a map. A
