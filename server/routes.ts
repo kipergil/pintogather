@@ -26,6 +26,7 @@ import { checkAndIncrementAiUsage, getAiUsageToday } from "./services/aiUsage.js
 import { sensitiveWriteRateLimiter } from "./lib/security.js";
 import { APP_NAME, CURATED_MAPS_SYSTEM_USERNAME } from "./lib/branding.js";
 import { fetchLinkPreview, LinkPreviewError } from "./lib/link-preview.js";
+import { discoverSocialLinks } from "./lib/social-discovery.js";
 import { EXTRACT_SYSTEM_PROMPTS, parseExtractedItems } from "./lib/extract-items.js";
 import { injectPageMeta } from "./lib/ogMeta.js";
 
@@ -2098,6 +2099,31 @@ export async function registerRoutes(app: Express): Promise<void> {
      }
   });
   
+  /**
+   * Suggests the social accounts a venue's own website links to.
+   *
+   * Signed-in only and rate-limited alongside the other outbound-fetch route:
+   * this makes the server fetch a URL the caller chose, so it carries the
+   * same abuse surface as link-preview and reuses its SSRF guards.
+   *
+   * Always 200s with whatever it found, including nothing. These are
+   * suggestions on a form the person didn't ask to interact with — a venue
+   * with a dead website should quietly produce no suggestions rather than an
+   * error they have to dismiss.
+   */
+  app.post("/api/social-suggestions", isAuthenticated, sensitiveWriteRateLimiter, async (req, res) => {
+    try {
+      const { website } = z.object({ website: z.string().trim().min(1).max(2048) }).parse(req.body);
+      res.json({ suggestions: await discoverSocialLinks(website) });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "A website URL is required." });
+      }
+      console.error("Social suggestion error:", error);
+      res.json({ suggestions: {} });
+    }
+  });
+
   // Bulk approve, for the pin table's multi-select in "Pending only" view.
   // Owner-only per pin, same authorization as the single-approve route above,
   // just applied to each requested id — a request can partially succeed if

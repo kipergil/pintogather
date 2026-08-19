@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PinStylePicker } from "@/components/pin-style-picker";
+import { SocialLinksFields } from "@/components/social-links-fields";
 import type { PinColor, PinIcon } from "@shared/enums";
 import { ITEM_NOUN } from "@shared/vocabulary";
 
@@ -49,6 +50,8 @@ interface PinRecord {
   linkedinHandle?: string;
   note?: string;
   googleMapsUrl?: string | null;
+  /** The venue's own site, from Google Places — the source for social suggestions. */
+  website?: string | null;
   photoUrl?: string | null;
   pinColor?: PinColor | null;
   pinIcon?: PinIcon | null;
@@ -58,6 +61,31 @@ interface MapCollectionSettings {
   noteLabel?: string | null;
   notePrompt?: string | null;
   hasPinCustomization?: boolean;
+}
+
+/**
+ * One labelled group of fields. The edit form used to be a single column of
+ * eight unrelated inputs; grouping them means you can find the one you came
+ * for without reading all of them.
+ */
+function FormSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="space-y-0.5">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function EditPin({ params }: EditPinProps) {
@@ -118,9 +146,12 @@ export default function EditPin({ params }: EditPinProps) {
       setFormData({
         title: pin.title || "",
         url: pin.url || "",
-        twitterHandle: pin.twitterHandle || user?.twitterHandle || "",
-        instagramHandle: pin.instagramHandle || user?.instagramHandle || "",
-        linkedinHandle: pin.linkedinHandle || user?.linkedinHandle || "",
+        // Only what's on the pin. Inheriting the contributor's own handles
+        // put a personal Instagram on a restaurant's pin without saying so;
+        // SocialLinksFields offers them behind a button instead.
+        twitterHandle: pin.twitterHandle || "",
+        instagramHandle: pin.instagramHandle || "",
+        linkedinHandle: pin.linkedinHandle || "",
         note: pin.note || "",
         photoUrl: pin.photoUrl ?? null,
         pinColor: pin.pinColor ?? null,
@@ -276,7 +307,8 @@ export default function EditPin({ params }: EditPinProps) {
 
         <Card className="border-border">
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-7">
+              <FormSection title="Basic details">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -304,43 +336,24 @@ export default function EditPin({ params }: EditPinProps) {
                   />
                 </div>
               )}
+              </FormSection>
 
-              <div className="space-y-2.5">
-                <Label className="text-sm text-muted-foreground">Social links (optional)</Label>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="X (Twitter) handle or URL"
-                    value={formData.twitterHandle}
-                    onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                    className="pl-9"
-                    data-testid="input-twitter"
-                  />
-                </div>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Instagram handle or URL"
-                    value={formData.instagramHandle}
-                    onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                    className="pl-9"
-                    data-testid="input-instagram"
-                  />
-                </div>
-                <div className="relative">
-                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="LinkedIn handle or URL"
-                    value={formData.linkedinHandle}
-                    onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                    className="pl-9"
-                    data-testid="input-linkedin"
-                  />
-                </div>
-              </div>
+              <FormSection
+                title="Additional info"
+                hint="Everything here is optional — add what's useful for this one."
+              >
+              <SocialLinksFields
+                value={{
+                  twitterHandle: formData.twitterHandle,
+                  instagramHandle: formData.instagramHandle,
+                  linkedinHandle: formData.linkedinHandle,
+                }}
+                onChange={(socials) => setFormData({ ...formData, ...socials })}
+                website={pin.website}
+              />
 
               <div className="space-y-2">
-                <Label htmlFor="note">{noteLabel} (optional)</Label>
+                <Label htmlFor="note">{noteLabel}</Label>
                 {notePrompt && <p className="text-xs text-muted-foreground -mt-1">{notePrompt}</p>}
                 <Textarea
                   id="note"
@@ -353,7 +366,7 @@ export default function EditPin({ params }: EditPinProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Photo (optional)</Label>
+                <Label>Photo</Label>
                 {formData.photoUrl ? (
                   <div className="relative w-fit">
                     <img
@@ -401,7 +414,10 @@ export default function EditPin({ params }: EditPinProps) {
                 )}
               </div>
 
+              </FormSection>
+
               {hasPinCustomization && (
+                <FormSection title="Appearance" hint="How this pin looks on the map.">
                 <Collapsible open={showPinStyle} onOpenChange={setShowPinStyle}>
                   <CollapsibleTrigger asChild>
                     <button
@@ -429,9 +445,10 @@ export default function EditPin({ params }: EditPinProps) {
                     />
                   </CollapsibleContent>
                 </Collapsible>
+                </FormSection>
               )}
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex gap-3 pt-1 border-t border-border">
                 <Link href={`/map/${shareUrl}`} className="flex-1">
                   <Button type="button" variant="outline" className="w-full">
                     Cancel

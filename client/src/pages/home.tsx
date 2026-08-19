@@ -918,34 +918,34 @@ function HowItWorksStep({
 
 const USE_CASES = [
   {
-    icon: Building2,
-    title: "Distributed teams",
-    description: "Map where colleagues are based and build stronger connections across offices and time zones.",
-  },
-  {
-    icon: HeartHandshake,
-    title: "Families & friends",
-    description: "Keep everyone connected across cities — homes, hangouts, and the places that matter.",
-  },
-  {
-    icon: Compass,
-    title: "Clubs & communities",
-    description: "Map club venues, event spaces, and member meetup spots around shared interests.",
-  },
-  {
     icon: PartyPopper,
-    title: "Event planning",
-    description: "Coordinate venues, accommodation, and local tips for weddings, reunions, and conferences.",
+    title: "Trips & weekends away",
+    description: "Everyone drops the places they've been saving, then Route mode puts them in a sensible order.",
   },
   {
     icon: BookOpen,
     title: "Reading lists",
-    description: "Gather the articles, papers, and talks your team keeps sending each other — paste a URL and it fills itself in.",
+    description: "The articles, papers, and talks your group keeps sending each other — paste a URL and it fills itself in.",
   },
   {
     icon: Star,
     title: "Recommendations",
-    description: "Books, films, tools, restaurants — whatever your group keeps asking each other for, kept in one place.",
+    description: "Books, films, tools, restaurants — whatever people keep asking each other for, answered once.",
+  },
+  {
+    icon: Building2,
+    title: "Distributed teams",
+    description: "Where colleagues are based, the tools you all rely on, the places worth a detour on a work trip.",
+  },
+  {
+    icon: HeartHandshake,
+    title: "Families & friends",
+    description: "Homes, hangouts, and the things you'd tell each other about anyway — kept somewhere you can find them.",
+  },
+  {
+    icon: Compass,
+    title: "Clubs & communities",
+    description: "Venues, resources, and members' own suggestions, with approval on so the list stays worth reading.",
   },
 ];
 

@@ -3,12 +3,17 @@ import { getSchemaClient } from "../lib/client.js";
 import { env } from "../lib/env.js";
 
 /**
- * One-time (but safe-to-re-run) seed for the initial static/marketing pages
- * — matched by slug, so re-running this after editing the copy below just
- * updates the existing rows instead of duplicating them. Content authored
- * here is a *starting point*: once seeded, edit it directly in the Directus
- * admin panel — this script never needs to run again unless you want to
- * reset a page back to its seed copy.
+ * Seed for the static marketing pages — matched by slug, so re-running after
+ * editing the copy below updates the existing rows rather than duplicating
+ * them. Content here is a starting point: once seeded it can be edited
+ * directly in the Directus admin panel.
+ *
+ * This script owns **how-it-works**, **who-its-for**, and **use-cases** only.
+ * The **features** and **changelog** pages belong to update-content.ts, which
+ * revises them as things ship. They used to be listed here as well, with the
+ * original map-only copy still frozen in — so running this would quietly
+ * revert the features page by years. If you add a page here, make sure
+ * nothing else writes the same slug.
  */
 const APP = env.APP_NAME;
 
@@ -24,147 +29,135 @@ const pages: SeedPage[] = [
   {
     slug: "how-it-works",
     title: `How ${APP} works`,
-    metaDescription: `Create a shareable map, invite people to drop pins on it, and watch a list of places turn into something everyone can actually use.`,
+    metaDescription: `Choose what you're collecting — places, links, or recommendations — share one link, and let everyone add to it. ${APP} turns a scattered group chat into one collection worth keeping.`,
     navOrder: 1,
-    content: `## From a blank map to something worth sharing
+    content: `## One link, everyone adds, everyone sees it
 
-${APP} turns "everyone send me your recommendations" into a single map anyone can add to, browse, and trust.
+"Send me your recommendations" produces a dozen messages nobody can find again. ${APP} gives that answer a home: one collection a group builds together, and can still read six months later.
 
-### 1. Create a map
+### 1. Choose what you're collecting
 
-Pick a template — weekend trip, neighborhood guide, wedding guest list, team locations, event guide — or start from scratch. Give it a name, and optionally customize what each pin asks for (the default is a simple note, but you can change the label and prompt to fit your map: "What should I order here?", "Where are you staying?", "What's the parking situation?").
+A collection isn't only a map. When you create one you pick what it holds, and everything after that adapts — the views, the wording, the way things are added, the CSV export:
+
+- **Places** — pins on a real map, with addresses, photos, and notes.
+- **Links** — paste a URL and the page's title, description, and image fill themselves in.
+- **Recommendations** — free-form entries for anything nameable: books, films, tools, dishes.
+
+You choose once, when you create it, so the whole collection stays coherent.
 
 ### 2. Share the link
 
-Every map gets a short, shareable URL. Anyone with the link can view it; depending on the permissions you set, they can also add their own pins — no account required. If you'd rather keep contributions curated, turn on approval mode: pins from anyone but you sit pending until you approve them.
+Every collection gets a short, shareable URL. Anyone with it can look; depending on the permissions you set, they can add too — **without an account**. That's usually the difference between a group actually contributing and one person doing all the work.
 
-### 3. People add pins
+### 3. Everyone adds — one at a time, or a hundred at once
 
-A contributor drops a pin by clicking the map or searching for a specific venue by name. Each pin can carry a name, a note, a photo, and social links. If your map is public, contributors don't need to sign up — they can add a pin anonymously in a few seconds.
+Adding lives on one screen, and you pick the way that suits what you've already got:
 
-### 4. Organize and explore
+- **One at a time** — search a venue, drop a pin on the map, or type an entry in.
+- **Paste a list** — one per line. Place names get looked up; links get their title and image fetched.
+- **A screenshot or photo** — a chat thread, a post, a photo of a menu. AI reads the items out of it.
+- **A file you already have** — .txt, .csv, or .xlsx.
+- **A description** — tell the AI what you're after and review what comes back.
 
-Once the map fills in, a few tools help you make sense of it:
+Whatever the source, everything lands in one review list first. You edit names, drop the wrong ones, and save the rest together. Nothing is added behind your back.
 
-- **Clustering** groups nearby pins together at a glance, so a busy map doesn't turn into an unreadable pile of markers.
-- **Route mode** lets you drag pins into a visiting order and see the distance between stops, with a driving-route line to match.
-- **The pin table** gives you a sortable, searchable list view alongside the map, with CSV export if you want the raw data elsewhere.
+### 4. Keep it curated
 
-### 5. Make it yours
+An open collection doesn't have to become a mess. Turn on approval and anything contributed by someone other than you waits for your nod before it's public — so a collection can be genuinely open and still be worth reading.
 
-Owners on a paid plan can add their own logo to a map's public page, and choose default pin colors and icons so every marker matches at a glance. Maps can also be listed on your public profile, or submitted to Discover so other people can find them.
+### 5. Organize and explore
 
-That's the whole loop: **create → share → collect → organize.** No spreadsheet, no "reply to this email with your suggestions," no losing track of who said what.`,
+- **A sortable, searchable table** sits alongside every collection, with filters for pending, yours, and other people's — plus CSV export whenever you want the raw data elsewhere.
+- **Clustering and route mode** for place collections: group dense pins, then drag them into a visiting order with a driving route to match.
+- **Folders** for filing your own collections, visible only to you.
+
+### 6. Make it yours
+
+Set default pin colours and icons, add your own logo to a collection's public page, list a collection on your public profile, or submit it to Discover so other people can find it.
+
+That's the loop: **choose → share → collect → curate.** No spreadsheet, no "reply with your suggestions", no losing track of who said what.`,
   },
   {
     slug: "who-its-for",
     title: `Who ${APP} is for`,
-    metaDescription: `Travelers, event planners, community organizers, and teams who need one shared map instead of a scattered group chat full of pins nobody can find again.`,
+    metaDescription: `Anyone who's ever tried to collect a group's suggestions — places, links, or recommendations — and watched them scatter across a group chat nobody can search.`,
     navOrder: 2,
-    content: `${APP} is for anyone who's ever tried to collect a group's recommendations and ended up with them scattered across a group chat, a spreadsheet nobody opens, or a dozen separate messages nobody can find again.
+    content: `${APP} is for anyone who's ever asked a group for suggestions and ended up with them scattered across a chat thread, a spreadsheet nobody opens, and a dozen messages nobody can find again.
 
-### Groups of friends and travelers
+The thing being collected varies. The problem doesn't.
 
-Planning a trip? Start a map, share the link, and let everyone drop the restaurants, sights, and "we have to go here" spots they've been saving. Switch to Route mode once you're ready to plan the actual day-by-day order.
+### Friends and travellers
+
+Planning a trip? Start a collection, share the link, and let everyone drop the restaurants, sights, and "we have to go here" spots they've been saving. Route mode puts them in order once you're planning the actual days.
+
+### Reading groups, teams, and anyone drowning in links
+
+The article someone sent in March is gone. A links collection keeps them — paste a URL and the title, description, and image fill themselves in, so the list stays readable instead of turning into a wall of bare URLs. Book clubs, study groups, teams sharing what's worth reading this quarter.
+
+### Groups who keep asking each other the same question
+
+What should I watch? What's a good project-management tool? Where do I get a decent haircut around here? A recommendations collection answers it once, with everyone's contributions in one place, instead of the same thread every few months.
 
 ### Event organizers
 
-Wedding guests flying in from out of town, a conference with a dozen recommended venues nearby, a work offsite with restaurant options for every dietary need — a map is easier to send around than a document, and it stays updated as plans change.
+Guests flying in from out of town, a conference with venues nearby, an offsite with options for every dietary need. One link is easier to send than a document, and it stays current as plans change.
 
 ### Community organizers and local guides
 
-If you run a community — a neighborhood group, an alumni network, a diaspora community, a hobby group — a curated map of trusted local businesses, services, or meeting spots becomes a resource people actually come back to, instead of a pinned post that gets buried in a week.
+A neighbourhood group, an alumni network, a diaspora community, a hobby group — a curated collection of trusted businesses, services, links, or recommendations becomes something people come back to, rather than a pinned post buried in a week. Approval mode keeps the quality up while leaving it open.
 
 ### Teams and small businesses
 
-Field teams, sales reps, and site visit coordinators use maps to track locations that matter to the business — client sites, installation locations, partner offices — with notes and contact details attached to each one, shared with exactly the people who need it.
+Client sites, installation locations, partner offices — or the tools, suppliers, and references the team keeps re-sharing. Notes and contact details attached to each entry, visible to exactly the people who need them.
 
-### Anyone building an audience around places
+### Anyone building an audience
 
-If you write about a city, a neighborhood, or a niche (best coffee, dog-friendly patios, hidden viewpoints), a public ${APP} map is a shareable, explorable format your audience can browse — and if it's good, it can be featured on Discover.
+If you write about a city, a subject, or a niche, a public collection is a shareable, explorable format your audience can browse — and if it's good, it can be featured on Discover.
 
-**In short:** if the question is "where should we go," and the answer used to live in someone's head or a dozen text messages, ${APP} gives that answer a home.`,
-  },
-  {
-    slug: "features",
-    title: "Features",
-    metaDescription: `Everything ${APP} includes: collaborative maps, pin customization, route planning, branding, and the collaboration and discovery tools built around them.`,
-    navOrder: 3,
-    content: `## Mapping & pins
-
-- **Shareable maps** with a short, memorable link — no account needed to view or contribute, unless you want to require one.
-- **Click-to-drop or search-to-add** pins, backed by place search so you can pin a real venue by name instead of guessing coordinates.
-- **Custom note fields** — change the label and prompt so each map asks contributors the right question for its purpose.
-- **Photos per pin**, so a map shows what a place looks like, not just its name.
-- **Social links** per pin (Twitter/X, Instagram, LinkedIn) for pins about people or businesses with an online presence.
-- **Marker clustering** keeps dense maps readable as they grow.
-- **Route/itinerary mode** — drag pins into a visiting order, see the distance between stops, and follow a driving-route line on the map.
-- **Templates** for common map types: weekend trip, neighborhood guide, wedding guest list, team locations, event guide.
-
-## Collaboration & permissions
-
-- **Anonymous contribution** on public maps — no sign-up required to add a pin.
-- **Approval mode** — pins from anyone but the owner stay pending until approved, so a map stays curated even when it's open to contributions.
-- **Invite collaborators** by email with view or edit permissions.
-- **Public/private maps** — keep a map fully private, or share it with the world.
-- **Bulk import** — paste a list of place names to add many pins at once, with AI-assisted venue suggestions from a short theme description, or import venues straight from a screenshot (paid plans).
-
-## Organization & export
-
-- **Sortable, searchable pin table** alongside every map, with filters for pending/approved and your own pins vs. others'.
-- **CSV export** of a map's pins.
-- **Map archiving** to tidy up your list without deleting anything (paid plans).
-
-## Branding & customization
-
-- **Custom pin colors and icons**, set per map or overridden per pin (paid plans).
-- **Custom logo branding** on a map's public page (paid plans).
-
-## Discover & social
-
-- **Public profiles** with a username, bio, and the maps you choose to show.
-- **Follow** other users and **like** maps you find useful.
-- **A personalized feed** of activity from people you follow.
-- **Discover** — browse curated public maps by category, country, and city.
-
-## Mobile
-
-The ${APP} mobile app (iOS & Android) covers the core of the experience — creating and browsing maps, adding and editing pins with photos, route planning, Discover, and your profile and feed — so a map you start on the web keeps working wherever you are.`,
+**In short:** if the question is "what should we…", and the answer used to live in someone's head or a dozen text messages, ${APP} gives that answer a home.`,
   },
   {
     slug: "use-cases",
     title: `${APP} for business`,
-    metaDescription: `Real-world ways teams and businesses use ${APP}: property tours, event logistics, community business directories, field operations, and curated local guides.`,
+    metaDescription: `How teams and businesses use ${APP}: property shortlists, event logistics, curated resource libraries, community directories, field operations, and audience-facing guides.`,
     navOrder: 4,
-    content: `A map is a surprisingly general-purpose tool once you can share it, collaborate on it, and organize it properly. Here's how different kinds of businesses put ${APP} to work.
+    content: `A shared collection is a surprisingly general-purpose tool once a group can add to it, curate it, and organize it properly. Here's how different kinds of business put ${APP} to work — and note that not all of these are maps.
 
 ### Real estate & property services
 
-Share a map of listings, showings, or a client's shortlisted neighborhoods. Notes on each pin can carry price, viewing times, or "client liked this one" flags — a lighter-weight alternative to a shared spreadsheet, and one clients can actually look at without asking what column means what.
+Share a collection of listings, showings, or a client's shortlisted neighbourhoods. Notes on each entry carry price, viewing times, or "client liked this one" — a lighter alternative to a shared spreadsheet, and one clients will actually open.
 
 ### Event planning & hospitality
 
-Map out venues, vendors, accommodation options, and nearby recommendations for an event, then share one link with attendees instead of a multi-page PDF. Route mode helps a planning team sequence site visits or a wedding weekend's shuttle stops.
+Venues, vendors, accommodation, and nearby recommendations for an event, behind one link instead of a multi-page PDF. Route mode sequences site visits or a wedding weekend's shuttle stops.
+
+### Internal resource libraries
+
+The tools, suppliers, templates, and reference material a team keeps re-sending each other. A links collection turns that into something searchable, with a note on each explaining why it's there — and paste a URL and it fills itself in, so keeping it current costs nothing.
+
+### Onboarding & knowledge sharing
+
+New starters get one link instead of six. The docs to read, the tools to install, the places to eat near the office — and because contributors don't need an account, the people who actually know can add to it.
 
 ### Community directories & local guides
 
-Businesses and organizations serving a specific community — a neighborhood association, a cultural or diaspora community, a professional network — can maintain a public map of trusted local services (from healthcare providers to restaurants to tradespeople), with approval mode keeping quality high even when the community itself suggests additions.
+Organizations serving a specific community — a neighbourhood association, a cultural network, a professional body — can maintain a public collection of trusted services, with approval mode keeping quality high even when the community itself suggests additions.
 
 ### Field operations & site coordination
 
-Teams that visit or manage multiple physical locations — installation crews, franchise operators, property managers, sales territories — use a shared map with notes and contact details per site, visible to whoever's in the field that day, editable the moment something changes.
+Teams visiting or managing multiple locations — installation crews, franchise operators, property managers, sales territories — share one collection with notes and contact details per site, editable the moment something changes.
 
 ### Tourism & travel services
 
-Tour operators and travel planners can build public itinerary maps for a destination or trip package, using Route mode to lay out the actual day-by-day path, and Discover to put well-made maps in front of new travelers.
+Tour operators and travel planners build public itinerary collections for a destination or package, using Route mode to lay out the day-by-day path, and Discover to put well-made ones in front of new travellers.
 
 ### Content, media & audience-building
 
-Publications and creators covering a city, neighborhood, or niche can turn a "best of" list into a living, explorable map — easier to keep current than an article, and shareable in a way a list of text never quite is.
+A "best of" list that would go stale as an article becomes a living collection instead — easier to keep current, and shareable in a way a block of text never quite is. Places, links, or recommendations, depending on what you cover.
 
 ---
 
-Have a use case that doesn't fit neatly into any of these? A shareable, collaborative map is flexible by design — if the core need is "a group of people should be able to see and add to a set of places," it's worth trying.`,
+Have a use case that doesn't fit neatly? A shareable, collaborative collection is flexible by design — if the core need is "a group of people should be able to see and add to a set of things", it's worth trying.`,
   },
 ];
 
