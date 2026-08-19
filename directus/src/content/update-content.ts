@@ -14,6 +14,30 @@ import { env } from "../lib/env.js";
 
 /** Newest first — the order they'll appear on the page. */
 const CHANGELOG_SECTIONS = [
+  `## August 19, 2026
+
+### Social links belong to the venue, not to you
+Editing a pin used to fill the social fields in with **your own** handles,
+taken from your profile. A pin for a restaurant would quietly carry your
+personal Instagram, and unless you noticed the populated field you'd never
+know it had happened. That doesn't happen any more — the fields start empty
+and nothing is written without a click.
+
+### We look the venue's accounts up instead
+When a pin has a venue website on file, ${env.APP_NAME} now reads that site in
+the background and offers whatever accounts it links to. Accept them one at
+a time, take all of them, or ignore the suggestion entirely. Share buttons
+are filtered out, so you get the venue's real handle rather than "intent"
+from a Tweet-this link.
+
+Your own handles are still one click away, under "Use mine" — it's just a
+choice now rather than a default.
+
+### The pin editor is in sections
+Eight unrelated fields in a single column became three groups: **Basic
+details**, **Additional info**, and **Appearance**. Easier to find the one
+you came for without reading all of them.
+`,
   `## August 18, 2026
 
 ### The static pages describe the whole product

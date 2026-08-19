@@ -6,13 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, apiUpload } from "@/lib/queryClient";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlacesSearch } from "./places-search";
 import { PinStylePicker } from "./pin-style-picker";
+import { SocialLinksFields } from "./social-links-fields";
 import type { PinColor, PinIcon } from "@shared/enums";
 import {
   MapPin,
@@ -110,7 +110,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   const [locationSource, setLocationSource] = useState<LocationSource | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const [showSocialLinks, setShowSocialLinks] = useState(false);
-  const [fillMySocials, setFillMySocials] = useState(false);
   const [showPinStyle, setShowPinStyle] = useState(false);
   const hasPinCustomization = mapCollection.hasPinCustomization ?? false;
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -140,26 +139,8 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
   useEffect(() => {
     if (isOpen) {
       setFormData(emptyForm);
-      setFillMySocials(false);
     }
   }, [isOpen]);
-
-  const hasProfileSocials = !!(user?.twitterHandle || user?.instagramHandle || user?.linkedinHandle);
-
-  const handleFillMySocialsChange = (checked: boolean) => {
-    setFillMySocials(checked);
-    if (checked && user) {
-      setFormData((prev) => ({
-        ...prev,
-        twitterHandle: user.twitterHandle || "",
-        instagramHandle: user.instagramHandle || "",
-        linkedinHandle: user.linkedinHandle || "",
-      }));
-      setShowSocialLinks(true);
-    } else {
-      setFormData((prev) => ({ ...prev, twitterHandle: "", instagramHandle: "", linkedinHandle: "" }));
-    }
-  };
 
   useEffect(() => {
     if (!selectedLocation || !isOpen || locationSource !== "click") return;
@@ -351,7 +332,6 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
     setSelectedLocation(null);
     setLocationSource(null);
     setShowSocialLinks(false);
-    setFillMySocials(false);
     setShowPinStyle(false);
     onClose();
   };
@@ -528,47 +508,16 @@ export function AddPinModal({ isOpen, onClose, mapCollection, selectedLocation: 
                     <ChevronDown className={`h-4 w-4 transition-transform ${showSocialLinks ? "rotate-180" : ""}`} />
                   </button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3 space-y-2.5">
-                  {hasProfileSocials && (
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                      <Checkbox
-                        checked={fillMySocials}
-                        onCheckedChange={(checked) => handleFillMySocialsChange(checked === true)}
-                        data-testid="checkbox-fill-my-socials"
-                      />
-                      Fill in my social links
-                    </label>
-                  )}
-                  <div className="relative">
-                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="X (Twitter) handle or URL"
-                      value={formData.twitterHandle}
-                      onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                      className="pl-9"
-                      data-testid="input-twitter"
-                    />
-                  </div>
-                  <div className="relative">
-                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Instagram handle or URL"
-                      value={formData.instagramHandle}
-                      onChange={(e) => setFormData({ ...formData, instagramHandle: e.target.value })}
-                      className="pl-9"
-                      data-testid="input-instagram"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="LinkedIn handle or URL"
-                      value={formData.linkedinHandle}
-                      onChange={(e) => setFormData({ ...formData, linkedinHandle: e.target.value })}
-                      className="pl-9"
-                      data-testid="input-linkedin"
-                    />
-                  </div>
+                <CollapsibleContent className="pt-3">
+                  <SocialLinksFields
+                    value={{
+                      twitterHandle: formData.twitterHandle,
+                      instagramHandle: formData.instagramHandle,
+                      linkedinHandle: formData.linkedinHandle,
+                    }}
+                    onChange={(socials) => setFormData({ ...formData, ...socials })}
+                    website={selectedPlace?.website ?? null}
+                  />
                 </CollapsibleContent>
               </Collapsible>
 

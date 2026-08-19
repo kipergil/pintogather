@@ -82,13 +82,14 @@ export function assertFetchableUrl(url: URL): void {
 }
 
 /**
- * Fetches `rawUrl` server-side with SSRF guards (public-host-only, capped
- * redirects re-validated at each hop, response-size cap, timeout) and pulls
- * a title/description/image out of its HTML head — Open Graph tags first,
- * falling back to <title>/meta description. Used to prefill a "link"-type
- * item's title/note/photo from a pasted URL (see POST /api/link-preview).
+ * Fetches `rawUrl` server-side with SSRF guards: public hosts only, redirects
+ * capped and re-validated at every hop, a response-size cap, and a timeout.
+ *
+ * Separated from the preview parsing so social-link discovery can reuse the
+ * exact same guards — a second fetcher would be a second place for an SSRF
+ * hole to open up.
  */
-export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
+export async function fetchHtml(rawUrl: string): Promise<{ html: string; finalUrl: URL }> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -151,7 +152,17 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
 
   if (finalHtml === null) throw new LinkPreviewError("Too many redirects.");
 
-  return parseHtmlPreview(finalHtml, finalUrl);
+  return { html: finalHtml, finalUrl };
+}
+
+/**
+ * Pulls a title/description/image out of a page's head — Open Graph first,
+ * falling back to <title>/meta description. Used to prefill a "link"-type
+ * item from a pasted URL (see POST /api/link-preview).
+ */
+export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview> {
+  const { html, finalUrl } = await fetchHtml(rawUrl);
+  return parseHtmlPreview(html, finalUrl);
 }
 
 function decodeHtmlEntities(text: string): string {
