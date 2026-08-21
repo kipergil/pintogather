@@ -10,6 +10,7 @@ import {
   updateItems,
   updateUser,
   uploadFiles,
+  type RestCommand,
 } from "@directus/sdk";
 import { nanoid } from "nanoid";
 import type { UserGroup } from "../shared/enums.js";
@@ -43,12 +44,25 @@ import type {
   MapViewer as DirectusMapViewer,
   Page as DirectusPage,
   Pin as DirectusPin,
+  PinGatherSchema,
   UserFollow as DirectusUserFollow,
 } from "../shared/directus-schema.js";
 import { getServiceDirectusClient } from "./lib/directus.js";
+import {
+  ensureOptionalMapFieldsChecked,
+  hasCheckedSchema,
+  isMapFieldApplied,
+  reconcileOptionalMapFields,
+  unappliedMapFields,
+} from "./lib/schema-drift.js";
 import { toDomainUser } from "./services/users.js";
 
-const MAP_FIELDS = [
+/**
+ * Mutable on purpose — see server/lib/schema-drift.ts. A field a deployed
+ * release knows about but the Directus schema hasn't got yet is pruned from
+ * this list at runtime, rather than failing every map request.
+ */
+const MAP_FIELDS: (keyof DirectusMapCollection)[] = [
   "id",
   "name",
   "description",
@@ -75,7 +89,7 @@ const MAP_FIELDS = [
   "forked_from_map",
   "folder",
   "date_created",
-] as const;
+];
 
 const PIN_FIELDS = [
   "id",
@@ -380,6 +394,8 @@ export interface IStorage {
   getMapCollectionByName(name: string): Promise<MapCollection | undefined>;
   getMapCollectionById(mapId: string): Promise<MapCollection | undefined>;
   getAllMapCollections(): Promise<MapCollection[]>;
+  /** Fields this release expects that the Directus schema doesn't have yet — empty when the two are in step. */
+  getPendingSchemaFields(): Promise<string[]>;
   /** Omit `opts.archived` for all owned maps regardless of archived status; pass true/false to filter to just one. */
   getMapCollectionsByUserId(userId: string, opts?: { archived?: boolean }): Promise<MapCollection[]>;
   getMapCollectionsForUser(userId: string): Promise<MapCollection[]>;
@@ -511,9 +527,38 @@ class DirectusStorage implements IStorage {
     return getServiceDirectusClient();
   }
 
+  /**
+   * Every Directus call this class makes, with one recovery built in: when
+   * a request names a column this release knows about but the Directus
+   * schema hasn't got yet, the column is dropped and the request goes out
+   * again (see server/lib/schema-drift.ts). A Directus command is a thunk,
+   * so re-invoking the same one re-reads the pruned field list.
+   *
+   * A create is never retried. Directus may well insert the row and only
+   * then choke on the response projection, so a second attempt could leave
+   * two — trading an outage for duplicate data is not a fix. Creates settle
+   * the question up front instead, which costs one extra request on the
+   * first create a process makes and nothing after that.
+   */
+  private async request<Output>(command: RestCommand<Output, PinGatherSchema>): Promise<Output> {
+    const client = this.client;
+    const isCreate = command().method === "POST";
+    if (isCreate && !hasCheckedSchema()) await ensureOptionalMapFieldsChecked(client, MAP_FIELDS);
+
+    try {
+      return await client.request(command);
+    } catch (error) {
+      // Runs even when the answer can't be used here: whatever this process
+      // learns now spares every request after it.
+      const pruned = await reconcileOptionalMapFields(client, MAP_FIELDS);
+      if (!pruned || isCreate) throw error;
+      return await client.request(command);
+    }
+  }
+
   async createMapCollection(data: InsertMapCollection): Promise<MapCollection> {
     const shareUrl = nanoid(12);
-    const created = await this.client.request(
+    const created = await this.request(
       createItem(
         "map_collections",
         {
@@ -559,7 +604,7 @@ class DirectusStorage implements IStorage {
     opts: { ownerId: string; name: string; includePinStyle: boolean },
   ): Promise<{ map: MapCollection; pins: Pin[] }> {
     const shareUrl = nanoid(12);
-    const createdMap = await this.client.request(
+    const createdMap = await this.request(
       createItem(
         "map_collections",
         {
@@ -613,12 +658,12 @@ class DirectusStorage implements IStorage {
       pin_icon: opts.includePinStyle ? pin.pinIcon : null,
       sequence: pin.sequence,
     }));
-    const createdPins = await this.client.request(createItems("pins", pinPayloads, { fields: PIN_FIELDS }));
+    const createdPins = await this.request(createItems("pins", pinPayloads, { fields: PIN_FIELDS }));
     return { map, pins: (createdPins as unknown as DirectusPin[]).map(toPin) };
   }
 
   async getMapCollectionByShareUrl(shareUrl: string): Promise<MapCollection | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", { filter: { share_url: { _eq: shareUrl } }, fields: MAP_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusMapCollection | undefined;
@@ -626,15 +671,20 @@ class DirectusStorage implements IStorage {
   }
 
   async getMapCollectionByName(name: string): Promise<MapCollection | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", { filter: { name: { _eq: name } }, fields: MAP_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusMapCollection | undefined;
     return row ? toMapCollection(row) : undefined;
   }
 
+  async getPendingSchemaFields(): Promise<string[]> {
+    await ensureOptionalMapFieldsChecked(this.client, MAP_FIELDS);
+    return unappliedMapFields();
+  }
+
   async getAllMapCollections(): Promise<MapCollection[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", { fields: MAP_FIELDS, sort: ["-date_created"], limit: -1 }),
     );
     return (rows as DirectusMapCollection[]).map(toMapCollection);
@@ -644,7 +694,7 @@ class DirectusStorage implements IStorage {
     const filter: Record<string, unknown> = { owner: { _eq: userId } };
     if (opts?.archived !== undefined) filter.archived = { _eq: opts.archived };
 
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter,
         fields: MAP_FIELDS,
@@ -666,13 +716,13 @@ class DirectusStorage implements IStorage {
   }
 
   async getContributedMaps(userId: string): Promise<MapCollection[]> {
-    const contributedPins = await this.client.request(
+    const contributedPins = await this.request(
       readItems("pins", { filter: { user: { _eq: userId } }, fields: ["map"], limit: -1 }),
     );
     const mapIds = Array.from(new Set((contributedPins as Array<{ map: string }>).map((p) => p.map)));
     if (mapIds.length === 0) return [];
 
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter: { id: { _in: mapIds }, owner: { _neq: userId } },
         fields: MAP_FIELDS,
@@ -685,7 +735,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getPublicMapIds(): Promise<string[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter: { is_public: { _eq: true }, archived: { _eq: false } },
         fields: ["id"],
@@ -696,7 +746,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getViewerMapIds(userId: string): Promise<string[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_viewers", { filter: { user: { _eq: userId } }, fields: ["map"], limit: -1 }),
     );
     return Array.from(new Set((rows as Array<{ map: string }>).map((r) => r.map)));
@@ -704,7 +754,7 @@ class DirectusStorage implements IStorage {
 
   async searchMapCollections(query: string, accessibleMapIds: string[]): Promise<MapCollection[]> {
     if (accessibleMapIds.length === 0) return [];
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter: {
           id: { _in: accessibleMapIds },
@@ -728,7 +778,7 @@ class DirectusStorage implements IStorage {
     ];
     const results: DirectusPin[] = [];
     if (ownedMapIds.length > 0) {
-      const rows = await this.client.request(
+      const rows = await this.request(
         readItems("pins", {
           filter: { map: { _in: ownedMapIds }, _or: textOr },
           fields: PIN_FIELDS,
@@ -739,7 +789,7 @@ class DirectusStorage implements IStorage {
       results.push(...(rows as DirectusPin[]));
     }
     if (otherMapIds.length > 0) {
-      const rows = await this.client.request(
+      const rows = await this.request(
         readItems("pins", {
           filter: { map: { _in: otherMapIds }, approved: { _eq: true }, _or: textOr },
           fields: PIN_FIELDS,
@@ -758,7 +808,7 @@ class DirectusStorage implements IStorage {
     defaultPermission: string,
   ): Promise<MapCollection | undefined> {
     try {
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateItem(
           "map_collections",
           mapId,
@@ -791,9 +841,17 @@ class DirectusStorage implements IStorage {
       if (data.curatedCity !== undefined) payload.curated_city = data.curatedCity;
       // `curated` is never touched here — an owner files and submits, an
       // admin lists. See the route for the guard on this value.
-      if (data.discoverStatus !== undefined) payload.discover_status = data.discoverStatus;
+      //
+      // A write can't recover the way a read does — its payload is already
+      // built by the time Directus rejects it — so this asks first, and
+      // silently leaves the submission unrecorded on an instance whose
+      // schema hasn't caught up rather than failing the whole save.
+      if (data.discoverStatus !== undefined) {
+        await ensureOptionalMapFieldsChecked(this.client, MAP_FIELDS);
+        if (isMapFieldApplied("discover_status")) payload.discover_status = data.discoverStatus;
+      }
 
-      const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
+      const updated = await this.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
     } catch (error) {
       console.error("Error updating map details:", error);
@@ -806,19 +864,23 @@ class DirectusStorage implements IStorage {
       // Passed through as-is (no forced nulling when curated=false) — an
       // admin un-curating a map can leave its category/country/city/tagline
       // in place so re-curating it later doesn't mean re-entering everything.
-      const payload = {
+      const payload: Record<string, unknown> = {
         curated: data.curated,
         curated_category: data.curatedCategory ?? null,
         curated_country: data.curatedCountry ?? null,
         curated_city: data.curatedCity ?? null,
         curated_order: data.curatedOrder ?? null,
         curated_tagline: data.curatedTagline ?? null,
-        // Curating a map answers any submission on it, so the two stay in
-        // step even when an admin acts straight from Directus-side habits
-        // rather than the review queue.
-        discover_status: data.discoverStatus ?? (data.curated ? "approved" : "none"),
       };
-      const updated = await this.client.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
+      // Curating a map answers any submission on it, so the two stay in step
+      // even when an admin acts straight from Directus-side habits rather
+      // than the review queue. Skipped entirely on an instance whose schema
+      // hasn't caught up — curation itself must keep working there.
+      await ensureOptionalMapFieldsChecked(this.client, MAP_FIELDS);
+      if (isMapFieldApplied("discover_status")) {
+        payload.discover_status = data.discoverStatus ?? (data.curated ? "approved" : "none");
+      }
+      const updated = await this.request(updateItem("map_collections", mapId, payload, { fields: MAP_FIELDS }));
       return toMapCollection(updated as unknown as DirectusMapCollection);
     } catch (error) {
       console.error("Error updating map curation:", error);
@@ -828,7 +890,7 @@ class DirectusStorage implements IStorage {
 
   async deleteMapCollection(mapId: string, userId: string): Promise<boolean> {
     try {
-      const rows = await this.client.request(
+      const rows = await this.request(
         readItems("map_collections", { filter: { id: { _eq: mapId } }, fields: ["id", "owner"], limit: 1 }),
       );
       const map = rows[0] as { id: string; owner: string | null } | undefined;
@@ -838,7 +900,7 @@ class DirectusStorage implements IStorage {
       // Pins, map_viewers and map_invitations relations are all onDelete
       // CASCADE (see directus/src/schema/definitions.ts), so Directus
       // deletes them for us.
-      await this.client.request(deleteItem("map_collections", mapId));
+      await this.request(deleteItem("map_collections", mapId));
       return true;
     } catch (error) {
       console.error("Error deleting map collection:", error);
@@ -847,7 +909,7 @@ class DirectusStorage implements IStorage {
   }
 
   async addMapViewer(data: InsertMapViewer): Promise<MapViewer> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem(
         "map_viewers",
         {
@@ -863,14 +925,14 @@ class DirectusStorage implements IStorage {
   }
 
   async getMapViewers(mapId: string): Promise<MapViewer[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_viewers", { filter: { map: { _eq: mapId } }, fields: VIEWER_FIELDS, limit: -1 }),
     );
     return (rows as DirectusMapViewer[]).map(toMapViewer);
   }
 
   async getUserMapAccess(userId: string, mapId: string): Promise<MapViewer | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_viewers", {
         filter: { user: { _eq: userId }, map: { _eq: mapId } },
         fields: VIEWER_FIELDS,
@@ -889,7 +951,7 @@ class DirectusStorage implements IStorage {
     try {
       const existing = await this.getUserMapAccess(userId, mapId);
       if (!existing) return undefined;
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateItem("map_viewers", existing.id, { permission }, { fields: VIEWER_FIELDS }),
       );
       return toMapViewer(updated as unknown as DirectusMapViewer);
@@ -900,7 +962,7 @@ class DirectusStorage implements IStorage {
   }
 
   async createInvitation(data: InsertMapInvitation): Promise<MapInvitation> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem(
         "map_invitations",
         {
@@ -919,7 +981,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getInvitationByToken(token: string): Promise<MapInvitation | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_invitations", { filter: { token: { _eq: token } }, fields: INVITATION_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusMapInvitation | undefined;
@@ -927,7 +989,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getMapInvitations(mapId: string): Promise<MapInvitation[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_invitations", { filter: { map: { _eq: mapId } }, fields: INVITATION_FIELDS, limit: -1 }),
     );
     return (rows as DirectusMapInvitation[]).map(toMapInvitation);
@@ -935,7 +997,7 @@ class DirectusStorage implements IStorage {
 
   async updateInvitationStatus(id: string, status: string): Promise<MapInvitation | undefined> {
     try {
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateItem("map_invitations", id, { status }, { fields: INVITATION_FIELDS }),
       );
       return toMapInvitation(updated as unknown as DirectusMapInvitation);
@@ -947,7 +1009,7 @@ class DirectusStorage implements IStorage {
 
   async deleteInvitation(id: string): Promise<boolean> {
     try {
-      await this.client.request(deleteItem("map_invitations", id));
+      await this.request(deleteItem("map_invitations", id));
       return true;
     } catch (error) {
       console.error("Error deleting invitation:", error);
@@ -956,7 +1018,7 @@ class DirectusStorage implements IStorage {
   }
 
   async createPin(data: InsertPin): Promise<Pin> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem("pins", toDirectusPinInput(data), { fields: PIN_FIELDS }),
     );
     return toPin(created as unknown as DirectusPin);
@@ -964,7 +1026,7 @@ class DirectusStorage implements IStorage {
 
   async createPins(data: InsertPin[]): Promise<Pin[]> {
     if (data.length === 0) return [];
-    const created = await this.client.request(
+    const created = await this.request(
       createItems("pins", data.map(toDirectusPinInput), { fields: PIN_FIELDS }),
     );
     return (created as unknown as DirectusPin[]).map(toPin);
@@ -1033,14 +1095,14 @@ class DirectusStorage implements IStorage {
   }
 
   async getPinsByMapId(mapId: string): Promise<Pin[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("pins", { filter: { map: { _eq: mapId } }, fields: PIN_FIELDS, sort: ["-date_created"], limit: -1 }),
     );
     return (rows as DirectusPin[]).map(toPin);
   }
 
   async getPinById(id: string): Promise<Pin | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("pins", { filter: { id: { _eq: id } }, fields: PIN_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusPin | undefined;
@@ -1077,7 +1139,7 @@ class DirectusStorage implements IStorage {
       if (data.pinColor !== undefined) payload.pin_color = data.pinColor;
       if (data.pinIcon !== undefined) payload.pin_icon = data.pinIcon;
 
-      const updated = await this.client.request(updateItem("pins", id, payload, { fields: PIN_FIELDS }));
+      const updated = await this.request(updateItem("pins", id, payload, { fields: PIN_FIELDS }));
       return toPin(updated as unknown as DirectusPin);
     } catch (error) {
       console.error("Error updating pin:", error);
@@ -1094,7 +1156,7 @@ class DirectusStorage implements IStorage {
   async reorderPins(orderedPinIds: string[]): Promise<void> {
     await Promise.all(
       orderedPinIds.map((id, index) =>
-        this.client.request(updateItem("pins", id, { sequence: index }, { fields: ["id"] })),
+        this.request(updateItem("pins", id, { sequence: index }, { fields: ["id"] })),
       ),
     );
   }
@@ -1111,7 +1173,7 @@ class DirectusStorage implements IStorage {
         if (!isMapOwner && !isPinOwner) return false;
       }
 
-      await this.client.request(deleteItem("pins", id));
+      await this.request(deleteItem("pins", id));
       return true;
     } catch (error) {
       console.error("Failed to delete pin:", error);
@@ -1120,7 +1182,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getMapCollectionById(mapId: string): Promise<MapCollection | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", { filter: { id: { _eq: mapId } }, fields: MAP_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusMapCollection | undefined;
@@ -1128,7 +1190,7 @@ class DirectusStorage implements IStorage {
   }
 
   async isAdmin(userId: string): Promise<boolean> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readUsers({
         filter: { id: { _eq: userId }, is_admin: { _eq: true } },
         fields: ["id"],
@@ -1139,12 +1201,12 @@ class DirectusStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    const rows = await this.client.request(readUsers({ fields: USER_FIELDS, limit: -1 }));
+    const rows = await this.request(readUsers({ fields: USER_FIELDS, limit: -1 }));
     return (rows as any[]).map(toDomainUser);
   }
 
   async getUserProfile(userId: string): Promise<User | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readUsers({ filter: { id: { _eq: userId } }, fields: USER_FIELDS, limit: 1 }),
     );
     const row = rows[0];
@@ -1153,7 +1215,7 @@ class DirectusStorage implements IStorage {
 
   async updateUserGroup(userId: string, userGroup: UserGroup): Promise<User | undefined> {
     try {
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateUser(userId, { user_group: userGroup }, { fields: USER_FIELDS }),
       );
       return toDomainUser(updated as any);
@@ -1173,7 +1235,7 @@ class DirectusStorage implements IStorage {
     },
   ): Promise<User | undefined> {
     try {
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateUser(
           userId,
           {
@@ -1200,7 +1262,7 @@ class DirectusStorage implements IStorage {
   private async ensureRootLogoFolder(): Promise<string> {
     if (!this.rootLogoFolderIdPromise) {
       this.rootLogoFolderIdPromise = (async () => {
-        const existing = await this.client.request(
+        const existing = await this.request(
           readFolders({
             filter: { name: { _eq: LOGO_ROOT_FOLDER_NAME }, parent: { _null: true } },
             fields: ["id"],
@@ -1209,7 +1271,7 @@ class DirectusStorage implements IStorage {
         );
         if (existing[0]) return existing[0].id;
 
-        const created = await this.client.request(
+        const created = await this.request(
           createFolder({ name: LOGO_ROOT_FOLDER_NAME }, { fields: ["id"] }),
         );
         return created.id;
@@ -1221,12 +1283,12 @@ class DirectusStorage implements IStorage {
   /** Finds (or creates) this user's own subfolder, so each user's uploaded logos are isolated from everyone else's. */
   private async ensureUserLogoFolder(userId: string): Promise<string> {
     const rootId = await this.ensureRootLogoFolder();
-    const existing = await this.client.request(
+    const existing = await this.request(
       readFolders({ filter: { name: { _eq: userId }, parent: { _eq: rootId } }, fields: ["id"], limit: 1 }),
     );
     if (existing[0]) return existing[0].id;
 
-    const created = await this.client.request(
+    const created = await this.request(
       createFolder({ name: userId, parent: rootId }, { fields: ["id"] }),
     );
     return created.id;
@@ -1239,7 +1301,7 @@ class DirectusStorage implements IStorage {
     formData.append("folder", folderId);
     formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
 
-    const created = await this.client.request(uploadFiles(formData, { fields: ["id"] }));
+    const created = await this.request(uploadFiles(formData, { fields: ["id"] }));
     return created.id;
   }
 
@@ -1249,12 +1311,12 @@ class DirectusStorage implements IStorage {
   private async ensureRootPinPhotoFolder(): Promise<string> {
     if (!this.rootPinPhotoFolderIdPromise) {
       this.rootPinPhotoFolderIdPromise = (async () => {
-        const existing = await this.client.request(
+        const existing = await this.request(
           readFolders({ filter: { name: { _eq: PIN_PHOTO_ROOT_FOLDER_NAME }, parent: { _null: true } }, fields: ["id"], limit: 1 }),
         );
         if (existing[0]) return existing[0].id;
 
-        const created = await this.client.request(
+        const created = await this.request(
           createFolder({ name: PIN_PHOTO_ROOT_FOLDER_NAME }, { fields: ["id"] }),
         );
         return created.id;
@@ -1266,12 +1328,12 @@ class DirectusStorage implements IStorage {
   /** Finds (or creates) a subfolder for this uploader's pin photos — "anonymous" for pins added by a signed-out visitor, since pin creation doesn't require an account. */
   private async ensureUploaderPinPhotoFolder(uploaderKey: string): Promise<string> {
     const rootId = await this.ensureRootPinPhotoFolder();
-    const existing = await this.client.request(
+    const existing = await this.request(
       readFolders({ filter: { name: { _eq: uploaderKey }, parent: { _eq: rootId } }, fields: ["id"], limit: 1 }),
     );
     if (existing[0]) return existing[0].id;
 
-    const created = await this.client.request(
+    const created = await this.request(
       createFolder({ name: uploaderKey, parent: rootId }, { fields: ["id"] }),
     );
     return created.id;
@@ -1284,25 +1346,25 @@ class DirectusStorage implements IStorage {
     formData.append("folder", folderId);
     formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
 
-    const created = await this.client.request(uploadFiles(formData, { fields: ["id"] }));
+    const created = await this.request(uploadFiles(formData, { fields: ["id"] }));
     return created.id;
   }
 
   /** Finds (or creates) this user's own top-level folder (no shared parent — named exactly as the user's id). */
   private async ensureUserRootFolder(userId: string): Promise<string> {
-    const existing = await this.client.request(
+    const existing = await this.request(
       readFolders({ filter: { name: { _eq: userId }, parent: { _null: true } }, fields: ["id"], limit: 1 }),
     );
     if (existing[0]) return existing[0].id;
 
-    const created = await this.client.request(createFolder({ name: userId }, { fields: ["id"] }));
+    const created = await this.request(createFolder({ name: userId }, { fields: ["id"] }));
     return created.id;
   }
 
   /** Finds (or creates) this user's "uploads" subfolder, nested under their own top-level folder. */
   private async ensureUserUploadsFolder(userId: string): Promise<string> {
     const rootId = await this.ensureUserRootFolder(userId);
-    const existing = await this.client.request(
+    const existing = await this.request(
       readFolders({
         filter: { name: { _eq: VENUE_SCREENSHOT_SUBFOLDER_NAME }, parent: { _eq: rootId } },
         fields: ["id"],
@@ -1311,7 +1373,7 @@ class DirectusStorage implements IStorage {
     );
     if (existing[0]) return existing[0].id;
 
-    const created = await this.client.request(
+    const created = await this.request(
       createFolder({ name: VENUE_SCREENSHOT_SUBFOLDER_NAME, parent: rootId }, { fields: ["id"] }),
     );
     return created.id;
@@ -1324,13 +1386,13 @@ class DirectusStorage implements IStorage {
     formData.append("folder", folderId);
     formData.append("file", new Blob([file.buffer], { type: file.mimetype }), file.originalname);
 
-    const created = await this.client.request(uploadFiles(formData, { fields: ["id"] }));
+    const created = await this.request(uploadFiles(formData, { fields: ["id"] }));
     return created.id;
   }
 
   async updateProfile(userId: string, data: UpdateProfile): Promise<User | undefined> {
     try {
-      const updated = await this.client.request(
+      const updated = await this.request(
         updateUser(
           userId,
           {
@@ -1352,7 +1414,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getPublicMapsByUserId(userId: string): Promise<MapCollection[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter: { owner: { _eq: userId }, show_on_profile: { _eq: true }, archived: { _eq: false } },
         fields: MAP_FIELDS,
@@ -1365,7 +1427,7 @@ class DirectusStorage implements IStorage {
 
   async getPublicMapsByOwnerIds(ownerIds: string[]): Promise<MapCollection[]> {
     if (ownerIds.length === 0) return [];
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         // Eligible for the feed if the owner opted it into their profile, OR
         // it's a curated map — curated maps are already globally public via
@@ -1390,7 +1452,7 @@ class DirectusStorage implements IStorage {
     if (filters?.country) filter.curated_country = { _eq: filters.country };
     if (filters?.city) filter.curated_city = { _eq: filters.city };
 
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_collections", {
         filter,
         fields: MAP_FIELDS,
@@ -1404,7 +1466,7 @@ class DirectusStorage implements IStorage {
   async setMapsArchived(mapIds: string[], userId: string, archived: boolean): Promise<string[]> {
     if (mapIds.length === 0) return [];
 
-    const owned = await this.client.request(
+    const owned = await this.request(
       readItems("map_collections", {
         filter: { id: { _in: mapIds }, owner: { _eq: userId } },
         fields: ["id"],
@@ -1414,12 +1476,12 @@ class DirectusStorage implements IStorage {
     const ownedIds = (owned as Array<{ id: string }>).map((row) => row.id);
     if (ownedIds.length === 0) return [];
 
-    await this.client.request(updateItems("map_collections", ownedIds, { archived }));
+    await this.request(updateItems("map_collections", ownedIds, { archived }));
     return ownedIds;
   }
 
   async followUser(followerId: string, followingId: string): Promise<UserFollow> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem("user_follows", { follower: followerId, following: followingId }, { fields: FOLLOW_FIELDS }),
     );
     return toUserFollow(created as unknown as DirectusUserFollow);
@@ -1428,12 +1490,12 @@ class DirectusStorage implements IStorage {
   async unfollowUser(followerId: string, followingId: string): Promise<boolean> {
     const existing = await this.getFollowRelation(followerId, followingId);
     if (!existing) return false;
-    await this.client.request(deleteItem("user_follows", existing.id));
+    await this.request(deleteItem("user_follows", existing.id));
     return true;
   }
 
   async getFollowRelation(followerId: string, followingId: string): Promise<UserFollow | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("user_follows", {
         filter: { follower: { _eq: followerId }, following: { _eq: followingId } },
         fields: FOLLOW_FIELDS,
@@ -1445,35 +1507,35 @@ class DirectusStorage implements IStorage {
   }
 
   async getFollowerCount(userId: string): Promise<number> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("user_follows", { filter: { following: { _eq: userId } }, fields: ["id"], limit: -1 }),
     );
     return rows.length;
   }
 
   async getFollowingCount(userId: string): Promise<number> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("user_follows", { filter: { follower: { _eq: userId } }, fields: ["id"], limit: -1 }),
     );
     return rows.length;
   }
 
   async getFollowingIds(userId: string): Promise<string[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("user_follows", { filter: { follower: { _eq: userId } }, fields: ["following"], limit: -1 }),
     );
     return (rows as Array<{ following: string }>).map((row) => row.following);
   }
 
   async likeMap(userId: string, mapId: string): Promise<MapLike> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem("map_likes", { user: userId, map: mapId }, { fields: LIKE_FIELDS }),
     );
     return toMapLike(created as unknown as DirectusMapLike);
   }
 
   async unlikeMap(userId: string, mapId: string): Promise<boolean> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_likes", {
         filter: { user: { _eq: userId }, map: { _eq: mapId } },
         fields: ["id"],
@@ -1482,13 +1544,13 @@ class DirectusStorage implements IStorage {
     );
     const row = rows[0] as { id: string } | undefined;
     if (!row) return false;
-    await this.client.request(deleteItem("map_likes", row.id));
+    await this.request(deleteItem("map_likes", row.id));
     return true;
   }
 
   async getMapLikeCounts(mapIds: string[]): Promise<Record<string, number>> {
     if (mapIds.length === 0) return {};
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_likes", { filter: { map: { _in: mapIds } }, fields: ["map"], limit: -1 }),
     );
     const counts: Record<string, number> = {};
@@ -1498,7 +1560,7 @@ class DirectusStorage implements IStorage {
 
   async getUserLikedMapIds(userId: string, mapIds: string[]): Promise<Set<string>> {
     if (mapIds.length === 0) return new Set();
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_likes", {
         filter: { user: { _eq: userId }, map: { _in: mapIds } },
         fields: ["map"],
@@ -1509,7 +1571,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getPublishedPages(): Promise<Page[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_pages", {
         filter: { published: { _eq: true } },
         fields: PAGE_FIELDS,
@@ -1521,7 +1583,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getPublishedPageBySlug(slug: string): Promise<Page | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_pages", {
         filter: { slug: { _eq: slug }, published: { _eq: true } },
         fields: PAGE_FIELDS,
@@ -1533,7 +1595,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getPublishedMapTemplates(): Promise<MapTemplate[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_templates", {
         filter: { published: { _eq: true } },
         fields: MAP_TEMPLATE_FIELDS,
@@ -1545,7 +1607,7 @@ class DirectusStorage implements IStorage {
   }
 
   async createFolder(data: InsertFolder & { ownerId: string }): Promise<Folder> {
-    const created = await this.client.request(
+    const created = await this.request(
       createItem(
         "map_folders",
         { name: data.name, owner: data.ownerId, parent_folder: data.parentFolderId ?? null },
@@ -1556,7 +1618,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getFolderById(id: string): Promise<Folder | undefined> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_folders", { filter: { id: { _eq: id } }, fields: FOLDER_FIELDS, limit: 1 }),
     );
     const row = rows[0] as DirectusFolder | undefined;
@@ -1564,7 +1626,7 @@ class DirectusStorage implements IStorage {
   }
 
   async getFoldersByOwner(ownerId: string): Promise<Folder[]> {
-    const rows = await this.client.request(
+    const rows = await this.request(
       readItems("map_folders", { filter: { owner: { _eq: ownerId } }, fields: FOLDER_FIELDS, sort: ["name"], limit: -1 }),
     );
     return (rows as DirectusFolder[]).map(toFolder);
@@ -1576,7 +1638,7 @@ class DirectusStorage implements IStorage {
       if (data.name !== undefined) payload.name = data.name;
       if (data.parentFolderId !== undefined) payload.parent_folder = data.parentFolderId;
 
-      const updated = await this.client.request(updateItem("map_folders", id, payload, { fields: FOLDER_FIELDS }));
+      const updated = await this.request(updateItem("map_folders", id, payload, { fields: FOLDER_FIELDS }));
       return toFolder(updated as unknown as DirectusFolder);
     } catch (error) {
       console.error("Error updating folder:", error);
@@ -1586,7 +1648,7 @@ class DirectusStorage implements IStorage {
 
   async deleteFolder(id: string): Promise<boolean> {
     try {
-      await this.client.request(deleteItem("map_folders", id));
+      await this.request(deleteItem("map_folders", id));
       return true;
     } catch (error) {
       console.error("Error deleting folder:", error);

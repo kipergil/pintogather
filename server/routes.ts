@@ -346,12 +346,24 @@ export async function registerRoutes(app: Express): Promise<void> {
       errors.push(`Directus error: ${error.message}`);
     }
 
-    const status = errors.length > 0 ? "error" : "healthy";
+    // Deploying and applying the Directus schema are separate steps, so a
+    // release can be live against a schema that hasn't caught up. The app
+    // keeps working (see server/lib/schema-drift.ts) — but silently, which
+    // is how a whole feature can sit dormant unnoticed. Reported as
+    // "degraded" rather than an error: nothing is broken, something is
+    // pending, and a load balancer shouldn't pull the app for it.
+    const pendingSchemaFields = await storage.getPendingSchemaFields();
+
+    const status = errors.length > 0 ? "error" : pendingSchemaFields.length > 0 ? "degraded" : "healthy";
     res.status(errors.length > 0 ? 503 : 200).json({
       timestamp: new Date().toISOString(),
       status,
       uptime: process.uptime(),
       errors,
+      pendingSchemaFields,
+      ...(pendingSchemaFields.length > 0
+        ? { hint: 'Run "npm run directus:schema:apply" — these fields are missing from map_collections.' }
+        : {}),
     });
   });
 

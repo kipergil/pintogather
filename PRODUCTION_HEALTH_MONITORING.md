@@ -44,6 +44,22 @@ curl https://your-app.example.com/api/directus-health
 
 ## Response Formats
 
+### Pending Schema Example
+
+A release can be live before `npm run directus:schema:apply` has run against
+that instance. The app keeps working — see `server/lib/schema-drift.ts` — but
+any feature needing the new column stays dormant, so `/api/app-status`
+reports it rather than leaving it silent. HTTP 200: this is not an outage.
+
+```json
+{
+  "status": "degraded",
+  "errors": [],
+  "pendingSchemaFields": ["discover_status"],
+  "hint": "Run \"npm run directus:schema:apply\" — these fields are missing from map_collections."
+}
+```
+
 ### Healthy Status Example
 ```json
 {
