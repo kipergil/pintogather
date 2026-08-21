@@ -1,0 +1,94 @@
+name: Apply Directus schema
+
+# Applying the schema is a separate step from deploying the app, which is
+# how a release can end up asking Directus for a column that doesn't exist
+# yet. The server tolerates that now (server/lib/schema-drift.ts), but the
+# feature needing the column stays dormant until this runs. Doing it from
+# here means it doesn't depend on whoever merged having a local checkout
+# with admin credentials in it.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what the tool would change, without touching Directus"
+        type: boolean
+        default: false
+
+# Two runs applying schema to the same instance at once has no upside.
+concurrency:
+  group: directus-schema
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Set these as repository secrets. ADMIN_EMAIL/ADMIN_PASSWORD are a
+      # Directus *admin* login — creating a field is an admin operation, and
+      # the app's own DIRECTUS_SERVICE_TOKEN is deliberately scoped too
+      # narrowly to do it.
+      DIRECTUS_URL: ${{ secrets.DIRECTUS_URL }}
+      ADMIN_EMAIL: ${{ secrets.DIRECTUS_ADMIN_EMAIL }}
+      ADMIN_PASSWORD: ${{ secrets.DIRECTUS_ADMIN_PASSWORD }}
+      # Optional. APP_NAME and APP_BASE_URL only affect naming and the links
+      # in Flow emails; the tool has defaults for both.
+      APP_NAME: ${{ secrets.APP_NAME }}
+      APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+      # Optional: a direct Postgres URL, used only for the composite unique
+      # index Directus's schema API can't express. Skipped with a warning
+      # when unset — the app enforces the same constraint anyway.
+      DATABASE_URL: ${{ secrets.DIRECTUS_DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: directus/package-lock.json
+
+      - name: Check credentials are configured
+        # Without this the tool fails inside a Zod parse, which reads like a
+        # code error rather than "nobody has set the secrets yet".
+        run: |
+          missing=()
+          [ -n "$DIRECTUS_URL" ] || missing+=("DIRECTUS_URL")
+          [ -n "$ADMIN_EMAIL" ] || missing+=("DIRECTUS_ADMIN_EMAIL")
+          [ -n "$ADMIN_PASSWORD" ] || missing+=("DIRECTUS_ADMIN_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "Add them under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "Applying to $DIRECTUS_URL as $ADMIN_EMAIL"
+
+      - name: Install schema tooling
+        run: npm --prefix directus ci
+
+      - name: Typecheck schema tooling
+        # The definitions are TypeScript; a broken one should stop here
+        # rather than halfway through mutating a live instance.
+        run: npm --prefix directus run typecheck
+
+      - name: Apply schema
+        if: ${{ !inputs.dry_run }}
+        run: npm run directus:schema:apply
+
+      - name: Dry run — skipped applying
+        if: ${{ inputs.dry_run }}
+        run: echo "dry_run was set; schema was not applied."
+
+      - name: Report app status
+        # Informational, never fatal: a running server caches what the schema
+        # has for up to five minutes (RECHECK_AFTER_MS), so "degraded" here
+        # right after applying only means the cache hasn't expired yet.
+        if: ${{ always() && !inputs.dry_run }}
+        continue-on-error: true
+        run: |
+          base="${APP_BASE_URL:-https://pingather.vercel.app}"
+          echo "GET $base/api/app-status"
+          curl -fsS --max-time 20 "$base/api/app-status" || echo "(app-status unreachable)"
