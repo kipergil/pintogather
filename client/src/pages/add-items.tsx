@@ -828,7 +828,12 @@ export default function AddItems({ params }: AddItemsProps) {
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         placeholder={aiPlaceholder}
-                        rows={3}
+                        // 6 rather than a smaller bump: the base Textarea
+                        // carries min-h-[80px], and at text-sm (20px lines
+                        // plus py-2) anything up to 3 rows measures under
+                        // that floor — so rows={3} and rows={2} rendered at
+                        // exactly the same height, and 4 would barely show.
+                        rows={6}
                         className="text-sm"
                         data-testid="input-ai-prompt"
                       />
