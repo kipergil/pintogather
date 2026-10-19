@@ -17,6 +17,7 @@ import { searchVenues, buildGoogleMapsUrl, type VenueResult } from "@/lib/google
 import { getPrimaryVenueType } from "@/lib/venue-type";
 import { TIER_LIMITS } from "@shared/limits";
 import type { ItemType, PinColor, PinIcon } from "@shared/enums";
+import { stripDecoration, truncateDescription } from "@shared/text";
 import {
   ITEM_NOUN,
   looksLikeUrl,
@@ -224,7 +225,9 @@ export default function AddItems({ params }: AddItemsProps) {
           status: "resolved",
           url,
           name: currentName || preview.title || hostnameOf(url),
-          note: seed.note.trim() || preview.description || "",
+          // A page's own meta description is machine-written text landing in
+          // the same field as an AI note, so it answers to the same limit.
+          note: seed.note.trim() || truncateDescription(stripDecoration(preview.description ?? "")) || "",
           photoUrl: preview.imageUrl,
           previewFailed: false,
         });

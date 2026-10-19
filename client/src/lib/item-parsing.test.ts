@@ -65,6 +65,41 @@ describe("parseNameLines", () => {
     expect(parseNameLines("")).toEqual([]);
     expect(parseNameLines("   \n  ")).toEqual([]);
   });
+
+  describe("pasted lists arrive decorated", () => {
+    it("strips emoji from a name", () => {
+      expect(parseNameLines("\u{1F35C} Ichiran Ramen\n\u2728 Dishoom \u{1F525}")).toEqual([
+        { name: "Ichiran Ramen" },
+        { name: "Dishoom" },
+      ]);
+    });
+
+    it("strips the bullets and numbering a list was formatted with", () => {
+      expect(parseNameLines("- Dishoom\n\u2022 Padella\n1. Brat\n2) Hoppers")).toEqual([
+        { name: "Dishoom" },
+        { name: "Padella" },
+        { name: "Brat" },
+        { name: "Hoppers" },
+      ]);
+    });
+
+    it("drops a line that was nothing but decoration", () => {
+      // A heading row of stars or a divider line is not an item.
+      expect(parseNameLines("Dishoom\n\u2b50\u2b50\u2b50\n---\nPadella")).toEqual([
+        { name: "Dishoom" },
+        { name: "Padella" },
+      ]);
+    });
+
+    it("leaves real content alone, accents and symbols included", () => {
+      expect(parseNameLines("Caf\u00e9 Rouge\nBen & Jerry's\nBar 360\u00b0\n\u4e00\u862d\u30e9\u30fc\u30e1\u30f3")).toEqual([
+        { name: "Caf\u00e9 Rouge" },
+        { name: "Ben & Jerry's" },
+        { name: "Bar 360\u00b0" },
+        { name: "\u4e00\u862d\u30e9\u30fc\u30e1\u30f3" },
+      ]);
+    });
+  });
 });
 
 describe("parseUrlLines", () => {
@@ -104,6 +139,33 @@ describe("parseUrlLines", () => {
 
   it("does not swallow a trailing quote or bracket into the URL", () => {
     expect(parseUrlLines('"https://example.com/a"')[0].url).toBe("https://example.com/a");
+  });
+
+  describe("pasted link lists arrive decorated", () => {
+    it("strips emoji from the title but never from the URL", () => {
+      expect(parseUrlLines("\u{1F4DA} Worth reading \u2728 https://example.com/a")).toEqual([
+        { name: "Worth reading", url: "https://example.com/a" },
+      ]);
+    });
+
+    it("leaves a URL that contains something emoji-adjacent exactly as pasted", () => {
+      // A link is opaque: tidying a character out of one quietly breaks it.
+      const url = "https://example.com/path\u2192next?q=a\u2022b";
+      expect(parseUrlLines(url)[0].url).toBe(url);
+    });
+
+    it("keeps a bare URL whose line had nothing else on it", () => {
+      expect(parseUrlLines("\u2022 https://example.com/a")).toEqual([
+        { name: "", url: "https://example.com/a" },
+      ]);
+    });
+
+    it("drops a line that was only decoration", () => {
+      expect(parseUrlLines("https://example.com/a\n\u2728\u2728\nhttps://example.com/b")).toEqual([
+        { name: "", url: "https://example.com/a" },
+        { name: "", url: "https://example.com/b" },
+      ]);
+    });
   });
 });
 

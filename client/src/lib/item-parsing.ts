@@ -1,4 +1,5 @@
 import type { ItemType } from "@shared/enums";
+import { stripLineDecoration } from "@shared/text";
 
 /** The minimal shape every add-item source produces, matching what the AI extraction endpoint returns. */
 export interface ItemSeed {
@@ -31,12 +32,19 @@ export function hostnameOf(url: string): string {
   }
 }
 
-/** Names, one per line, first CSV column only. */
+/**
+ * Names, one per line, first CSV column only.
+ *
+ * Every line goes through `stripLineDecoration`: pasted lists arrive full
+ * of emoji, bullets and numbering, none of which belongs in a venue's name.
+ * A line that was nothing but decoration drops out rather than becoming a
+ * blank row.
+ */
 export function parseNameLines(text: string): ItemSeed[] {
   return text
     .split(/\r?\n/)
-    .map((line) => line.split(",")[0]?.trim() ?? "")
-    .filter((line) => line.length > 0)
+    .map((line) => stripLineDecoration(line.split(",")[0] ?? ""))
+    .filter((name) => name.length > 0)
     .map((name) => ({ name }));
 }
 
@@ -44,6 +52,9 @@ export function parseNameLines(text: string): ItemSeed[] {
  * URLs, one per line. Tolerates surrounding text ("Great read: https://…")
  * since pasted link lists are rarely clean, and keeps the leftover text as
  * the working title until the preview fetch replaces it.
+ *
+ * Only the leftover text is cleaned, never the URL itself — a link is
+ * opaque, and "tidying" a character out of one would quietly break it.
  */
 export function parseUrlLines(text: string): ItemSeed[] {
   return text
@@ -52,11 +63,11 @@ export function parseUrlLines(text: string): ItemSeed[] {
     .filter((line) => line.length > 0)
     .map((line) => {
       const match = line.match(URL_PATTERN);
-      if (!match) return { name: line };
+      if (!match) return { name: stripLineDecoration(line) };
       const url = match[0];
-      const leftover = line.replace(url, "").replace(/^[\s\-–—:|,]+|[\s\-–—:|,]+$/g, "");
-      return { name: leftover, url };
-    });
+      return { name: stripLineDecoration(line.replace(url, "")), url };
+    })
+    .filter((seed) => seed.name.length > 0 || !!seed.url);
 }
 
 export function parseText(text: string, itemType: ItemType): ItemSeed[] {
