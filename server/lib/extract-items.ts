@@ -1,4 +1,8 @@
 import type { ItemType } from "../../shared/enums.js";
+import { DESCRIPTION_MAX_CHARS, stripDecoration, truncateDescription } from "../../shared/text.js";
+
+/** The title column caps here (see pinFieldsSchema), and a name past it would fail the whole bulk insert rather than just itself. */
+const NAME_MAX_CHARS = 255;
 
 /**
  * Extraction prompts per collection item type. All three return the same
@@ -8,8 +12,10 @@ import type { ItemType } from "../../shared/enums.js";
  */
 const EXTRACT_SHAPE_INSTRUCTION =
   'Respond with ONLY a JSON array of up to 15 objects — no explanation, no markdown fences. Each object has ' +
-  '"name" (required, a short title) and optionally "url" (an absolute http/https link) and "note" (one sentence ' +
-  "of context). Omit a key entirely rather than sending an empty string. If you find nothing, respond with [].";
+  '"name" (required, a short title) and optionally "url" (an absolute http/https link) and "note" (one or two ' +
+  `sentences of context, at most ${DESCRIPTION_MAX_CHARS} characters). Use plain text only — no emoji, stars, ` +
+  "arrows or other decorative symbols. Omit a key entirely rather than sending an empty string. If you find " +
+  "nothing, respond with [].";
 
 export const EXTRACT_SYSTEM_PROMPTS: Record<ItemType, { fromPrompt: string; fromImages: string }> = {
   location: {
@@ -67,6 +73,11 @@ export interface ExtractedItem {
  * Parses Claude's reply into ExtractedItems. Accepts both the object array
  * the prompts ask for and a bare string array, since older clients and the
  * occasional stubborn model response still produce the latter.
+ *
+ * Both text fields are cleaned and bounded here rather than trusted: the
+ * prompt asks for plain text within a length, and a model that ignores
+ * either shouldn't be able to put a wall of emoji on a pin — or, worse,
+ * fail somebody's whole import by one character of overrun.
  */
 export function parseExtractedItems(raw: string): ExtractedItem[] {
   let parsed: unknown;
@@ -81,13 +92,13 @@ export function parseExtractedItems(raw: string): ExtractedItem[] {
   const items: ExtractedItem[] = [];
   for (const entry of parsed) {
     if (typeof entry === "string") {
-      const name = entry.trim();
+      const name = cleanName(entry);
       if (name) items.push({ name });
       continue;
     }
     if (!entry || typeof entry !== "object") continue;
     const record = entry as Record<string, unknown>;
-    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const name = typeof record.name === "string" ? cleanName(record.name) : "";
     if (!name) continue;
     const item: ExtractedItem = { name };
     // Only absolute http(s) URLs survive — a relative or malformed one would
@@ -95,8 +106,16 @@ export function parseExtractedItems(raw: string): ExtractedItem[] {
     if (typeof record.url === "string" && /^https?:\/\/\S+$/i.test(record.url.trim())) {
       item.url = record.url.trim();
     }
-    if (typeof record.note === "string" && record.note.trim()) item.note = record.note.trim();
+    if (typeof record.note === "string") {
+      const note = truncateDescription(stripDecoration(record.note), DESCRIPTION_MAX_CHARS);
+      if (note) item.note = note;
+    }
     items.push(item);
   }
   return items;
+}
+
+/** A name is a title, not prose: decoration off, and hard-capped at what the column accepts. */
+function cleanName(value: string): string {
+  return stripDecoration(value).slice(0, NAME_MAX_CHARS).trim();
 }
