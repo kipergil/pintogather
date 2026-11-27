@@ -49,6 +49,7 @@ import { TIER_LIMITS } from "@shared/limits";
 import { isUpgradeableError, upgradeToastAction } from "@/lib/upgradeToast";
 import { useCreateFolder, useDeleteFolder, useFolders, useUpdateFolder } from "@/hooks/useFolders";
 import { FolderBrowser } from "@/components/folder-browser";
+import { SupportBox } from "@/components/support-box";
 import type { Folder } from "@shared/schema";
 
 export default function Home() {
@@ -240,6 +241,10 @@ export default function Home() {
         )}
 
         <UseCasesSection showCta={!user} />
+
+        {/* Last thing on the page, after the use cases have made the case —
+            shown to signed-in and signed-out visitors alike. */}
+        <SupportBox className="mb-4" />
       </main>
 
       {/* Delete Map Modal */}

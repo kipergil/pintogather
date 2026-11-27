@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 import { getPricingTiers } from "@shared/pricing";
 import { APP_NAME } from "@/lib/branding";
+import { SupportBox } from "@/components/support-box";
 import { Check, Loader2 } from "lucide-react";
 
 const PRICING_TIERS = getPricingTiers(APP_NAME);
@@ -156,6 +157,14 @@ export default function Pricing() {
           );
         })}
       </div>
+
+      {/* Here on purpose: someone reading the plans is already weighing
+          whether to put money behind this, and a one-off coffee is the
+          answer for the many who won't want a subscription. */}
+      <SupportBox
+        title="Not ready for a plan?"
+        description={`A one-off coffee helps just as much. ${APP_NAME} is built and run by one person, and support is what buys the time for the next feature.`}
+      />
     </main>
   );
 }
