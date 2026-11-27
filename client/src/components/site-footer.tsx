@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { APP_NAME } from "@/lib/branding";
+import { SupportLink } from "@/components/support-box";
 
 interface CmsPageSummary {
   slug: string;
@@ -18,9 +19,12 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border/80 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} {APP_NAME}
-        </p>
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-5">
+          <p className="text-sm text-muted-foreground">
+            &copy; {new Date().getFullYear()} {APP_NAME}
+          </p>
+          <SupportLink />
+        </div>
         {pages && pages.length > 0 && (
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             {pages.map((page) => (
